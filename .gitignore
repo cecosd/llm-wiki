@@ -1,0 +1,39 @@
+# Dependencies
+node_modules/
+
+# Your library (personal data): keep it out of the public repository.
+# The structure is kept by the .gitkeep files and the templates below.
+/raw/*
+!/raw/.gitkeep
+/wiki/index.md
+/wiki/log.md
+/wiki/overview.md
+/wiki/log.md.new
+/wiki/sources/*
+!/wiki/sources/chapters/
+/wiki/sources/chapters/*
+/wiki/concepts/*
+/wiki/entities/*
+/wiki/topics/*
+/wiki/comparisons/*
+/wiki/questions/*
+!/wiki/**/.gitkeep
+/drafts/
+/outputs/*
+!/outputs/.gitkeep
+/.ocr-data/
+/.library-git/
+
+# Local settings and personal files
+/library.config.json
+/.wiki-launch
+/CLAUDE.local.md
+/.claude/settings.local.json
+/.claude/scheduled_tasks.lock
+
+# OS junk (Windows download markers, macOS, Obsidian)
+*Zone.Identifier
+.DS_Store
+.obsidian/workspace*.json
+Thumbs.db
+CLAUDE.md.bak
