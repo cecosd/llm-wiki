@@ -17,6 +17,7 @@ import { importPaper } from './discover.js';
 import { estimate } from './estimate.js';
 import { checkSetup, testClaude, accountTerms } from './setup.js';
 import { versionInfo, checkCode, checkPackages, latestResults, runTests, testsBusy } from './updates.js';
+import { authEnabled, isLocked, verifyPassword, setPassword, clearPassword, validPassword, hasSession, startSession, endSession, MIN_PASSWORD } from './auth.js';
 import { areaMap, areaKey, listAreas, setArea, renameArea, proposeClassification, applyAssignments, scopeFilter } from './areas.js';
 import { $t, pickLang, runWithLang, locales, messagesFor, hasLocale, contentLang } from './i18n.js';
 import { packs, installPack } from './content-pack.js';
@@ -32,11 +33,57 @@ const app = express();
 const WIKI_HOST = String(process.env.WIKI_HOST || 'my.wiki').toLowerCase();
 const ALLOWED_HOSTS = new Set([`localhost:${PORT}`, `127.0.0.1:${PORT}`, `[::1]:${PORT}`, WIKI_HOST, `${WIKI_HOST}:${PORT}`]);
 app.use((req, res, next) => runWithLang(pickLang(req), next)); // езикът на заявката важи за всички $t() под нея
+app.disable('x-powered-by');
+// Втора защита след пречистването на HTML: вграден код и чужди адреси не работят.
+// 'unsafe-eval' е нужен на шаблоните на Vue, а 'unsafe-inline' за стилове на Tailwind; вграден скрипт остава забранен.
+const CSP = ["default-src 'self'", "script-src 'self' 'unsafe-eval'", "style-src 'self' 'unsafe-inline'", "img-src 'self' data: blob:", "font-src 'self'", "connect-src 'self'", "object-src 'none'", "base-uri 'none'", "form-action 'self'", "frame-ancestors 'none'"].join('; ');
+/** Заявка от друг сайт. Самостоятелно отваряне на адрес (връзка от друго място) е позволено, но не и вграждане и fetch. */
+function fromElsewhere(req) {
+  const origin = req.headers.origin;
+  if (origin) {
+    try { if (new URL(origin).host !== req.headers.host) return true; } catch { return true; } // и 'null' от изолирани страници
+  }
+  const site = req.headers['sec-fetch-site'];
+  if (!site || site === 'same-origin' || site === 'none') return false;
+  return !(req.method === 'GET' && req.headers['sec-fetch-mode'] === 'navigate');
+}
 app.use((req, res, next) => {
+  res.set({ 'Content-Security-Policy': CSP, 'X-Content-Type-Options': 'nosniff', 'Referrer-Policy': 'no-referrer', 'Cross-Origin-Opener-Policy': 'same-origin', 'Cross-Origin-Resource-Policy': 'same-origin' });
+  if (req.path.startsWith('/api/')) res.set('Cache-Control', 'no-store');
   if (!ALLOWED_HOSTS.has(req.headers.host)) return res.status(403).send($t('Localhost only'));
-  if (req.method !== 'GET' && req.headers['x-library'] !== '1') return res.status(403).send($t('Forbidden'));
+  if (fromElsewhere(req)) return res.status(403).send($t('Forbidden'));
+  const isLogin = req.method === 'POST' && req.path === '/login'; // формата за вход няма как да прати заглавка; проверен е Origin
+  if (req.method !== 'GET' && req.method !== 'HEAD' && req.headers['x-library'] !== '1' && !isLogin) return res.status(403).send($t('Forbidden'));
   next();
 });
+
+// --- Парола за интерфейса (по избор) ---
+function loginPage(req, res, failed) {
+  const e = failed ? `<p style="color:#b4532a;margin:0 0 12px">${isLocked() ? $t('Too many attempts. Try again in a minute.') : $t('Wrong password.')}</p>` : '';
+  res.status(failed ? 401 : 200).type('html').send(`<!doctype html><html lang="${pickLang(req)}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>${$t('Sign in')}</title><style>body{margin:0;min-height:100vh;display:grid;place-items:center;background:#f6f3ec;color:#26231e;font:16px system-ui,sans-serif}form{width:min(340px,calc(100vw - 32px));padding:24px;background:#fffdf9;border:1px solid #e4dfd3;border-radius:16px;box-sizing:border-box}h1{font-size:20px;margin:0 0 16px}input,button{width:100%;box-sizing:border-box;padding:10px 12px;font:inherit;border-radius:10px}input{border:1px solid #cfc8b8;margin-bottom:12px}button{border:0;background:#2f6f62;color:#fff;cursor:pointer}@media (prefers-color-scheme:dark){body{background:#1c1b18;color:#ece7dc}form{background:#262420;border-color:#3a372f}input{background:#1c1b18;color:inherit;border-color:#4a463c}}</style></head><body><form method="post" action="/login"><h1>${$t('Sign in')}</h1>${e}<input type="password" name="password" autocomplete="current-password" aria-label="${$t('Password')}" placeholder="${$t('Password')}" autofocus required><button type="submit">${$t('Sign in')}</button></form></body></html>`);
+}
+app.get('/login', (req, res) => (authEnabled() && !hasSession(req) ? loginPage(req, res, false) : res.redirect('/')));
+app.post('/login', express.urlencoded({ extended: false, limit: '4kb' }), async (req, res) => {
+  if (!authEnabled()) return res.redirect('/');
+  if (!(await verifyPassword(req.body?.password))) return loginPage(req, res, true);
+  startSession(res);
+  res.redirect(303, '/');
+});
+app.use((req, res, next) => {
+  if (!authEnabled() || hasSession(req)) return next();
+  if (req.method === 'GET' && !req.path.startsWith('/api/') && req.accepts('html') && req.path === '/') return res.redirect('/login');
+  res.status(401).json({ ok: false, error: $t('Sign in first.') });
+});
+app.post('/api/auth/password', express.json({ limit: '8kb' }), async (req, res) => {
+  const { current, password } = req.body || {};
+  if (authEnabled() && !(await verifyPassword(current))) return res.json({ ok: false, error: isLocked() ? $t('Too many attempts. Try again in a minute.') : $t('Wrong password.') });
+  if (password === null) { clearPassword(); return res.json({ ok: true, auth: false }); }
+  if (!validPassword(password)) return res.json({ ok: false, error: $t('The password must have at least {0} characters.', [MIN_PASSWORD]) });
+  await setPassword(password);
+  startSession(res);
+  res.json({ ok: true, auth: true });
+});
+app.post('/api/auth/logout', (req, res) => { endSession(req, res); res.json({ ok: true }); });
 
 // --- Помощни ---
 const SPECIAL = new Set(['index', 'log', 'overview']);
@@ -824,7 +871,7 @@ app.get('/api/setup', (_req, res) => res.json(checkSetup()));
 app.post('/api/setup/test', async (_req, res) => res.json(await testClaude()));
 
 // Страница „Настройки“. GET не излиза от компютъра; POST маршрутите се пускат само с бутон.
-app.get('/api/settings', (_req, res) => res.json({ ...versionInfo(), contentLang: contentLang(), account: accountTerms(), tests: latestResults(), testsRunning: testsBusy() }));
+app.get('/api/settings', (_req, res) => res.json({ ...versionInfo(), contentLang: contentLang(), account: accountTerms(), tests: latestResults(), testsRunning: testsBusy(), auth: authEnabled() }));
 app.post('/api/updates/code', async (_req, res) => res.json(await checkCode()));
 app.post('/api/updates/packages', async (_req, res) => res.json(await checkPackages()));
 app.post('/api/tests/run', async (_req, res) => res.json(await runTests()));
@@ -939,6 +986,10 @@ for (const dir of [WIKI, RAW]) {
 app.get('/raw/*splat', (req, res) => {
   const target = path.resolve(RAW, ...[].concat(req.params.splat));
   if (!target.startsWith(RAW + path.sep) || target.includes(`${path.sep}.extracted${path.sep}`) || !fs.existsSync(target)) return res.status(404).send($t('There is no such file'));
+  // Качен HTML или SVG не бива да се изпълнява като част от приложението: отваря се изолиран, без достъп до него.
+  // PDF и обикновените изображения не носят код към страницата, а вграденият четец на браузъра не работи с тази защита.
+  if (/\.(pdf|png|jpe?g|gif|webp|bmp|ico|tiff?)$/i.test(target)) res.removeHeader('Content-Security-Policy');
+  else res.set('Content-Security-Policy', "sandbox; default-src 'none'; img-src data:; style-src 'unsafe-inline'");
   res.sendFile(target);
 });
 

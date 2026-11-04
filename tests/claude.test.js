@@ -66,7 +66,7 @@ test(T('claude', 'A question to Claude gets an answer and sends only read-only p
   assert.equal(r.status, 200, r.body);
   assert.match(r.json.answer, /Fake answer/);
   const call = box.claudeCalls().at(-1);
-  assert.equal(call.args[call.args.indexOf('--allowedTools') + 1], 'Read,Glob,Grep');
+  assert.equal(call.args[call.args.indexOf('--allowedTools') + 1], 'Read(./**),Glob,Grep');
   assert.match(call.stdin, /What is entropy\?/);
 });
 

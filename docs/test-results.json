@@ -1,16 +1,16 @@
 {
-  "version": "1.1.0",
-  "date": "2026-11-04T15:51:04.698Z",
-  "durationMs": 11015,
+  "version": "1.2.0",
+  "date": "2026-11-04T17:32:07.144Z",
+  "durationMs": 15931,
   "environment": {
     "platform": "linux",
     "node": "26.12.1"
   },
   "summary": {
-    "total": 58,
-    "pass": 54,
+    "total": 62,
+    "pass": 61,
     "fail": 0,
-    "known": 4,
+    "known": 1,
     "notRun": 0,
     "notCovered": 7
   },
@@ -321,31 +321,43 @@
       "group": "security",
       "en": "Content from a document cannot run code in the browser",
       "bg": "Съдържание от документ не може да изпълни код в браузъра",
-      "status": "known",
-      "note": {
-        "en": "Page text is rendered from Markdown without a sanitizer and without a Content-Security-Policy, so HTML hidden in a source could reach the page. Open documents only from sources you trust.",
-        "bg": "Текстът на страниците се показва от Markdown без пречистване и без Content-Security-Policy, затова HTML, скрит в източник, може да стигне до страницата. Отваряйте само документи от източници, на които имате доверие."
-      }
+      "status": "pass"
+    },
+    {
+      "group": "security",
+      "en": "Pages have a strict Content-Security-Policy and safe headers",
+      "bg": "Страниците имат строга Content-Security-Policy и безопасни заглавки",
+      "status": "pass"
+    },
+    {
+      "group": "security",
+      "en": "Uploaded HTML and SVG open isolated from the application",
+      "bg": "Качени HTML и SVG се отварят изолирани от приложението",
+      "status": "pass"
+    },
+    {
+      "group": "security",
+      "en": "Other websites cannot read data even with a simple request",
+      "bg": "Други сайтове не могат да четат данни дори с обикновена заявка",
+      "status": "pass"
     },
     {
       "group": "security",
       "en": "Claude can read only inside the project folder",
       "bg": "Claude може да чете само в папката на проекта",
-      "status": "known",
-      "note": {
-        "en": "The Read tool is allowed without a path limit. A hostile document could try to make Claude read other files on the computer; there is no network tool to carry them away, but the text reaches Anthropic and may land in a wiki page.",
-        "bg": "Инструментът Read е разрешен без ограничение на пътя. Враждебен документ може да опита да накара Claude да чете други файлове на компютъра. Няма мрежов инструмент, с който да ги изнесе, но текстът стига до Anthropic и може да попадне в страница."
-      }
+      "status": "pass"
     },
     {
       "group": "security",
-      "en": "The local interface asks for a password",
-      "bg": "Локалният интерфейс иска парола",
-      "status": "known",
-      "note": {
-        "en": "There are no users or passwords: anyone with access to your account on this computer can open the library.",
-        "bg": "Няма потребители и пароли: всеки с достъп до вашия акаунт на този компютър може да отвори библиотеката."
-      }
+      "en": "The addresses are checked at the moment of connecting (DNS rebinding)",
+      "bg": "Адресите се проверяват в момента на свързване (DNS rebinding)",
+      "status": "pass"
+    },
+    {
+      "group": "security",
+      "en": "When a password is set, nothing opens without signing in",
+      "bg": "Когато е зададена парола, нищо не се отваря без вход",
+      "status": "pass"
     },
     {
       "group": "security",
@@ -467,34 +479,6 @@
   "packages": {
     "outdated": [
       {
-        "name": "@napi-rs/canvas",
-        "current": "1.0.13",
-        "wanted": "1.1.0",
-        "latest": "1.1.0",
-        "major": false
-      },
-      {
-        "name": "@tailwindcss/browser",
-        "current": "4.3.3",
-        "wanted": "4.3.4",
-        "latest": "4.3.4",
-        "major": false
-      },
-      {
-        "name": "marked",
-        "current": "18.1.2",
-        "wanted": "18.1.3",
-        "latest": "18.1.3",
-        "major": false
-      },
-      {
-        "name": "pdfjs-dist",
-        "current": "6.4.299",
-        "wanted": "6.5.438",
-        "latest": "6.5.438",
-        "major": false
-      },
-      {
         "name": "unpdf",
         "current": "1.9.1",
         "wanted": "1.9.1",
@@ -503,10 +487,10 @@
       }
     ],
     "audit": {
-      "total": 8,
+      "total": 0,
       "critical": 0,
       "high": 0,
-      "moderate": 8,
+      "moderate": 0,
       "low": 0
     }
   }

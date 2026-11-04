@@ -156,7 +156,58 @@ function renderMarkdown(content, known, titles, opts = {}) {
   body = body.replace(/\[\[([^\]|#]+)(?:#[^\]|]*)?(?:\|([^\]]*))?\]\]/g, (_, t, a) => wl(t, a).html);
   // 3) самостоятелно „с. N“ на страница с източник
   if (opts.readerSrc) body = body.replace(new RegExp(`(?<![>\\w])${PAGE_RE}`, 'g'), (m, unit, num) => pg(opts.readerSrc, num, m));
-  return marked.parse(body, { gfm: true });
+  return sanitizeHtml(marked.parse(body, { gfm: true }));
+}
+
+// ---------- Пречистване на HTML ----------
+// Текстът идва от документи и от Claude, затова не му се вярва: остават само безопасни елементи, атрибути и адреси.
+// Разбира се от инертен документ (нищо в него не се изпълнява и не се зарежда). Втората защита е Content-Security-Policy.
+const SAFE_TAGS = new Set('A ABBR B BLOCKQUOTE BR CAPTION CITE CODE DD DEL DETAILS DFN DIV DL DT EM FIGCAPTION FIGURE H1 H2 H3 H4 H5 H6 HR I IMG INPUT INS KBD LI MARK OL P PRE Q S SAMP SMALL SPAN STRONG SUB SUMMARY SUP TABLE TBODY TD TFOOT TH THEAD TR U UL VAR'.split(' '));
+const DROP_WITH_CONTENT = new Set('SCRIPT STYLE IFRAME FRAME FRAMESET OBJECT EMBED APPLET NOSCRIPT NOEMBED NOFRAMES TEMPLATE SVG MATH TITLE TEXTAREA XMP PLAINTEXT LISTING LINK META BASE FORM SELECT BUTTON AUDIO VIDEO SOURCE TRACK CANVAS MARQUEE'.split(' '));
+const SAFE_ATTRS = {
+  A: ['href', 'title', 'class', 'data-slug', 'data-src', 'data-page'], IMG: ['src', 'alt', 'title'], CODE: ['class'],
+  TD: ['align', 'colspan', 'rowspan'], TH: ['align', 'colspan', 'rowspan', 'scope'], OL: ['start'], DETAILS: ['open'],
+  INPUT: ['type', 'checked', 'disabled'], ABBR: ['title'], DFN: ['title'],
+};
+const SAFE_CLASS = /^(wl|pg|missing|language-[\w-]+)$/; // чужд клас може да покрие екрана с подвеждащ елемент
+
+function safeUrl(value, isImage) {
+  // Браузърът пренебрегва контролни и невидими знаци в адреса, затова и проверката не бива да ги вижда.
+  const v = [...String(value)].filter((c) => { const n = c.codePointAt(0); return n > 32 && !(n >= 127 && n <= 160) && !(n >= 8203 && n <= 8207) && n !== 8232 && n !== 8233 && n !== 65279; }).join('');
+  const scheme = v.match(/^([a-z][a-z0-9+.-]*):/i)?.[1]?.toLowerCase();
+  if (!scheme) return !v.startsWith('\\');
+  if (isImage) return scheme === 'https' || scheme === 'http' || /^data:image\/(png|jpe?g|gif|webp);/i.test(v);
+  return scheme === 'https' || scheme === 'http' || scheme === 'mailto';
+}
+
+function cleanNode(parent) {
+  for (const node of [...parent.childNodes]) {
+    if (node.nodeType === 3) continue; // текст
+    if (node.nodeType !== 1) { node.remove(); continue; } // коментари и всичко останало
+    const tag = node.tagName.toUpperCase();
+    if (node.namespaceURI !== 'http://www.w3.org/1999/xhtml' || DROP_WITH_CONTENT.has(tag)) { node.remove(); continue; }
+    cleanNode(node);
+    if (!SAFE_TAGS.has(tag)) { node.replaceWith(...node.childNodes); continue; }
+    const allowed = SAFE_ATTRS[tag] || [];
+    for (const { name, value } of [...node.attributes]) {
+      const n = name.toLowerCase();
+      if (!allowed.includes(n) || ((n === 'href' || n === 'src') && !safeUrl(value, n === 'src'))) node.removeAttribute(name);
+      else if (n === 'class') {
+        const keep = value.split(/\s+/).filter((c) => SAFE_CLASS.test(c)).join(' ');
+        if (keep) node.setAttribute('class', keep); else node.removeAttribute('class');
+      }
+    }
+    if (tag === 'INPUT') { // остават само отметките от Markdown списъци
+      if (String(node.getAttribute('type')).toLowerCase() !== 'checkbox') { node.remove(); continue; }
+      node.setAttribute('disabled', '');
+    }
+  }
+}
+
+function sanitizeHtml(html) {
+  const doc = new DOMParser().parseFromString(`<!doctype html><html><body>${html}</body></html>`, 'text/html');
+  cleanNode(doc.body);
+  return doc.body.innerHTML;
 }
 
 // ---------- Компоненти ----------
@@ -387,7 +438,7 @@ const PageView = defineComponent({
     html() { this.$nextTick(this.buildToc); },
   },
   methods: {
-    inline: (s) => marked.parseInline(String(s)),
+    inline: (s) => sanitizeHtml(marked.parseInline(String(s))),
     async load(scrollTop = true) {
       const r = await fetch('/api/page/' + encodeURIComponent(this.slug));
       if (!r.ok) { this.error = true; this.page = null; document.title = $t('Missing · Library'); return; }
@@ -1121,7 +1172,7 @@ const SetupView = defineComponent({
 const SettingsView = defineComponent({
   template: '#tpl-settings',
   emits: ['copy'],
-  data: () => ({ info: null, code: null, packages: null, tests: null, testError: '', busy: { code: false, packages: false, tests: false } }),
+  data: () => ({ info: null, code: null, packages: null, tests: null, testError: '', busy: { code: false, packages: false, tests: false, auth: false }, pw: { current: '', next: '', message: '', bad: false } }),
   computed: {
     updateCmd() {
       const pack = this.info?.contentLang && this.info.contentLang !== 'en' ? ` && npm run content -- ${this.info.contentLang}` : '';
@@ -1156,6 +1207,20 @@ const SettingsView = defineComponent({
     async checkPackages() {
       const d = await this.post('packages', '/api/updates/packages');
       this.packages = d.outdated ? d : { outdated: { ok: false, error: d.error }, audit: { ok: false, error: d.error } };
+    },
+    async savePassword(remove) {
+      this.busy.auth = true;
+      try {
+        const body = JSON.stringify({ current: this.pw.current, password: remove ? null : this.pw.next });
+        const d = await (await api('/api/auth/password', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body })).json();
+        this.pw.bad = !d.ok;
+        this.pw.message = d.ok ? (remove ? $t('The password was removed.') : $t('The password was saved.')) : d.error;
+        if (d.ok) { this.pw.current = ''; this.pw.next = ''; this.info.auth = d.auth; }
+      } catch { this.pw.bad = true; this.pw.message = $t('The server is not responding.'); }
+      finally { this.busy.auth = false; }
+    },
+    async signOut() {
+      try { await api('/api/auth/logout', { method: 'POST' }); } finally { location.href = '/login'; }
     },
     async runTests() {
       this.testError = '';

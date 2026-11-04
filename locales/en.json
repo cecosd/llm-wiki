@@ -1095,6 +1095,25 @@
     "GitHub could not be reached: {0}": "GitHub could not be reached: {0}",
     "npm did not answer in time.": "npm did not answer in time.",
     "npm returned no answer.": "npm returned no answer.",
-    "The tests are already running.": "The tests are already running."
+    "The tests are already running.": "The tests are already running.",
+    "Sign in": "Sign in",
+    "Password": "Password",
+    "Sign in first.": "Sign in first.",
+    "Wrong password.": "Wrong password.",
+    "Too many attempts. Try again in a minute.": "Too many attempts. Try again in a minute.",
+    "The password must have at least {0} characters.": "The password must have at least {0} characters.",
+    "Password for this interface": "Password for this interface",
+    "Off by default. It stops other people and programs on this computer from opening the library through the browser. It does not encrypt the files.": "Off by default. It stops other people and programs on this computer from opening the library through the browser. It does not encrypt the files.",
+    "The password is on.": "The password is on.",
+    "The password is off.": "The password is off.",
+    "Current password": "Current password",
+    "New password (at least 8 characters)": "New password (at least 8 characters)",
+    "Change the password": "Change the password",
+    "Set a password": "Set a password",
+    "Remove the password": "Remove the password",
+    "Sign out": "Sign out",
+    "The password was removed.": "The password was removed.",
+    "The password was saved.": "The password was saved.",
+    "If you forget it, stop the application and delete the file .library-auth.json in the project folder.": "If you forget it, stop the application and delete the file .library-auth.json in the project folder."
   }
 }

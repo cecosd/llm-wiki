@@ -166,7 +166,7 @@ Content you process with Claude goes to Anthropic through Claude Code. Reading, 
 
 ## Security and tests
 
-The application is designed for one person on their own computer, with documents they trust. Protections and known limitations, including an unsanitized HTML risk in page rendering, are listed in [SECURITY.md](SECURITY.md).
+The application is designed for one person on their own computer. Protections and known limitations are listed in [SECURITY.md](SECURITY.md). An optional password for the interface is on the Settings page.
 
 `npm test` runs the real server in a temporary copy with a simulated Claude: it does not touch your library and spends no tokens. Results are shown on the Settings page and the product page, including what is known not to work and what is not tested.
 

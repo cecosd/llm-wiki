@@ -17,8 +17,12 @@ const SETTINGS_FILE = path.join(ROOT, 'library.config.json');
 const HISTORY_FILE = path.join(OUTPUTS, '.agent-history.json');
 const IS_WIN = process.platform === 'win32';
 
+// Read е ограничен до проекта с правило. Grep и Glob трябва да са разрешени по име, иначе в режим dontAsk изчезват,
+// затова и трите минават през куката guard-read.js, която важи и за подагента.
+const READ_TOOLS = ['Read(./**)', 'Glob', 'Grep'];
+const DENIED_TOOLS = ['WebFetch', 'WebSearch', 'Read(./.git/**)', 'Read(./.library-git/**)', 'Read(./.library-auth.json)', 'Read(./library.config.json)', 'Read(.env)', 'Read(~/.ssh/**)', 'Read(~/.aws/**)', 'Read(~/.gnupg/**)'];
 const ALLOWED_TOOLS = [
-  'Read', 'Glob', 'Grep', 'TodoWrite',
+  'Read(./**)', 'Glob', 'Grep', 'TodoWrite',
   'Agent(chapter-reader)', // четецът на глави в икономичен режим (само чете)
   'Edit(wiki/**)', // покрива и Write: Claude Code проверява писането по Edit правилата
   'Edit(outputs/**)', // отчетите от синтеза и проверките
@@ -98,6 +102,18 @@ const HISTORY_GIT = path.join(ROOT, '.library-git');
 function git(args) {
   const r = spawnSync('git', ['-c', 'user.name=Library', '-c', 'user.email=library@localhost', '-c', 'core.quotepath=false', `--git-dir=${HISTORY_GIT}`, `--work-tree=${ROOT}`, ...args], { cwd: ROOT, encoding: 'utf8' });
   return { ok: r.status === 0, out: (r.stdout || '').trim(), err: (r.stderr || '').trim() };
+}
+
+/**
+ * Аргументите за сигурност на всяко пускане на Claude. Настройките се записват наново всеки път, така че страница,
+ * подведена от документ, да не може да ги промени за следващото пускане (Claude може да пише в outputs/).
+ */
+export function guardArgs() {
+  const file = path.join(ROOT, 'outputs', '.claude-guard.json');
+  const slash = (p) => p.split(path.sep).join('/');
+  const command = `"${slash(process.execPath)}" "${slash(path.join(ROOT, 'scripts', 'guard-read.js'))}"`;
+  writeJSON(file, { hooks: { PreToolUse: [{ matcher: 'Read|Grep|Glob', hooks: [{ type: 'command', command }] }] } });
+  return ['--settings', file, '--disallowedTools', DENIED_TOOLS.join(',')];
 }
 
 /** Намира изпълнимия файл на claude (на Windows: claude.exe или claude.cmd от npm) */
@@ -213,7 +229,7 @@ export function askClaude({ prompt, model, effort, maxTurns = 20, timeoutMs = 30
     const bin = findClaude();
     if (!bin) return resolve({ ok: false, kind: 'no-claude', error: $t('Claude Code was not found. Install it and sign in to your account.') });
     const args = ['-p', '--output-format', 'json', '--model', model, ...(effort ? ['--effort', effort] : []),
-      '--max-turns', String(maxTurns), '--permission-mode', 'dontAsk', '--allowedTools', 'Read,Glob,Grep'];
+      '--max-turns', String(maxTurns), '--permission-mode', 'dontAsk', '--allowedTools', READ_TOOLS.join(','), ...guardArgs()];
     const opts = { cwd: ROOT, stdio: ['pipe', 'pipe', 'pipe'], windowsHide: true };
     const child = bin.shell ? spawn([winQuote(bin.cmd), ...args.map(winQuote)].join(' '), { ...opts, shell: true }) : spawn(bin.cmd, args, opts);
     let out = '', err = '', done = false;
@@ -409,7 +425,7 @@ export function createAgent({ broadcast }) {
     const note = [systemNote(), job.kind !== 'synthesis' && delegateNote, job.kind !== 'synthesis' && LANG_NOTES[st.lang], areaNote(job.kind)].filter(Boolean).join(' ');
     const args = ['-p', prompt, '--output-format', 'stream-json', '--verbose',
       '--model', model, ...(effort ? ['--effort', effort] : []),
-      '--permission-mode', 'dontAsk', '--allowedTools', ALLOWED_TOOLS.join(','),
+      '--permission-mode', 'dontAsk', '--allowedTools', ALLOWED_TOOLS.join(','), ...guardArgs(),
       '--append-system-prompt', note];
     if (eff.delegate && eff.reader !== 'haiku') { const aj = readerAgentsJson(eff.reader); if (aj) args.push('--agents', aj); }
     step(job, { icon: 'sparkle', text: $t('Writing: {0}{1}', [model, eff.delegate ? $t(' · reading chapters: {0}', [eff.reader]) : $t(' · the same model reads the chapters')]) });

@@ -1095,6 +1095,25 @@
     "GitHub could not be reached: {0}": "Няма връзка с GitHub: {0}",
     "npm did not answer in time.": "npm не отговори навреме.",
     "npm returned no answer.": "npm не върна отговор.",
-    "The tests are already running.": "Тестовете вече вървят."
+    "The tests are already running.": "Тестовете вече вървят.",
+    "Sign in": "Вход",
+    "Password": "Парола",
+    "Sign in first.": "Първо влезте.",
+    "Wrong password.": "Грешна парола.",
+    "Too many attempts. Try again in a minute.": "Твърде много опити. Опитайте отново след минута.",
+    "The password must have at least {0} characters.": "Паролата трябва да има поне {0} знака.",
+    "Password for this interface": "Парола за този интерфейс",
+    "Off by default. It stops other people and programs on this computer from opening the library through the browser. It does not encrypt the files.": "Изключена е по подразбиране. Спира други хора и програми на този компютър да отварят библиотеката през браузъра. Не шифрова файловете.",
+    "The password is on.": "Паролата е включена.",
+    "The password is off.": "Паролата е изключена.",
+    "Current password": "Текуща парола",
+    "New password (at least 8 characters)": "Нова парола (поне 8 знака)",
+    "Change the password": "Смени паролата",
+    "Set a password": "Задай парола",
+    "Remove the password": "Махни паролата",
+    "Sign out": "Изход",
+    "The password was removed.": "Паролата е махната.",
+    "The password was saved.": "Паролата е записана.",
+    "If you forget it, stop the application and delete the file .library-auth.json in the project folder.": "Ако я забравите, спрете приложението и изтрийте файла .library-auth.json в папката на проекта."
   }
 }

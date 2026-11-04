@@ -4,7 +4,10 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import { spawnSync } from 'node:child_process';
+import { pathToFileURL } from 'node:url';
 import { T, makeSandbox, startServer, rawRequest, api, seedLibrary, PROJECT } from './helpers.js';
+import { findChrome, openBrowser } from './browser.js';
 
 let box, srv;
 before(async () => { box = makeSandbox(); seedLibrary(box); srv = await startServer(box); });
@@ -91,34 +94,164 @@ test(T('security', 'Claude has no general shell or network tool during processin
 
 test(T('security', 'Personal library folders are excluded from the public repository', 'Личните папки на библиотеката са извън публичното репо'), () => {
   const ignore = fs.readFileSync(path.join(PROJECT, '.gitignore'), 'utf8');
-  for (const rule of ['/raw/*', '/wiki/sources/*', '/wiki/concepts/*', '/drafts/', '/outputs/*', '/library.config.json', '/CLAUDE.local.md', '/.library-git/']) {
+  for (const rule of ['/raw/*', '/wiki/sources/*', '/wiki/concepts/*', '/drafts/', '/outputs/*', '/library.config.json', '/.library-auth.json', '/CLAUDE.local.md', '/.library-git/']) {
     assert.ok(ignore.includes(rule), rule);
   }
 });
 
-// --- Известни ограничения. Те са истински проверки: щом кодът се поправи, минават и отчетът го показва сам. ---
+const HOSTILE = `---
+title: Hostile page
+type: concept
+tags: [sample]
+sources: []
+related: []
+created: 2026-01-01
+updated: 2026-01-01
+confidence: low
+---
+
+# Hostile page
+
+CLEAN-TEXT-MARKER
+
+<img src=x onerror="document.title='XSS-RAN'">
+<script>document.title='XSS-RAN'</script>
+<svg onload="document.title='XSS-RAN'"></svg>
+<div style="position:fixed;inset:0" class="fixed inset-0" onclick="document.title='XSS-RAN'">covered</div>
+<iframe srcdoc="<script>parent.document.title='XSS-RAN'</script>"></iframe>
+<a id="jslink" href="javascript:document.title='XSS-RAN'">raw link</a>
+<a href="  java&#10;script:document.title='XSS-RAN'">hidden scheme</a>
+<a id="okay" href="https://example.com/a">good link</a>
+
+Markdown: [md link](javascript:document.title='XSS-RAN') and [data link](data:text/html,x).
+`;
 
 test(T('security', 'Content from a document cannot run code in the browser', 'Съдържание от документ не може да изпълни код в браузъра'), {
-  todo: 'Page text is rendered from Markdown without a sanitizer and without a Content-Security-Policy, so HTML hidden in a source could reach the page. Open documents only from sources you trust. :: Текстът на страниците се показва от Markdown без пречистване и без Content-Security-Policy, затова HTML, скрит в източник, може да стигне до страницата. Отваряйте само документи от източници, на които имате доверие.',
+  skip: findChrome() ? false : 'No browser was found on the test machine, or Node.js is older than 22. Set CHROME_BIN to run this test. :: На тестовата машина няма браузър или Node.js е по-стар от 22. Задайте CHROME_BIN, за да се пусне този тест.',
 }, async () => {
-  const page = await rawRequest(srv.port, { url: '/' });
-  const appJs = box.read('scripts/viewer/app.js');
-  const guarded = /DOMPurify|sanitize\(/.test(appJs) || !!page.headers['content-security-policy'];
-  assert.ok(guarded, 'no sanitizer and no CSP');
+  box.write('wiki/concepts/hostile-page.md', HOSTILE);
+  const b = await openBrowser(findChrome());
+  try {
+    await b.goto(`http://localhost:${srv.port}/#/p/hostile-page`);
+    assert.ok(await b.waitForText('CLEAN-TEXT-MARKER'), 'the page did not open');
+    await new Promise((r) => setTimeout(r, 500));
+    assert.notEqual(await b.evaluate('document.title'), 'XSS-RAN');
+    const html = await b.evaluate(`document.querySelector('.reading').innerHTML`);
+    assert.doesNotMatch(html, /onerror|onload|onclick|<script|<iframe|<svg|position:\s*fixed|inset-0/i);
+    const hrefs = await b.evaluate(`JSON.stringify([...document.querySelectorAll('.reading a[href]')].map((a) => a.href))`);
+    for (const h of JSON.parse(hrefs)) assert.match(h, /^(https?:|mailto:)/, h);
+    assert.equal(await b.evaluate(`document.querySelector('.reading a[href="https://example.com/a"]')?.textContent`), 'good link', 'safe links stay');
+    // Втората защита: дори нещо да мине през пречистването, вграденият код не се изпълнява.
+    await b.evaluate(`(() => { const d = document.createElement('div'); d.innerHTML = '<img src=x onerror="document.title=&quot;CSP-FAILED&quot;">'; document.body.append(d); const s = document.createElement('script'); s.textContent = 'document.title="CSP-FAILED"'; document.body.append(s); })()`);
+    await new Promise((r) => setTimeout(r, 500));
+    assert.notEqual(await b.evaluate('document.title'), 'CSP-FAILED');
+  } finally { await b.close(); box.write('wiki/concepts/hostile-page.md', ''); fs.rmSync(path.join(box.root, 'wiki/concepts/hostile-page.md')); }
 });
 
-test(T('security', 'Claude can read only inside the project folder', 'Claude може да чете само в папката на проекта'), {
-  todo: 'The Read tool is allowed without a path limit. A hostile document could try to make Claude read other files on the computer; there is no network tool to carry them away, but the text reaches Anthropic and may land in a wiki page. :: Инструментът Read е разрешен без ограничение на пътя. Враждебен документ може да опита да накара Claude да чете други файлове на компютъра. Няма мрежов инструмент, с който да ги изнесе, но текстът стига до Anthropic и може да попадне в страница.',
-}, () => {
-  const list = box.read('scripts/agent.js').match(/const ALLOWED_TOOLS = \[([\s\S]*?)\];/)[1];
+test(T('security', 'Pages have a strict Content-Security-Policy and safe headers', 'Страниците имат строга Content-Security-Policy и безопасни заглавки'), async () => {
+  for (const url of ['/', '/product/', '/api/stats']) {
+    const h = (await rawRequest(srv.port, { url })).headers;
+    const csp = String(h['content-security-policy']);
+    assert.match(csp, /default-src 'self'/, url);
+    assert.doesNotMatch(csp.match(/script-src[^;]*/)[0], /unsafe-inline/, url);
+    assert.match(csp, /object-src 'none'/, url);
+    assert.match(csp, /frame-ancestors 'none'/, url);
+    assert.equal(h['x-content-type-options'], 'nosniff', url);
+    assert.equal(h['x-powered-by'], undefined, url);
+  }
+  // В страниците няма вграден код, иначе политиката би ги счупила.
+  for (const f of ['scripts/viewer/index.html', 'docs/index.html']) assert.doesNotMatch(box.read(f), /<script>/, f);
+});
+
+test(T('security', 'Uploaded HTML and SVG open isolated from the application', 'Качени HTML и SVG се отварят изолирани от приложението'), async () => {
+  box.write('raw/web/evil.html', '<script>fetch("/api/pages")</script>');
+  box.write('raw/images/evil.svg', '<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script></svg>');
+  box.write('raw/papers/ok.pdf', '%PDF-1.4');
+  for (const url of ['/raw/web/evil.html', '/raw/images/evil.svg']) assert.match(String((await rawRequest(srv.port, { url })).headers['content-security-policy']), /^sandbox/, url);
+  assert.equal((await rawRequest(srv.port, { url: '/raw/papers/ok.pdf' })).headers['content-security-policy'], undefined, 'the browser PDF viewer must keep working');
+});
+
+test(T('security', 'Other websites cannot read data even with a simple request', 'Други сайтове не могат да четат данни дори с обикновена заявка'), async () => {
+  const get = (headers) => rawRequest(srv.port, { url: '/api/pages', headers });
+  assert.equal((await get({ origin: 'https://evil.example' })).status, 403);
+  assert.equal((await get({ origin: 'null' })).status, 403);
+  assert.equal((await get({ 'sec-fetch-site': 'cross-site', 'sec-fetch-mode': 'cors' })).status, 403);
+  assert.equal((await get({ 'sec-fetch-site': 'same-site', 'sec-fetch-mode': 'no-cors' })).status, 403, 'another port on this computer');
+  assert.equal((await get({ 'sec-fetch-site': 'same-origin', 'sec-fetch-mode': 'cors' })).status, 200);
+  assert.equal((await get({ origin: `http://localhost:${srv.port}` })).status, 200);
+  assert.equal((await rawRequest(srv.port, { url: '/', headers: { 'sec-fetch-site': 'cross-site', 'sec-fetch-mode': 'navigate' } })).status, 200, 'opening a link stays possible');
+});
+
+test(T('security', 'Claude can read only inside the project folder', 'Claude може да чете само в папката на проекта'), () => {
+  const code = box.read('scripts/agent.js');
+  const list = code.match(/const ALLOWED_TOOLS = \[([\s\S]*?)\];/)[1];
   assert.ok(!/'Read'/.test(list), 'plain Read is allowed');
+  assert.ok(list.includes("'Read(./**)'"));
+  assert.ok(!/allowedTools', 'Read/.test(code), 'plain Read in the question mode');
+  assert.equal((code.match(/\.\.\.guardArgs\(\)/g) || []).length, 2, 'every start of Claude uses the guard');
+
+  // Истинската кука, като отделен процес, както я пуска Claude Code.
+  const guard = (tool_name, tool_input) => spawnSync(process.execPath, [path.join(box.root, 'scripts/guard-read.js')], { input: JSON.stringify({ tool_name, tool_input, cwd: box.root }), encoding: 'utf8' }).status;
+  const outside = path.join(os.tmpdir(), 'outside.txt');
+  for (const [tool, input] of [
+    ['Read', { file_path: outside }], ['Read', { file_path: '../outside.txt' }], ['Read', { file_path: path.join(os.homedir(), '.ssh/id_rsa') }],
+    ['Grep', { pattern: 'x', path: os.tmpdir() }], ['Grep', { pattern: 'x', path: '..' }], ['Grep', { pattern: 'x', glob: '../**' }], ['Grep', { pattern: 'x', glob: '/etc/*' }],
+    ['Glob', { pattern: '*', path: os.tmpdir() }], ['Glob', { pattern: '../*' }], ['Glob', { pattern: '/etc/*' }], ['Glob', { pattern: 'raw/../../*' }],
+    ['Read', { file_path: '.git/config' }], ['Read', { file_path: '.library-git/HEAD' }], ['Read', { file_path: '.library-auth.json' }], ['Read', { file_path: 'library.config.json' }], ['Grep', { pattern: 'x', path: '.library-git' }], ['Glob', { pattern: '.library-git/**' }],
+  ]) assert.equal(guard(tool, input), 2, `${tool} ${JSON.stringify(input)}`);
+  for (const [tool, input] of [
+    ['Read', { file_path: path.join(box.root, 'wiki/index.md') }], ['Read', { file_path: 'raw/.extracted/a.md' }], ['Read', { file_path: 'CLAUDE.md' }],
+    ['Grep', { pattern: 'x' }], ['Grep', { pattern: 'x', path: 'wiki', glob: '**/*.md' }], ['Glob', { pattern: 'wiki/**/*.md' }],
+  ]) assert.equal(guard(tool, input), 0, `${tool} ${JSON.stringify(input)}`);
+  assert.notEqual(spawnSync(process.execPath, [path.join(box.root, 'scripts/guard-read.js')], { input: 'not json', encoding: 'utf8' }).status, 0, 'unreadable request is refused');
 });
 
-test(T('security', 'The local interface asks for a password', 'Локалният интерфейс иска парола'), {
-  todo: 'There are no users or passwords: anyone with access to your account on this computer can open the library. :: Няма потребители и пароли: всеки с достъп до вашия акаунт на този компютър може да отвори библиотеката.',
-}, async () => {
-  const r = await rawRequest(srv.port, { url: '/api/pages' });
-  assert.equal(r.status, 401);
+test(T('security', 'The addresses are checked at the moment of connecting (DNS rebinding)', 'Адресите се проверяват в момента на свързване (DNS rebinding)'), async () => {
+  const code = box.read('scripts/discover.js');
+  assert.match(code, /lookup: guardedLookup/);
+  assert.doesNotMatch(code, /await fetch\(/);
+  const { guardedLookup, isPrivateIp } = await import(pathToFileURL(path.join(box.root, 'scripts/discover.js')).href);
+  // 'localhost' минава през истинския DNS на машината и дава вътрешен адрес.
+  const err = await new Promise((resolve) => guardedLookup('localhost', {}, (e) => resolve(e)));
+  assert.ok(err, 'a name that resolves to an internal address must fail while connecting');
+  for (const ip of ['127.0.0.1', '10.1.2.3', '169.254.169.254', '172.16.0.1', '192.168.0.1', '100.64.0.1', '0.0.0.0', '198.18.0.1', '::1', 'fe80::1', 'fd00::1', '::ffff:127.0.0.1', '64:ff9b::7f00:1', '2002:7f00:1::', 'ff02::1', 'nonsense']) assert.equal(isPrivateIp(ip), true, ip);
+  for (const ip of ['1.1.1.1', '8.8.8.8', '2606:4700:4700::1111']) assert.equal(isPrivateIp(ip), false, ip);
+});
+
+test(T('security', 'When a password is set, nothing opens without signing in', 'Когато е зададена парола, нищо не се отваря без вход'), async () => {
+  const box2 = makeSandbox();
+  seedLibrary(box2);
+  const s = await startServer(box2);
+  try {
+    assert.equal((await rawRequest(s.port, { url: '/api/pages' })).status, 200, 'off by default');
+    const set = (body, headers = {}) => rawRequest(s.port, { method: 'POST', url: '/api/auth/password', headers: { 'x-library': '1', 'content-type': 'application/json', ...headers }, body: JSON.stringify(body) });
+    assert.equal(JSON.parse((await set({ password: 'short' })).body).ok, false, 'a short password is refused');
+    const on = await set({ password: 'correct horse battery' });
+    assert.equal(JSON.parse(on.body).ok, true);
+    const cookie = on.headers['set-cookie'][0];
+    assert.match(cookie, /HttpOnly/); assert.match(cookie, /SameSite=Strict/);
+    const session = cookie.split(';')[0];
+
+    const stored = box2.read('.library-auth.json');
+    assert.ok(!stored.includes('correct horse'), 'the password is not stored as text');
+
+    for (const url of ['/api/pages', '/api/settings', '/raw/articles/sample-2020-note.txt', '/api/events', '/app.js']) assert.equal((await rawRequest(s.port, { url })).status, 401, url);
+    assert.equal((await rawRequest(s.port, { url: '/', headers: { accept: 'text/html' } })).headers.location, '/login');
+    assert.equal((await rawRequest(s.port, { url: '/api/pages', headers: { cookie: 'library_session=wrong' } })).status, 401);
+    assert.equal((await rawRequest(s.port, { url: '/api/pages', headers: { cookie: session } })).status, 200);
+
+    const login = (password) => rawRequest(s.port, { method: 'POST', url: '/login', headers: { 'content-type': 'application/x-www-form-urlencoded' }, body: `password=${encodeURIComponent(password)}` });
+    assert.equal((await login('wrong password')).status, 401);
+    const good = await login('correct horse battery');
+    assert.equal(good.status, 303);
+    assert.equal((await rawRequest(s.port, { url: '/api/pages', headers: { cookie: good.headers['set-cookie'][0].split(';')[0] } })).status, 200);
+
+    // Смяна и махане искат текущата парола.
+    assert.equal(JSON.parse((await set({ current: 'nope', password: null }, { cookie: session })).body).ok, false);
+    // След няколко грешни опита дори вярната парола чака.
+    for (let i = 0; i < 5; i++) await login('wrong password');
+    assert.equal((await login('correct horse battery')).status, 401, 'locked after repeated failures');
+  } finally { await s.stop(); box2.remove(); }
 });
 
 test(T('security', 'Library files are encrypted on disk', 'Файловете на библиотеката са шифровани на диска'), {

@@ -4,11 +4,16 @@
 // ако няма свободен, текстът на страницата, а най-накрая само резюмето. Всичко отива в raw/inbox/.
 //
 // Сигурност: свалят се само https адреси; адресът и всяко пренасочване се проверяват да не сочат към
-// локалната мрежа; размерът е ограничен; PDF се признава само по съдържание (%PDF).
+// локалната мрежа, а адресът, към който реално се свързваме, се проверява в самата връзка (срещу DNS rebinding);
+// размерът е ограничен; PDF се признава само по съдържание (%PDF).
 import fs from 'node:fs';
 import path from 'node:path';
+import https from 'node:https';
+import zlib from 'node:zlib';
+import { lookup as dnsLookup } from 'node:dns';
 import dns from 'node:dns/promises';
 import net from 'node:net';
+import { pipeline } from 'node:stream';
 import { RAW } from './lib.js';
 import { $t } from './i18n.js';
 import { P } from './vocab.js';
@@ -20,13 +25,37 @@ const UA = 'LLM-Wiki/1.0 (personal reading tool; mailto:' + (process.env.LIBRARY
 const CYR = { а: 'a', б: 'b', в: 'v', г: 'g', д: 'd', е: 'e', ж: 'zh', з: 'z', и: 'i', й: 'y', к: 'k', л: 'l', м: 'm', н: 'n', о: 'o', п: 'p', р: 'r', с: 's', т: 't', у: 'u', ф: 'f', х: 'h', ц: 'ts', ч: 'ch', ш: 'sh', щ: 'sht', ъ: 'a', ь: '', ю: 'yu', я: 'ya' };
 const latin = (s) => [...String(s).toLowerCase()].map((c) => (c in CYR ? CYR[c] : c)).join('').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
 
-function isPrivateIp(ip) {
+export function isPrivateIp(ip) {
   if (net.isIPv4(ip)) {
-    const [a, b] = ip.split('.').map(Number);
-    return a === 10 || a === 127 || a === 0 || (a === 169 && b === 254) || (a === 172 && b >= 16 && b <= 31) || (a === 192 && b === 168) || (a === 100 && b >= 64 && b <= 127) || a >= 224;
+    const [a, b, c] = ip.split('.').map(Number);
+    return a === 10 || a === 127 || a === 0 || (a === 169 && b === 254) || (a === 172 && b >= 16 && b <= 31) || (a === 192 && b === 168) || (a === 100 && b >= 64 && b <= 127) || a >= 224
+      || (a === 192 && b === 0 && (c === 0 || c === 2)) || (a === 198 && (b === 18 || b === 19)) || (a === 198 && b === 51 && c === 100) || (a === 203 && b === 0 && c === 113);
   }
   const v = ip.toLowerCase();
-  return v === '::1' || v === '::' || v.startsWith('fc') || v.startsWith('fd') || v.startsWith('fe80') || v.startsWith('::ffff:') ;
+  return !net.isIPv6(v) || v === '::1' || v === '::' || /^f[cd]/.test(v) || /^fe[89ab]/.test(v) || /^fec/.test(v) || v.startsWith('ff') || v.startsWith('::ffff:') || v.startsWith('64:ff9b:') || v.startsWith('2002:') || v.startsWith('2001:db8:') || v.startsWith('2001:0:');
+}
+
+/**
+ * DNS отговорът се проверява в момента на свързване и връзката ползва точно проверения адрес. Така сайт не може да
+ * върне публичен адрес при проверката и вътрешен при връзката (DNS rebinding).
+ */
+export function guardedLookup(host, opts, cb) {
+  if (typeof opts === 'function') { cb = opts; opts = {}; }
+  dnsLookup(host, { ...opts, all: true }, (err, addrs) => {
+    if (err) return cb(err);
+    if (!addrs.length || addrs.some((a) => isPrivateIp(a.address))) return cb(new Error($t('The address points to the local network.')));
+    if (opts.all) return cb(null, addrs);
+    cb(null, addrs[0].address, addrs[0].family);
+  });
+}
+
+const openUrl = (u, accept) => new Promise((resolve, reject) => {
+  https.get(u, { lookup: guardedLookup, signal: AbortSignal.timeout(90000), headers: { 'user-agent': UA, accept, 'accept-encoding': 'gzip, deflate, br' } }, resolve).on('error', reject);
+});
+
+function decoded(res) {
+  const make = { gzip: zlib.createGunzip, 'x-gzip': zlib.createGunzip, deflate: zlib.createInflate, br: zlib.createBrotliDecompress }[String(res.headers['content-encoding'] || '').toLowerCase()];
+  return make ? pipeline(res, make(), () => {}) : res;
 }
 
 /** Проверява, че адресът е публичен https. Връща URL обекта или хвърля грешка. */
@@ -47,14 +76,17 @@ async function download(rawUrl, accept) {
   let url = rawUrl;
   for (let hop = 0; hop < 5; hop++) {
     const u = await safeUrl(url);
-    const r = await fetch(u, { redirect: 'manual', headers: { 'user-agent': UA, accept }, signal: AbortSignal.timeout(90000) });
-    if (r.status >= 300 && r.status < 400 && r.headers.get('location')) { url = new URL(r.headers.get('location'), u).href; continue; }
-    if (!r.ok) throw new Error($t('The site responded with {0}.', [r.status]));
-    const len = Number(r.headers.get('content-length') || 0);
-    if (len > MAX_BYTES) throw new Error($t('The file is too large.'));
+    const r = await openUrl(u, accept);
+    if (r.statusCode >= 300 && r.statusCode < 400 && r.headers.location) { r.resume(); url = new URL(r.headers.location, u).href; continue; }
+    if (r.statusCode < 200 || r.statusCode >= 300) { r.resume(); throw new Error($t('The site responded with {0}.', [r.statusCode])); }
+    const len = Number(r.headers['content-length'] || 0);
+    if (len > MAX_BYTES) { r.destroy(); throw new Error($t('The file is too large.')); }
     const chunks = []; let n = 0;
-    for await (const c of r.body) { n += c.length; if (n > MAX_BYTES) throw new Error($t('The file is too large.')); chunks.push(c); }
-    return { buf: Buffer.concat(chunks), type: String(r.headers.get('content-type') || ''), url };
+    try {
+      // Ограничението е върху разкомпресираните данни: малък архив не може да напълни паметта.
+      for await (const c of decoded(r)) { n += c.length; if (n > MAX_BYTES) throw new Error($t('The file is too large.')); chunks.push(c); }
+    } finally { r.destroy(); }
+    return { buf: Buffer.concat(chunks), type: String(r.headers['content-type'] || ''), url };
   }
   throw new Error($t('Too many redirects.'));
 }
