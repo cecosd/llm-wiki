@@ -81,7 +81,8 @@ const shared = { MODEL_OPTS, MODES, TYPES, typeOrder, KINDS, FORMATS, FORMAT_ICO
 
 // ---------- Иконки (линейни, 24×24) ----------
 const ICONS = {
-  library: 'M4 5v14M8 5v14M12 6l4 13M17 5l3 1-1 13',
+  gear: 'M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.9 2.9l-.1-.1a1.7 1.7 0 0 0-2.9 1.2V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-2.9-1.2l-.1.1a2 2 0 1 1-2.9-2.9l.1-.1a1.7 1.7 0 0 0-1.2-2.9H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.2-2.9l-.1-.1a2 2 0 1 1 2.9-2.9l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 2.9 1.2l.1-.1a2 2 0 1 1 2.9 2.9l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z',
+  library:'M4 5v14M8 5v14M12 6l4 13M17 5l3 1-1 13',
   search: 'M11 4a7 7 0 1 0 0 14 7 7 0 0 0 0-14zM20 20l-4-4',
   home: 'M4 11l8-7 8 7M6 10v9h12v-9',
   graph: 'M6 7a2 2 0 1 0 0-4 2 2 0 0 0 0 4zM18 9a2 2 0 1 0 0-4 2 2 0 0 0 0 4zM9 21a2 2 0 1 0 0-4 2 2 0 0 0 0 4zM7.5 6.2l8.7 1.3M6.6 6.9l2 10.2M17.2 8.6l-6.9 9.2',
@@ -319,7 +320,7 @@ const PageView = defineComponent({
   emits: ['toast', 'refresh'],
   data: () => ({
     ...shared, LEVELS, rename: { on: false, value: '', busy: false }, man: { open: false, md: '', before: '', hash: '', busy: false, error: '' }, page: null, error: false, toc: [], activeH: null, observer: null, chapView: store.get('view:chapters', 'cards'),
-    selBtn: null,
+    selBtn: null, lk: { open: false, sel: '', q: '', busy: false, error: '' },
     ai: { open: false, intent: 'ask', sel: '', question: '', level: store.get('asklevel', 'medium'), busy: false, busy2: false, waited: 0, error: '', answer: '', asked: '', proposal: null, saved: false, applied: null },
   }),
   computed: {
@@ -335,6 +336,14 @@ const PageView = defineComponent({
     },
     firstPage() { return Number(String(this.page?.pages || '').split(/[-–]/)[0]) || undefined; },
     canAsk() { return !!this.page && !['index', 'log', 'overview'].includes(this.page.slug); },
+    // страниците, към които може да се сочи от избрания текст: без служебните и без текущата
+    linkCandidates() {
+      const q = this.lk.q.trim().toLowerCase();
+      return this.pages
+        .filter((p) => !p.special && p.slug !== this.page?.slug)
+        .filter((p) => !q || [p.title, p.slug, ...(p.aliases || [])].some((s) => String(s).toLowerCase().includes(q)))
+        .sort(titleCmp);
+    },
     aiHtml() {
       if (!this.ai.answer) return '';
       const types = new Map(this.pages.map((p) => [p.slug, p.type]));
@@ -373,7 +382,7 @@ const PageView = defineComponent({
   },
   watch: {
     chapView(v) { store.set('view:chapters', v); },
-    slug: { immediate: true, handler(s, old) { if (old !== undefined && s !== old) { this.resetAi(); this.rename.on = false; this.man.open = false; } this.load(s !== old); } },
+    slug: { immediate: true, handler(s, old) { if (old !== undefined && s !== old) { this.resetAi(); this.rename.on = false; this.man.open = false; this.lk.open = false; } this.load(s !== old); } },
     version() { this.load(false); },
     html() { this.$nextTick(this.buildToc); },
   },
@@ -494,6 +503,24 @@ const PageView = defineComponent({
         if (d.ok) { this.$emit('toast', { text: $t('The paragraph has been removed. “Undo” is on the home page.') }); await this.load(false); this.$emit('refresh'); }
         else this.$emit('toast', { text: d.error || $t('I could not remove the paragraph'), icon: 'alert' });
       } catch { this.$emit('toast', { text: $t('The server is not responding'), icon: 'alert' }); }
+    },
+    // Връзка: избраният текст става [[страница]] (или [[страница|текст]]); диалогът показва колекцията за избор
+    openLink() {
+      const text = this.selBtn?.text; this.selBtn = null;
+      if (!text) return;
+      window.getSelection()?.removeAllRanges();
+      this.lk = { open: true, sel: text, q: '', busy: false, error: '' };
+      this.$nextTick(() => this.$refs.linkQ?.focus());
+    },
+    async pickLink(p) {
+      if (this.lk.busy) return;
+      this.lk.busy = true; this.lk.error = '';
+      try {
+        const r = await (await api('/api/page/link', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ slug: this.page.slug, selection: this.lk.sel, target: p.slug }) })).json();
+        if (r.ok) { this.lk.open = false; this.$emit('toast', { text: $t('The link has been added. “Undo” is on the home page.') }); await this.load(false); this.$emit('refresh'); }
+        else this.lk.error = r.error || $t('I could not add the link');
+      } catch { this.lk.error = $t('The server is not responding'); }
+      this.lk.busy = false;
     },
     // --- Помощник на страницата ---
     readSelection() {
@@ -1091,6 +1118,54 @@ const SetupView = defineComponent({
   },
 });
 
+const SettingsView = defineComponent({
+  template: '#tpl-settings',
+  emits: ['copy'],
+  data: () => ({ info: null, code: null, packages: null, tests: null, testError: '', busy: { code: false, packages: false, tests: false } }),
+  computed: {
+    updateCmd() {
+      const pack = this.info?.contentLang && this.info.contentLang !== 'en' ? ` && npm run content -- ${this.info.contentLang}` : '';
+      // Инсталираните копия на езиковия пакет се връщат преди git pull, иначе git отказва заради локалната разлика.
+      return `git restore CLAUDE.md .claude wiki/_templates scripts/starter && git pull && npm install${pack}`;
+    },
+    testGroups() {
+      if (!this.tests) return [];
+      const keys = [...new Set(this.tests.tests.map((t) => t.group))];
+      return keys.map((key) => {
+        const items = this.tests.tests.filter((t) => t.group === key);
+        return { key, items, title: this.pick(this.tests.groups?.[key] || { en: key }), pass: items.filter((t) => t.status === 'pass').length, bad: items.filter((t) => t.status === 'fail' || t.status === 'known').length };
+      });
+    },
+  },
+  created() { this.load(); },
+  methods: {
+    pick(o) { return (window.__I18N?.lang === 'bg' && o.bg) || o.en; },
+    async load() {
+      try {
+        const d = await (await fetch('/api/settings')).json();
+        this.info = d; this.tests = d.tests; this.busy.tests = d.testsRunning;
+      } catch { this.info = null; }
+    },
+    async post(key, url) {
+      this.busy[key] = true;
+      try { return await (await api(url, { method: 'POST' })).json(); }
+      catch { return { ok: false, error: $t('The server is not responding.') }; }
+      finally { this.busy[key] = false; }
+    },
+    async checkCode() { this.code = await this.post('code', '/api/updates/code'); },
+    async checkPackages() {
+      const d = await this.post('packages', '/api/updates/packages');
+      this.packages = d.outdated ? d : { outdated: { ok: false, error: d.error }, audit: { ok: false, error: d.error } };
+    },
+    async runTests() {
+      this.testError = '';
+      const d = await this.post('tests', '/api/tests/run');
+      if (d.results) this.tests = d.results;
+      if (!d.ok) this.testError = d.error || '';
+    },
+  },
+});
+
 const FindView = defineComponent({
   template: '#tpl-find',
   emits: ['toast', 'refresh'],
@@ -1147,6 +1222,12 @@ const WriteView = defineComponent({
   }),
   computed: {
     dirty() { return !!this.doc && this.body !== this.saved; },
+    // Статията е на езика на библиотеката (contentLang), а не на езика на интерфейса: при разминаване се казва предварително
+    langNote() {
+      if (!I18N.contentLang || I18N.contentLang === I18N.lang) return '';
+      const name = (code) => I18N.locales.find((l) => l.code === code)?.name || code;
+      return $t('The article will be in {0}, the language of the library. The interface is in {1}. To make them the same, choose the language in the sidebar language menu.', [name(I18N.contentLang), name(I18N.lang)]);
+    },
     docTitle() { return this.body.match(/^#\s+(.+)$/m)?.[1] || this.doc?.title || ''; },
     wordsN() { return (this.body.match(/[\p{L}\p{N}]+/gu) || []).length; },
     html() {
@@ -1435,6 +1516,7 @@ function parseRoute() {
   if (parts[0] === 'find') return { name: 'find' };
   if (parts[0] === 'areas') return { name: 'areas' };
   if (parts[0] === 'setup') return { name: 'setup' };
+  if (parts[0] === 'settings') return { name: 'settings' };
   if (parts[0] === 'path') return { name: 'path', q: parts.slice(1).join('/'), mode: new URLSearchParams(hashQuery).get('m') || 'local' };
   return { name: 'page', slug: parts[0] }; // стари връзки #/slug
 }
@@ -1462,6 +1544,11 @@ const app = createApp({
       const t = { id: Math.random(), text, icon };
       this.toasts.push(t);
       setTimeout(() => (this.toasts = this.toasts.filter((x) => x.id !== t.id)), 3500);
+    },
+    // Смяната на езика от менюто: ако обработката работи, сървърът отказва; селекторът се връща и се показва причината
+    async changeLang(e) {
+      const r = await I18N.setLang(e.target.value);
+      if (!r.ok) { e.target.value = I18N.lang; this.toast({ text: r.error, icon: 'alert' }); }
     },
     // Оценка на токени и цена преди всяко действие с Claude. Връща true, ако човекът потвърди.
     async confirmClaude(spec) {
@@ -1575,6 +1662,7 @@ app.component('write-view', WriteView);
 app.component('find-view', FindView);
 app.component('areas-view', AreasView);
 app.component('setup-view', SetupView);
+app.component('settings-view', SettingsView);
 app.component('scope-bar', ScopeBar);
 app.component('view-toggle', ViewToggle);
 app.mount('#app');

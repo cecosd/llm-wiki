@@ -8,16 +8,17 @@ import { spawn } from 'node:child_process';
 import { ensureStarter, ROOT, RAW, WIKI, OUTPUTS, rawFiles, rel, wikiPages, extractLinks, walk, sha256, loadManifest, ingestState, normRaw } from './lib.js';
 import { createAgent, legacySources, askClaude, PATH_LEVELS } from './agent.js';
 import { buildLocal, writeWithClaude, continueWithClaude,saveDraft, listDrafts, readDraft, updateDraft, trashDraft, LENGTHS } from './write.js';
-import { askAboutPage, planConspect, proposeChange, applyProposal, saveAnswer, proposeReplace, locateForEdit, applyManualEdit, applyParagraphDelete, renamePage } from './improve.js';
+import { askAboutPage, planConspect, proposeChange, applyProposal, saveAnswer, proposeReplace, locateForEdit, applyManualEdit, applyParagraphDelete, applyLink, renamePage } from './improve.js';
 import { fold, findDupes, planMerge, applyMerge, ignorePair, normalizeAuthors } from './merge.js';
 import { planMergeBook, applyMergeBook } from './merge-sources.js';
 import { planRemoval, applyRemoval } from './remove.js';
 import { rebuildAll } from './index.js';
 import { importPaper } from './discover.js';
 import { estimate } from './estimate.js';
-import { checkSetup, testClaude } from './setup.js';
+import { checkSetup, testClaude, accountTerms } from './setup.js';
+import { versionInfo, checkCode, checkPackages, latestResults, runTests, testsBusy } from './updates.js';
 import { areaMap, areaKey, listAreas, setArea, renameArea, proposeClassification, applyAssignments, scopeFilter } from './areas.js';
-import { $t, pickLang, runWithLang, locales, messagesFor, hasLocale } from './i18n.js';
+import { $t, pickLang, runWithLang, locales, messagesFor, hasLocale, contentLang } from './i18n.js';
 import { packs, installPack } from './content-pack.js';
 import { P, lazy, pageUnits } from './vocab.js';
 
@@ -243,7 +244,8 @@ app.get('/api/search', (req, res) => {
 // ---------- Пътека за учене: въпрос → подредени стъпки (без Claude, не харчи от лимита) ----------
 const STOP = new Set(['как', 'какво', 'какви', 'каква', 'какъв', 'защо', 'кога', 'къде', 'или', 'при', 'към', 'между', 'който', 'която', 'които', 'има', 'дали', 'като', 'най', 'със', 'във', 'ако', 'тези', 'този', 'тази', 'това', 'още', 'само', 'може', 'мога', 'искам', 'разбера', 'научa', 'уча', 'how', 'what', 'which', 'who', 'why', 'when', 'where', 'the', 'and', 'for', 'with', 'about', 'between', 'does', 'are', 'was', 'can', 'want', 'understand', 'learn', 'tell']);
 const stem = (w) => (w.length > 6 ? w.slice(0, w.length - 2) : w.length > 4 ? w.slice(0, w.length - 1) : w);
-const stages = () => [
+// Етапите на пътеката: функция, за да следват езика на заявката. Името не е „stages“, защото обработчиците ползват локален масив с това име
+const pathStages = () => [
   { id: 'frame', label: $t('Framework'), hint: $t('The big picture of the topic first.'), types: ['topic'], max: 3 },
   { id: 'concepts', label: $t('Concepts and people'), hint: $t('The main ideas and who developed them.'), types: ['concept', 'entity'], max: 7 },
   { id: 'compare', label: $t('Comparisons'), hint: $t('Where the authors differ.'), types: ['comparison'], max: 3 },
@@ -340,7 +342,7 @@ app.get('/api/path', (req, res) => {
   const mk = stepFactory(ctx);
   const stepOf = (s) => mk(s.p, s.snippet, s.score);
   const steps = [], stages = [];
-  for (const st of stages()) {
+  for (const st of pathStages()) {
     let items = scored.filter((s) => st.types.includes(s.p.data.type));
     if (st.id === 'texts') {
       // най-много 3 глави от една книга; книга без глави влиза като цяла
@@ -565,6 +567,10 @@ app.post('/api/page/delete-paragraph', (req, res) => {
   const b = req.body || {};
   manual(res, $t('paragraph removal'), () => applyParagraphDelete({ slug: String(b.slug || ''), before: clipText(b.before, 40000), hash: String(b.hash || '') }));
 });
+app.post('/api/page/link', (req, res) => {
+  const b = req.body || {};
+  manual(res, $t('adding a link'), () => applyLink({ slug: String(b.slug || ''), selection: clipText(b.selection, 4000), target: String(b.target || '') }));
+});
 app.post('/api/page/rename', (req, res) => {
   const b = req.body || {};
   manual(res, $t('renaming'), () => renamePage({ slug: String(b.slug || ''), title: clipText(b.title, 400) }));
@@ -763,7 +769,8 @@ app.use('/api/lang', express.json({ limit: '1kb' }));
 app.post('/api/lang', (req, res) => {
   const code = String(req.body?.code || '');
   if (!hasLocale(code)) return res.status(400).json({ error: $t('Unknown language.') });
-  if (agent.isBusy()) return res.json({ ok: true, content: null });
+  // Докато Claude работи, езикът не се сменя (CLAUDE.md и шаблоните се четат при всяко задание): отказваме с причина
+  if (agent.isBusy()) return res.json({ ok: false, error: $t('Wait for the processing to finish.') });
   const pack = packs().includes(code) ? code : 'en';
   res.json({ ok: true, content: installPack(pack).ok ? pack : null });
 });
@@ -815,6 +822,13 @@ app.post('/api/remove', (req, res) => {
 });
 app.get('/api/setup', (_req, res) => res.json(checkSetup()));
 app.post('/api/setup/test', async (_req, res) => res.json(await testClaude()));
+
+// Страница „Настройки“. GET не излиза от компютъра; POST маршрутите се пускат само с бутон.
+app.get('/api/settings', (_req, res) => res.json({ ...versionInfo(), contentLang: contentLang(), account: accountTerms(), tests: latestResults(), testsRunning: testsBusy() }));
+app.post('/api/updates/code', async (_req, res) => res.json(await checkCode()));
+app.post('/api/updates/packages', async (_req, res) => res.json(await checkPackages()));
+app.post('/api/tests/run', async (_req, res) => res.json(await runTests()));
+
 app.post('/api/agent/settings', (req, res) => {
   const s = {};
   for (const k of ['autoIngest', 'autoResume', 'synthesisBest', 'confirmCost', 'setupDone']) if (k in (req.body || {})) s[k] = !!req.body[k];
@@ -939,7 +953,7 @@ const VENDOR = {
 app.get('/locale.js', (req, res) => {
   const lang = pickLang(req);
   res.set({ 'Content-Type': 'application/javascript; charset=utf-8', 'Cache-Control': 'no-store', Vary: 'Cookie, Accept-Language' });
-  res.send(`window.__I18N = ${JSON.stringify({ lang, locales: locales(), messages: messagesFor(lang), pageUnits: pageUnits().slice(3, -1) }).replace(/</g, '\\u003c')};`);
+  res.send(`window.__I18N = ${JSON.stringify({ lang, locales: locales(), messages: messagesFor(lang), pageUnits: pageUnits().slice(3, -1), contentLang: contentLang() }).replace(/</g, '\\u003c')};`);
 });
 app.get('/vendor/:file', (req, res) => {
   const f = VENDOR[req.params.file];
@@ -949,6 +963,7 @@ app.get('/vendor/:file', (req, res) => {
 app.use('/fonts/inter', express.static(path.join(NM, '@fontsource-variable/inter')));
 app.use('/fonts/literata', express.static(path.join(NM, '@fontsource-variable/literata')));
 
+app.use('/product', express.static(path.join(ROOT, 'docs'))); // страницата за продукта; същата се публикува и в GitHub Pages
 app.use(express.static(path.join(ROOT, 'scripts', 'viewer')));
 
 app.listen(PORT, '127.0.0.1', () => {

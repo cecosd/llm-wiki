@@ -1,0 +1,513 @@
+{
+  "version": "1.1.0",
+  "date": "2026-11-04T15:51:04.698Z",
+  "durationMs": 11015,
+  "environment": {
+    "platform": "linux",
+    "node": "26.12.1"
+  },
+  "summary": {
+    "total": 58,
+    "pass": 54,
+    "fail": 0,
+    "known": 4,
+    "notRun": 0,
+    "notCovered": 7
+  },
+  "groups": {
+    "app": {
+      "en": "Application and interface",
+      "bg": "Приложение и интерфейс"
+    },
+    "library": {
+      "en": "Files and library",
+      "bg": "Файлове и библиотека"
+    },
+    "claude": {
+      "en": "Work with Claude (simulated)",
+      "bg": "Работа с Claude (симулирана)"
+    },
+    "security": {
+      "en": "Security",
+      "bg": "Сигурност"
+    },
+    "updates": {
+      "en": "Update check",
+      "bg": "Проверка за обновления"
+    },
+    "runner": {
+      "en": "Test runner",
+      "bg": "Изпълнение на тестовете"
+    }
+  },
+  "tests": [
+    {
+      "group": "app",
+      "en": "All server and browser scripts have valid syntax",
+      "bg": "Всички скриптове на сървъра и браузъра са със здрав синтаксис",
+      "status": "pass"
+    },
+    {
+      "group": "app",
+      "en": "The application opens and serves its main page and libraries",
+      "bg": "Приложението се отваря и връща основната страница и библиотеките",
+      "status": "pass"
+    },
+    {
+      "group": "app",
+      "en": "Every screen component has its template",
+      "bg": "Всеки екран има своя шаблон",
+      "status": "pass"
+    },
+    {
+      "group": "app",
+      "en": "Every menu address leads to a screen",
+      "bg": "Всеки адрес от менюто води към екран",
+      "status": "pass"
+    },
+    {
+      "group": "app",
+      "en": "Pages, search, link map and statistics answer correctly",
+      "bg": "Страниците, търсенето, картата на връзките и статистиката отговарят правилно",
+      "status": "pass"
+    },
+    {
+      "group": "app",
+      "en": "Learning by question works locally without Claude",
+      "bg": "Ученето по въпрос работи локално, без Claude",
+      "status": "pass"
+    },
+    {
+      "group": "app",
+      "en": "A page can be renamed by hand without changing its file name",
+      "bg": "Страница може да се преименува на ръка, без да се сменя името на файла",
+      "status": "pass"
+    },
+    {
+      "group": "app",
+      "en": "The interface is complete in English and Bulgarian",
+      "bg": "Интерфейсът е пълен на английски и български",
+      "status": "pass"
+    },
+    {
+      "group": "app",
+      "en": "The language of the interface follows the choice of the user",
+      "bg": "Езикът на интерфейса следва избора на потребителя",
+      "status": "pass"
+    },
+    {
+      "group": "app",
+      "en": "The product page opens and names its authors",
+      "bg": "Страницата за продукта се отваря и посочва авторите си",
+      "status": "pass"
+    },
+    {
+      "group": "app",
+      "en": "Screens and the product page open in a real browser",
+      "bg": "Екраните и страницата за продукта се отварят в истински браузър",
+      "status": "pass"
+    },
+    {
+      "group": "claude",
+      "en": "Nothing is sent to Claude when the application starts or a page is read",
+      "bg": "Нищо не се праща към Claude при стартиране и при четене на страница",
+      "status": "pass"
+    },
+    {
+      "group": "claude",
+      "en": "Upload and sorting do not start paid processing while confirmation is on",
+      "bg": "Качването и подреждането не пускат платена обработка, докато потвърждението е включено",
+      "status": "pass"
+    },
+    {
+      "group": "claude",
+      "en": "The cost estimate works without calling Claude",
+      "bg": "Оценката на цената работи, без да вика Claude",
+      "status": "pass"
+    },
+    {
+      "group": "claude",
+      "en": "The setup page sees the installed Claude Code and the sign-in",
+      "bg": "Страницата за инсталация вижда инсталирания Claude Code и входа в акаунта",
+      "status": "pass"
+    },
+    {
+      "group": "claude",
+      "en": "Processing runs with restricted permissions and a limited tool list",
+      "bg": "Обработката върви с ограничени права и краен списък инструменти",
+      "status": "pass"
+    },
+    {
+      "group": "claude",
+      "en": "A finished job is recorded with its status",
+      "bg": "Приключилата задача се записва със статуса си",
+      "status": "pass"
+    },
+    {
+      "group": "claude",
+      "en": "A question to Claude gets an answer and sends only read-only permissions",
+      "bg": "Въпрос към Claude получава отговор и праща само права за четене",
+      "status": "pass"
+    },
+    {
+      "group": "claude",
+      "en": "The “Test the connection” button works",
+      "bg": "Бутонът „Опитай връзката“ работи",
+      "status": "pass"
+    },
+    {
+      "group": "claude",
+      "en": "Writing an article locally does not call Claude",
+      "bg": "Писането на статия локално не вика Claude",
+      "status": "pass"
+    },
+    {
+      "group": "claude",
+      "en": "A clear message appears when Claude Code is not signed in",
+      "bg": "При липсващ вход в Claude Code се показва ясно съобщение",
+      "status": "pass"
+    },
+    {
+      "group": "claude",
+      "en": "A clear message appears when the subscription limit is reached",
+      "bg": "При изчерпан лимит се показва ясно съобщение",
+      "status": "pass"
+    },
+    {
+      "group": "claude",
+      "en": "The application tells consumer plans from commercial terms",
+      "bg": "Приложението различава потребителски планове от търговски условия",
+      "status": "pass"
+    },
+    {
+      "group": "library",
+      "en": "The inbox sorts files into folders by type and records them",
+      "bg": "Входящата кутия подрежда файловете по вид и ги записва",
+      "status": "pass"
+    },
+    {
+      "group": "library",
+      "en": "The same file uploaded twice is detected as a duplicate",
+      "bg": "Един и същ файл, качен два пъти, се разпознава като дубликат",
+      "status": "pass"
+    },
+    {
+      "group": "library",
+      "en": "Text is extracted from TXT, CSV, HTML, PDF, DOCX and XLSX",
+      "bg": "Извлича се текст от TXT, CSV, HTML, PDF, DOCX и XLSX",
+      "status": "pass"
+    },
+    {
+      "group": "library",
+      "en": "PDF text keeps the page markers that citations depend on",
+      "bg": "Текстът от PDF пази маркерите за страници, от които зависят цитатите",
+      "status": "pass"
+    },
+    {
+      "group": "library",
+      "en": "Original files are never changed",
+      "bg": "Оригиналните файлове не се променят",
+      "status": "pass"
+    },
+    {
+      "group": "library",
+      "en": "Pending files are listed for processing",
+      "bg": "Необработените файлове се показват за обработка",
+      "status": "pass"
+    },
+    {
+      "group": "library",
+      "en": "A file with a source page no longer counts as pending",
+      "bg": "Файл със source страница вече не се брои за необработен",
+      "status": "pass"
+    },
+    {
+      "group": "library",
+      "en": "The link check finds broken links",
+      "bg": "Проверката за връзки намира счупените",
+      "status": "pass"
+    },
+    {
+      "group": "library",
+      "en": "A new page is created from a template",
+      "bg": "Нова страница се създава от шаблон",
+      "status": "pass"
+    },
+    {
+      "group": "library",
+      "en": "Index, log and overview can be rebuilt after a loss",
+      "bg": "Индексът, дневникът и обзорът се възстановяват след загуба",
+      "status": "pass"
+    },
+    {
+      "group": "library",
+      "en": "Removing a source only previews until it is confirmed",
+      "bg": "Премахването на източник е само преглед до потвърждение",
+      "status": "pass"
+    },
+    {
+      "group": "library",
+      "en": "The language pack switches the rules and templates",
+      "bg": "Езиковият пакет сменя правилата и шаблоните",
+      "status": "pass"
+    },
+    {
+      "group": "security",
+      "en": "The server listens only on this computer (127.0.0.1)",
+      "bg": "Сървърът слуша само на този компютър (127.0.0.1)",
+      "status": "pass"
+    },
+    {
+      "group": "security",
+      "en": "Requests with a foreign Host header are refused (DNS rebinding)",
+      "bg": "Заявки с чужда заглавка Host се отказват (DNS rebinding)",
+      "status": "pass"
+    },
+    {
+      "group": "security",
+      "en": "Other websites cannot send commands (no x-library header, refused)",
+      "bg": "Други сайтове не могат да пращат команди (без заглавка x-library има отказ)",
+      "status": "pass"
+    },
+    {
+      "group": "security",
+      "en": "Other websites cannot read the answers (no CORS permission)",
+      "bg": "Други сайтове не могат да четат отговорите (няма CORS разрешение)",
+      "status": "pass"
+    },
+    {
+      "group": "security",
+      "en": "Files outside raw/ cannot be read through the file address",
+      "bg": "Файлове извън raw/ не могат да се четат през адреса за файлове",
+      "status": "pass"
+    },
+    {
+      "group": "security",
+      "en": "Only named libraries are served from node_modules",
+      "bg": "От node_modules се връщат само изрично изброени библиотеки",
+      "status": "pass"
+    },
+    {
+      "group": "security",
+      "en": "An uploaded file cannot escape the inbox through its name",
+      "bg": "Качен файл не може да излезе от входящата кутия чрез името си",
+      "status": "pass"
+    },
+    {
+      "group": "security",
+      "en": "“Add an article” refuses addresses inside your network",
+      "bg": "„Добави статия“ отказва адреси във вашата мрежа",
+      "status": "pass"
+    },
+    {
+      "group": "security",
+      "en": "“Add an article” accepts only https",
+      "bg": "„Добави статия“ приема само https",
+      "status": "pass"
+    },
+    {
+      "group": "security",
+      "en": "Claude has no general shell or network tool during processing",
+      "bg": "Claude няма обща обвивка и мрежов инструмент по време на обработка",
+      "status": "pass"
+    },
+    {
+      "group": "security",
+      "en": "Personal library folders are excluded from the public repository",
+      "bg": "Личните папки на библиотеката са извън публичното репо",
+      "status": "pass"
+    },
+    {
+      "group": "security",
+      "en": "Content from a document cannot run code in the browser",
+      "bg": "Съдържание от документ не може да изпълни код в браузъра",
+      "status": "known",
+      "note": {
+        "en": "Page text is rendered from Markdown without a sanitizer and without a Content-Security-Policy, so HTML hidden in a source could reach the page. Open documents only from sources you trust.",
+        "bg": "Текстът на страниците се показва от Markdown без пречистване и без Content-Security-Policy, затова HTML, скрит в източник, може да стигне до страницата. Отваряйте само документи от източници, на които имате доверие."
+      }
+    },
+    {
+      "group": "security",
+      "en": "Claude can read only inside the project folder",
+      "bg": "Claude може да чете само в папката на проекта",
+      "status": "known",
+      "note": {
+        "en": "The Read tool is allowed without a path limit. A hostile document could try to make Claude read other files on the computer; there is no network tool to carry them away, but the text reaches Anthropic and may land in a wiki page.",
+        "bg": "Инструментът Read е разрешен без ограничение на пътя. Враждебен документ може да опита да накара Claude да чете други файлове на компютъра. Няма мрежов инструмент, с който да ги изнесе, но текстът стига до Anthropic и може да попадне в страница."
+      }
+    },
+    {
+      "group": "security",
+      "en": "The local interface asks for a password",
+      "bg": "Локалният интерфейс иска парола",
+      "status": "known",
+      "note": {
+        "en": "There are no users or passwords: anyone with access to your account on this computer can open the library.",
+        "bg": "Няма потребители и пароли: всеки с достъп до вашия акаунт на този компютър може да отвори библиотеката."
+      }
+    },
+    {
+      "group": "security",
+      "en": "Library files are encrypted on disk",
+      "bg": "Файловете на библиотеката са шифровани на диска",
+      "status": "known",
+      "note": {
+        "en": "Files are plain text on disk. Use full-disk encryption (BitLocker, FileVault, LUKS) for sensitive material.",
+        "bg": "Файловете са обикновен текст на диска. За чувствителни материали ползвайте шифроване на целия диск (BitLocker, FileVault, LUKS)."
+      }
+    },
+    {
+      "group": "updates",
+      "en": "Versions are compared correctly",
+      "bg": "Версиите се сравняват правилно",
+      "status": "pass"
+    },
+    {
+      "group": "updates",
+      "en": "The repository address is read from package.json",
+      "bg": "Адресът на репото се чете от package.json",
+      "status": "pass"
+    },
+    {
+      "group": "updates",
+      "en": "Nothing contacts GitHub until the button is pressed",
+      "bg": "Нищо не се свързва с GitHub преди натискане на бутона",
+      "status": "pass"
+    },
+    {
+      "group": "updates",
+      "en": "A newer version on GitHub is detected",
+      "bg": "Нова версия в GitHub се открива",
+      "status": "pass"
+    },
+    {
+      "group": "updates",
+      "en": "The same version is reported as up to date",
+      "bg": "Същата версия се показва като актуална",
+      "status": "pass"
+    },
+    {
+      "group": "updates",
+      "en": "Without a connection a clear message appears and nothing breaks",
+      "bg": "Без връзка се показва ясно съобщение и нищо не се чупи",
+      "status": "pass"
+    },
+    {
+      "group": "updates",
+      "en": "Reports from npm are read correctly",
+      "bg": "Отчетите на npm се разчитат правилно",
+      "status": "pass"
+    },
+    {
+      "group": "updates",
+      "en": "The application does not install anything by itself",
+      "bg": "Приложението не инсталира нищо само",
+      "status": "pass"
+    }
+  ],
+  "notCovered": [
+    {
+      "en": "Quality of what the real Claude writes (accuracy of summaries, citations, page numbers)",
+      "bg": "Качеството на написаното от истинския Claude (точност на обобщенията, цитатите и страниците)",
+      "why": {
+        "en": "Tests use a simulated Claude so that they cost nothing. Always check important claims against the source.",
+        "bg": "Тестовете ползват симулиран Claude, за да не струват нищо. Важните твърдения винаги се проверяват в източника."
+      }
+    },
+    {
+      "en": "Downloading from real publishers through “Add an article”",
+      "bg": "Сваляне от истински издатели през „Добави статия“",
+      "why": {
+        "en": "It depends on each publisher. Only the refusal of unsafe addresses is tested.",
+        "bg": "Зависи от всеки издател. Тества се само отказът на опасни адреси."
+      }
+    },
+    {
+      "en": "Installers on a clean computer (install.cmd, install.ps1, install.sh)",
+      "bg": "Инсталаторите на чист компютър (install.cmd, install.ps1, install.sh)",
+      "why": {
+        "en": "They install system software and need a clean machine of each kind.",
+        "bg": "Инсталират системен софтуер и изискват чиста машина от всеки вид."
+      }
+    },
+    {
+      "en": "macOS and native Windows",
+      "bg": "macOS и Windows без WSL",
+      "why": {
+        "en": "This report comes from one environment (see above). Run npm test on your own system.",
+        "bg": "Този отчет е от една среда (виж по-горе). Пуснете npm test на своята система."
+      }
+    },
+    {
+      "en": "OCR accuracy on real scanned books",
+      "bg": "Точността на OCR върху истински сканирани книги",
+      "why": {
+        "en": "Accuracy depends on the scan. Pages with many errors must be checked by hand.",
+        "bg": "Точността зависи от сканирането. Страниците с много грешки се проверяват на ръка."
+      }
+    },
+    {
+      "en": "Large libraries (over about 200 sources)",
+      "bg": "Големи библиотеки (над около 200 източника)",
+      "why": {
+        "en": "No automatic load test exists yet.",
+        "bg": "Още няма автоматичен тест под натоварване."
+      }
+    },
+    {
+      "en": "Your Anthropic privacy setting and Anthropic’s handling of the data",
+      "bg": "Настройката ви за поверителност при Anthropic и начинът, по който Anthropic обработва данните",
+      "why": {
+        "en": "This is outside the application and cannot be read or verified from it.",
+        "bg": "Това е извън приложението и не може да се прочете или провери от него."
+      }
+    }
+  ],
+  "packages": {
+    "outdated": [
+      {
+        "name": "@napi-rs/canvas",
+        "current": "1.0.13",
+        "wanted": "1.1.0",
+        "latest": "1.1.0",
+        "major": false
+      },
+      {
+        "name": "@tailwindcss/browser",
+        "current": "4.3.3",
+        "wanted": "4.3.4",
+        "latest": "4.3.4",
+        "major": false
+      },
+      {
+        "name": "marked",
+        "current": "18.1.2",
+        "wanted": "18.1.3",
+        "latest": "18.1.3",
+        "major": false
+      },
+      {
+        "name": "pdfjs-dist",
+        "current": "6.4.299",
+        "wanted": "6.5.438",
+        "latest": "6.5.438",
+        "major": false
+      },
+      {
+        "name": "unpdf",
+        "current": "1.9.1",
+        "wanted": "1.9.1",
+        "latest": "2.1.0",
+        "major": true
+      }
+    ],
+    "audit": {
+      "total": 8,
+      "critical": 0,
+      "high": 0,
+      "moderate": 8,
+      "low": 0
+    }
+  }
+}

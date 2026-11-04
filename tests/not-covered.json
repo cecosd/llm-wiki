@@ -1,0 +1,37 @@
+[
+  {
+    "en": "Quality of what the real Claude writes (accuracy of summaries, citations, page numbers)",
+    "bg": "Качеството на написаното от истинския Claude (точност на обобщенията, цитатите и страниците)",
+    "why": { "en": "Tests use a simulated Claude so that they cost nothing. Always check important claims against the source.", "bg": "Тестовете ползват симулиран Claude, за да не струват нищо. Важните твърдения винаги се проверяват в източника." }
+  },
+  {
+    "en": "Downloading from real publishers through “Add an article”",
+    "bg": "Сваляне от истински издатели през „Добави статия“",
+    "why": { "en": "It depends on each publisher. Only the refusal of unsafe addresses is tested.", "bg": "Зависи от всеки издател. Тества се само отказът на опасни адреси." }
+  },
+  {
+    "en": "Installers on a clean computer (install.cmd, install.ps1, install.sh)",
+    "bg": "Инсталаторите на чист компютър (install.cmd, install.ps1, install.sh)",
+    "why": { "en": "They install system software and need a clean machine of each kind.", "bg": "Инсталират системен софтуер и изискват чиста машина от всеки вид." }
+  },
+  {
+    "en": "macOS and native Windows",
+    "bg": "macOS и Windows без WSL",
+    "why": { "en": "This report comes from one environment (see above). Run npm test on your own system.", "bg": "Този отчет е от една среда (виж по-горе). Пуснете npm test на своята система." }
+  },
+  {
+    "en": "OCR accuracy on real scanned books",
+    "bg": "Точността на OCR върху истински сканирани книги",
+    "why": { "en": "Accuracy depends on the scan. Pages with many errors must be checked by hand.", "bg": "Точността зависи от сканирането. Страниците с много грешки се проверяват на ръка." }
+  },
+  {
+    "en": "Large libraries (over about 200 sources)",
+    "bg": "Големи библиотеки (над около 200 източника)",
+    "why": { "en": "No automatic load test exists yet.", "bg": "Още няма автоматичен тест под натоварване." }
+  },
+  {
+    "en": "Your Anthropic privacy setting and Anthropic’s handling of the data",
+    "bg": "Настройката ви за поверителност при Anthropic и начинът, по който Anthropic обработва данните",
+    "why": { "en": "This is outside the application and cannot be read or verified from it.", "bg": "Това е извън приложението и не може да се прочете или провери от него." }
+  }
+]

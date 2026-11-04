@@ -142,11 +142,16 @@ export async function planConspect({ slug, level, signal }) {
     P('- The files of the original texts have markers <!-- стр. N -->. Find the range with Grep (-n) and read only it (Read with offset and limit), not the whole file.'),
     P('- Do not copy long passages: paraphrase; a direct quote of at most 1 to 2 sentences, in quotation marks, with a page.'),
     P('- Do not invent facts, figures or citations that are not in the text.'),
+    P('- Where a term, a person, a topic, a book chapter or a comparison has its own page in wiki/, link it at its first mention: [[slug|the word as it stands in the outline]]. Read wiki/index.md first and use only the slugs listed there; a chapter is a page in wiki/sources/chapters/ (check with Glob). Do not invent slugs: if there is no such page, write the word without a link.'),
+    P('- Link each ordinary term or name only once, at its first mention, and only where the link fits the sentence. A citation such as ([[slug]], p. N) keeps its link every time it appears. A link adds no statement: the text still says only what the source says.'),
     P('- No em dash (—).'),
     P('\nReturn only the finished Markdown of the outline (subheadings with ## where naturally needed), without an introduction before it, without JSON and without repeating the title “{0}” at the beginning.', [page.data.title || slug]),
   ].filter(Boolean).join('\n');
   const r = await askClaude({ prompt, model: L.model, effort: L.effort, maxTurns: L.maxTurns, timeoutMs: L.timeoutMs, signal });
-  return r.ok ? { ok: true, answer: noDash(r.text).trim() } : r;
+  if (!r.ok) return r;
+  // Връзка само към съществуваща страница (без индекса, дневника и обзора; собствените цитати остават).
+  const known = new Set(pages.filter((p) => !SPECIAL.has(p.slug)).map((p) => p.slug));
+  return { ok: true, answer: fixLinks(noDash(r.text).trim(), known).text };
 }
 
 // ---------- Предложение за промяна ----------
@@ -463,6 +468,54 @@ export function applyParagraphDelete({ slug, before, hash }) {
   const title = String(page.data.title || page.slug);
   fs.appendFileSync(path.join(WIKI, 'log.md'), `\n## ${today()} refactor: ${P('Paragraph removed from')} “${title}”\n- ${P('One paragraph was removed by hand')}${links.length ? `; ${P('the links in it are gone too')}: ${links.map((l) => `[[${l}]]`).join(', ')}` : ''}.\n`);
   return { ok: true, slug, title, links, bits: [$t('paragraph removed') + (links.length ? ` (${links.length} ${links.length === 1 ? $t('link') : $t('links')})` : '')] };
+}
+
+// ---------- Връзка от избрания текст към страница от библиотеката ----------
+// Избраният текст се търси в Markdown-а така, както е на екрана (интервалите са без значение). Връзката
+// се вмъква около него: [[цел]] ако текстът е същото като заглавието, иначе [[цел|текст]].
+// Отказва се там, където връзката би счупила текста: заглавие, вече съществуваща връзка, URL, код, няколко места.
+const findOnScreen = (body, selection) => {
+  const words = String(selection).trim().split(/\s+/).filter(Boolean).map((w) => w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+  return words.length ? [...body.matchAll(new RegExp(words.join('\\s+'), 'g'))] : [];
+};
+
+export function applyLink({ slug, selection, target }) {
+  const pages = wikiPages();
+  const page = pages.find((p) => p.slug === slug);
+  if (!page || SPECIAL.has(slug)) return { ok: false, error: $t('This page is not edited from here.') };
+  const to = pages.find((p) => p.slug === target);
+  if (!to || SPECIAL.has(target)) return { ok: false, error: $t('There is no such page.') };
+  if (target === slug) return { ok: false, error: $t('A page cannot link to itself.') };
+  const sel = String(selection || '').trim();
+  if (sel.length < 2) return { ok: false, error: $t('Select the text that should become the link.') };
+
+  const m = matter(fs.readFileSync(page.file, 'utf8'));
+  let body = m.content;
+  const found = findOnScreen(body, sel);
+  if (!found.length) return { ok: false, error: $t('I could not find the selected text as it is written in the page. Select text without bold or italic in its middle.') };
+  if (found.length > 1) return { ok: false, error: $t('This passage occurs in several places. Select a longer text.') };
+  const at = found[0].index, text = found[0][0];
+
+  if (/\n\s*\n/.test(text)) return { ok: false, error: $t('Select text within one paragraph.') };
+  if (/[\[\]|]/.test(text)) return { ok: false, error: $t('The text cannot contain brackets or the | sign.') };
+  const lineStart = body.lastIndexOf('\n', at - 1) + 1;
+  const lineEnd = body.indexOf('\n', at);
+  const line = body.slice(lineStart, lineEnd < 0 ? body.length : lineEnd);
+  const before = body.slice(lineStart, at);
+  if (/^\s*#{1,6}\s/.test(line)) return { ok: false, error: $t('Headings are not linked from here. Select the text of a paragraph.') };
+  if (before.lastIndexOf('[') > before.lastIndexOf(']') || before.lastIndexOf('](') > before.lastIndexOf(')')) return { ok: false, error: $t('The selected text is already part of a link.') };
+  if ((before.match(/`/g) || []).length % 2 === 1) return { ok: false, error: $t('The selected text is in code and cannot become a link.') };
+
+  const title = String(to.data.title || to.slug);
+  const label = text === title ? '' : `|${text}`;
+  body = body.slice(0, at) + `[[${target}${label}]]` + body.slice(at + text.length);
+  const d = m.data;
+  for (const [k, v] of Object.entries(d)) if (v instanceof Date) d[k] = v.toISOString().slice(0, 10);
+  d.updated = today();
+  fs.writeFileSync(page.file, matter.stringify(body, d));
+  const ptitle = String(page.data.title || slug);
+  fs.appendFileSync(path.join(WIKI, 'log.md'), `\n## ${today()} refactor: ${P('Link added in')} “${ptitle}”\n- ${P('the text “{0}” now links to [[{1}]]', [text, target])}\n`);
+  return { ok: true, slug, title: ptitle, bits: [$t('link to “{0}”', [title])] };
 }
 
 /** Сменя заглавието (не и slug-а, затова връзките остават). */

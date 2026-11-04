@@ -28,6 +28,22 @@ function claudeAuth(bin) {
   }
 }
 
+/**
+ * По какви условия се обработват данните: потребителски план (обучението зависи от настройка на акаунта)
+ * или търговски (Team, Enterprise, API: без обучение по подразбиране). Самата настройка не може да се прочете отвън.
+ */
+export function accountTerms() {
+  const bin = findClaude();
+  if (!bin || !claudeVersion(bin)) return { terms: 'unknown', plan: null };
+  const a = claudeAuth(bin);
+  if (!a.known || !a.loggedIn) return { terms: 'unknown', plan: null };
+  const plan = String(a.plan || '').toLowerCase();
+  if (['free', 'pro', 'max', 'ultra'].includes(plan)) return { terms: 'consumer', plan };
+  if (['team', 'enterprise'].includes(plan)) return { terms: 'commercial', plan };
+  if (/api|key|console/i.test(String(a.method || ''))) return { terms: 'commercial', plan: 'api' };
+  return { terms: 'unknown', plan: plan || null };
+}
+
 const count = (dir) => { try { return fs.readdirSync(dir).filter((f) => !f.startsWith('.')).length; } catch { return 0; } };
 
 export function checkSetup() {

@@ -1,0 +1,8 @@
+{
+  "app": { "en": "Application and interface", "bg": "Приложение и интерфейс" },
+  "library": { "en": "Files and library", "bg": "Файлове и библиотека" },
+  "claude": { "en": "Work with Claude (simulated)", "bg": "Работа с Claude (симулирана)" },
+  "security": { "en": "Security", "bg": "Сигурност" },
+  "updates": { "en": "Update check", "bg": "Проверка за обновления" },
+  "runner": { "en": "Test runner", "bg": "Изпълнение на тестовете" }
+}

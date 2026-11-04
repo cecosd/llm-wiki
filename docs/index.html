@@ -1,0 +1,298 @@
+<!doctype html>
+<html lang="bg">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>LLM Wiki</title>
+  <meta name="description" content="A local knowledge library for any field: Claude reads your sources and maintains a linked wiki on your computer. Developed by SDevelopers LTD with Claude.">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='9' fill='%232f6f62'/><path d='M9 9h4v14H9zM15 9h3v14h-3zM20 10l3-1 3 13-3 1z' fill='white'/></svg>">
+  <script>
+    (() => { document.documentElement.classList.toggle('dark', matchMedia('(prefers-color-scheme: dark)').matches); })();
+  </script>
+  <style>
+    @font-face { font-family: "Inter Variable"; src: url(vendor/inter-latin.woff2) format("woff2-variations"); font-weight: 100 900; font-display: swap; unicode-range: U+0000-00FF, U+2000-206F, U+20AC, U+2122; }
+    @font-face { font-family: "Inter Variable"; src: url(vendor/inter-cyrillic.woff2) format("woff2-variations"); font-weight: 100 900; font-display: swap; unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116; }
+    @font-face { font-family: "Literata Variable"; src: url(vendor/literata-latin.woff2) format("woff2-variations"); font-weight: 200 900; font-display: swap; unicode-range: U+0000-00FF, U+2000-206F, U+20AC, U+2122; }
+    @font-face { font-family: "Literata Variable"; src: url(vendor/literata-cyrillic.woff2) format("woff2-variations"); font-weight: 200 900; font-display: swap; unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116; }
+    [v-cloak] { display: none; }
+    html { scroll-behavior: smooth; scroll-padding-top: 5rem; }
+    @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+  </style>
+  <script src="vendor/tailwind.js"></script>
+  <style type="text/tailwindcss">
+    @custom-variant dark (&:where(.dark, .dark *));
+    @theme {
+      --font-sans: "Inter Variable", ui-sans-serif, system-ui, sans-serif;
+      --font-serif: "Literata Variable", ui-serif, Georgia, serif;
+      --color-paper: #f6f3ec;
+      --color-panel: #fffdf9;
+      --color-ink: #26231e;
+      --color-muted: #6f675b;
+      --color-line: #e7e1d5;
+      --color-night: #12110f;
+      --color-night-panel: #1b1a17;
+      --color-night-line: #2e2b26;
+      --color-night-ink: #ece7dd;
+      --color-night-muted: #a39b90;
+      --color-sage-50: #eef5f2;
+      --color-sage-100: #d7e9e2;
+      --color-sage-200: #b1d3c6;
+      --color-sage-400: #5fa08c;
+      --color-sage-600: #2f6f62;
+      --color-sage-700: #255a4f;
+      --color-sage-900: #163731;
+      --color-clay-100: #f6e4d6;
+      --color-clay-400: #d98a55;
+      --color-clay-600: #a85a2c;
+    }
+    @layer base {
+      html { -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility; }
+      body { @apply bg-paper text-ink font-sans leading-relaxed dark:bg-night dark:text-night-ink; }
+      a { @apply underline decoration-sage-400/50 underline-offset-2 hover:decoration-sage-600; }
+      :focus-visible { @apply outline-2 outline-offset-2 outline-sage-600; }
+      code { @apply font-mono text-[.88em]; }
+    }
+    @utility sec { @apply mx-auto max-w-5xl px-4 py-14 sm:px-8 sm:py-20; }
+    @utility rule { @apply border-t border-line dark:border-night-line; }
+    @utility h2x { @apply font-serif text-3xl font-semibold tracking-tight sm:text-4xl; }
+    @utility h3x { @apply font-serif text-xl font-semibold; }
+    @utility lede { @apply mt-4 max-w-2xl text-lg text-muted dark:text-night-muted; }
+    @utility cardx { @apply rounded-2xl border border-line bg-panel p-5 dark:border-night-line dark:bg-night-panel; }
+    @utility shell { @apply overflow-x-auto rounded-xl bg-ink px-4 py-3 font-mono text-[13px] leading-6 text-night-ink dark:bg-black/40; }
+    @utility btnx { @apply inline-flex items-center justify-center rounded-full px-5 py-2.5 text-sm font-medium no-underline transition; }
+  </style>
+</head>
+<body>
+<div id="app" v-cloak>
+  <header class="sticky top-0 z-20 border-b border-line/70 bg-paper/90 backdrop-blur dark:border-night-line dark:bg-night/90">
+    <div class="mx-auto flex max-w-5xl items-center gap-4 px-4 py-3 sm:px-8">
+      <a href="#top" class="flex items-center gap-2.5 font-serif text-lg font-semibold no-underline">
+        <span class="grid size-8 place-items-center rounded-xl bg-sage-600 text-white" aria-hidden="true"><svg viewBox="0 0 24 24" class="size-4.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 5v14M8 5v14M12 6l4 13M17 5l3 1-1 13"/></svg></span>
+        LLM Wiki
+      </a>
+      <nav class="ml-auto hidden items-center gap-5 text-sm lg:flex" :aria-label="c.nav.label">
+        <a v-for="n in c.nav.items" :key="n[0]" :href="'#' + n[0]" class="text-muted no-underline hover:text-ink dark:text-night-muted dark:hover:text-night-ink">{{ n[1] }}</a>
+      </nav>
+      <button class="ml-auto rounded-full border border-line px-3 py-1 text-sm hover:bg-black/5 lg:ml-0 dark:border-night-line dark:hover:bg-white/5" :aria-label="c.nav.switch" @click="toggleLang">{{ lang === 'bg' ? 'EN' : 'БГ' }}</button>
+    </div>
+  </header>
+
+  <main id="top">
+    <!-- Начало -->
+    <section class="mx-auto grid max-w-5xl gap-10 px-4 pb-14 pt-12 sm:px-8 sm:pt-20 lg:grid-cols-[1.15fr_1fr] lg:items-center">
+      <div>
+        <p class="text-sm font-medium text-sage-700 dark:text-sage-200">{{ c.hero.eyebrow }}<template v-if="report"> · {{ c.hero.version }} {{ report.version }}</template></p>
+        <h1 class="mt-3 font-serif text-4xl font-semibold leading-[1.12] tracking-tight sm:text-5xl">{{ c.hero.title }}</h1>
+        <p class="lede">{{ c.hero.sub }}</p>
+        <div class="mt-7 flex flex-wrap gap-3">
+          <a :href="repo" class="btnx bg-sage-600 text-white hover:bg-sage-700">{{ c.hero.cta }}</a>
+          <a href="#tests" class="btnx border border-line hover:bg-black/5 dark:border-night-line dark:hover:bg-white/5">{{ c.hero.cta2 }}</a>
+          <a v-if="local" href="/" class="btnx border border-line hover:bg-black/5 dark:border-night-line dark:hover:bg-white/5">{{ c.hero.open }}</a>
+        </div>
+        <p class="mt-5 text-sm text-muted dark:text-night-muted">{{ c.hero.note }}</p>
+      </div>
+
+      <figure class="cardx" :aria-label="c.flow.label">
+        <p class="text-xs font-medium uppercase tracking-wider text-muted dark:text-night-muted">{{ c.flow.in }}</p>
+        <div class="mt-2 flex flex-wrap gap-1.5">
+          <span v-for="f in ['PDF','EPUB','DOCX','XLSX','CSV','HTML','TXT','DOI']" :key="f" class="rounded-md bg-black/5 px-2 py-0.5 font-mono text-xs dark:bg-white/10">{{ f }}</span>
+        </div>
+        <div class="my-3 flex items-center gap-3 text-xs text-muted dark:text-night-muted">
+          <svg viewBox="0 0 12 28" class="h-7 w-3 shrink-0 text-sage-600" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M6 0v26M1.5 21.5 6 26l4.5-4.5"/></svg>
+          {{ c.flow.step }}
+        </div>
+        <p class="text-xs font-medium uppercase tracking-wider text-muted dark:text-night-muted">{{ c.flow.out }}</p>
+        <svg viewBox="0 0 320 130" class="mt-2 w-full" role="img" :aria-label="c.flow.graph">
+          <g class="stroke-sage-400" stroke-width="1.25"><path d="M50 32 160 65M50 98 160 65M160 65 270 30M160 65 270 100M50 32 50 98M270 30 270 100"/></g>
+          <g class="fill-sage-600"><circle cx="160" cy="65" r="9"/></g>
+          <g class="fill-panel stroke-sage-600 dark:fill-night-panel" stroke-width="1.5"><circle cx="50" cy="32" r="6"/><circle cx="50" cy="98" r="6"/><circle cx="270" cy="30" r="6"/><circle cx="270" cy="100" r="6"/></g>
+          <g class="fill-ink dark:fill-night-ink" font-size="11" font-family="Inter Variable, sans-serif">
+            <text x="62" y="20">{{ c.flow.n[0] }}</text><text x="62" y="118">{{ c.flow.n[1] }}</text><text x="160" y="42" text-anchor="middle" font-weight="600">{{ c.flow.n[2] }}</text>
+            <text x="258" y="16" text-anchor="end">{{ c.flow.n[3] }}</text><text x="258" y="120" text-anchor="end">{{ c.flow.n[4] }}</text>
+          </g>
+        </svg>
+        <figcaption class="mt-2 text-xs text-muted dark:text-night-muted">{{ c.flow.cap }}</figcaption>
+      </figure>
+    </section>
+
+    <!-- Проблем -->
+    <section id="why" class="rule"><div class="sec">
+      <h2 class="h2x">{{ c.why.title }}</h2>
+      <p class="lede">{{ c.why.lede }}</p>
+      <div class="mt-10 grid gap-8 md:grid-cols-3">
+        <div v-for="p in c.why.points" :key="p[0]"><h3 class="h3x">{{ p[0] }}</h3><p class="mt-2 text-muted dark:text-night-muted">{{ p[1] }}</p></div>
+      </div>
+      <div class="mt-12 grid gap-8 md:grid-cols-2">
+        <div><h3 class="h3x">{{ c.why.reasonT }}</h3><p class="mt-2">{{ c.why.reason }}</p><p class="mt-3 text-sm text-muted dark:text-night-muted">{{ c.why.origin }}</p></div>
+        <div><h3 class="h3x">{{ c.why.whoT }}</h3><ul class="mt-2 space-y-1.5"><li v-for="w in c.why.who" :key="w">{{ w }}</li></ul></div>
+      </div>
+    </div></section>
+
+    <!-- Какво прави -->
+    <section id="features" class="rule bg-panel dark:bg-night-panel"><div class="sec">
+      <h2 class="h2x">{{ c.features.title }}</h2>
+      <dl class="mt-10 grid gap-x-10 gap-y-7 sm:grid-cols-2">
+        <div v-for="f in c.features.items" :key="f[0]"><dt class="font-semibold">{{ f[0] }}</dt><dd class="mt-1 text-muted dark:text-night-muted">{{ f[1] }}</dd></div>
+      </dl>
+    </div></section>
+
+    <!-- Изисквания и умения -->
+    <section id="start" class="rule"><div class="sec">
+      <h2 class="h2x">{{ c.start.title }}</h2>
+      <p class="lede">{{ c.start.lede }}</p>
+      <div class="mt-10 grid grid-cols-1 gap-10 lg:grid-cols-2">
+        <div>
+          <h3 class="h3x">{{ c.start.reqT }}</h3>
+          <div class="mt-3 overflow-x-auto">
+            <table class="w-full text-left text-sm">
+              <tbody>
+                <tr v-for="r in c.start.req" :key="r[0]" class="border-t border-line dark:border-night-line">
+                  <th scope="row" class="py-2.5 pr-4 align-top font-medium">{{ r[0] }}</th><td class="py-2.5 text-muted dark:text-night-muted">{{ r[1] }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <div>
+          <h3 class="h3x">{{ c.start.skillT }}</h3>
+          <ul class="mt-3 list-disc space-y-2 pl-5"><li v-for="s in c.start.skills" :key="s">{{ s }}</li></ul>
+          <h3 class="h3x mt-7">{{ c.start.noT }}</h3>
+          <p class="mt-2 text-muted dark:text-night-muted">{{ c.start.no }}</p>
+        </div>
+      </div>
+      <h3 class="h3x mt-12">{{ c.start.installT }}</h3>
+      <div class="mt-4 grid grid-cols-1 gap-5 lg:grid-cols-2">
+        <div><p class="mb-2 text-sm font-medium">{{ c.start.autoT }}</p><pre class="shell">git clone {{ repo }}.git
+cd llm-wiki
+./install.sh        # macOS, Linux, WSL
+install.cmd         # Windows</pre></div>
+        <div><p class="mb-2 text-sm font-medium">{{ c.start.handT }}</p><pre class="shell">npm install
+claude              # {{ c.start.signin }}
+npm run serve       # http://localhost:4321
+npm test            # {{ c.start.check }}</pre></div>
+      </div>
+    </div></section>
+
+    <!-- Данни -->
+    <section id="data" class="rule bg-panel dark:bg-night-panel"><div class="sec">
+      <h2 class="h2x">{{ c.data.title }}</h2>
+      <p class="lede">{{ c.data.lede }}</p>
+      <div class="mt-10 grid gap-5 md:grid-cols-3">
+        <div v-for="d in c.data.flows" :key="d[0]" class="rounded-2xl border border-line p-5 dark:border-night-line"><h3 class="font-semibold">{{ d[0] }}</h3><p class="mt-2 text-sm text-muted dark:text-night-muted">{{ d[1] }}</p></div>
+      </div>
+
+      <h3 class="h3x mt-12">{{ c.data.tableT }}</h3>
+      <div class="mt-3 overflow-x-auto">
+        <table class="w-full min-w-[34rem] text-left text-sm">
+          <thead class="text-muted dark:text-night-muted"><tr><th v-for="h in c.data.head" :key="h" scope="col" class="py-2 pr-4 font-medium">{{ h }}</th></tr></thead>
+          <tbody><tr v-for="r in c.data.rows" :key="r[0]" class="border-t border-line dark:border-night-line"><td v-for="(x, i) in r" :key="i" :class="['py-2.5 pr-4 align-top', i === 0 && 'font-medium']">{{ x }}</td></tr></tbody>
+        </table>
+      </div>
+
+      <h3 class="h3x mt-12">{{ c.data.howT }}</h3>
+      <ol class="mt-3 max-w-3xl list-decimal space-y-3 pl-5">
+        <li><b>{{ c.data.how[0][0] }}</b> {{ c.data.how[0][1] }} <a href="https://claude.ai/settings/data-privacy-controls">claude.ai/settings/data-privacy-controls</a></li>
+        <li v-for="h in c.data.how.slice(1)" :key="h[0]"><b>{{ h[0] }}</b> {{ h[1] }}</li>
+      </ol>
+      <pre class="shell mt-4 max-w-3xl"># {{ c.data.envNote }}
+export CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1</pre>
+      <p class="mt-6 max-w-3xl rounded-xl bg-clay-100 p-4 text-sm text-ink dark:bg-clay-600/20 dark:text-night-ink"><b>{{ c.data.limitT }}</b> {{ c.data.limit }}</p>
+    </div></section>
+
+    <!-- Сигурност -->
+    <section id="security" class="rule"><div class="sec">
+      <h2 class="h2x">{{ c.sec.title }}</h2>
+      <p class="lede">{{ c.sec.lede }}</p>
+      <div class="mt-10 grid gap-10 md:grid-cols-2">
+        <div><h3 class="h3x">{{ c.sec.okT }}</h3><ul class="mt-3 list-disc space-y-2 pl-5"><li v-for="s in c.sec.ok" :key="s">{{ s }}</li></ul></div>
+        <div><h3 class="h3x">{{ c.sec.badT }}</h3><ul class="mt-3 list-disc space-y-2 pl-5"><li v-for="s in c.sec.bad" :key="s">{{ s }}</li></ul></div>
+      </div>
+      <h3 class="h3x mt-12">{{ c.sec.adviceT }}</h3>
+      <ul class="mt-3 max-w-3xl list-disc space-y-2 pl-5"><li v-for="s in c.sec.advice" :key="s">{{ s }}</li></ul>
+    </div></section>
+
+    <!-- Тестове -->
+    <section id="tests" class="rule bg-panel dark:bg-night-panel"><div class="sec">
+      <h2 class="h2x">{{ c.tests.title }}</h2>
+      <p class="lede">{{ c.tests.lede }}</p>
+      <p v-if="!report" class="mt-8 rounded-xl border border-line p-4 text-sm dark:border-night-line">{{ c.tests.none }}</p>
+      <template v-else>
+        <p class="mt-6 text-sm text-muted dark:text-night-muted">{{ c.tests.meta }} {{ report.date.slice(0, 10) }} · {{ c.hero.version }} {{ report.version }} · {{ report.environment.platform }} · Node.js {{ report.environment.node }}</p>
+        <div class="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
+          <div v-for="s in stats" :key="s.label" class="rounded-2xl border border-line p-4 dark:border-night-line">
+            <p :class="['font-serif text-3xl font-semibold', s.tone]">{{ s.value }}</p><p class="mt-1 text-sm text-muted dark:text-night-muted">{{ s.label }}</p>
+          </div>
+        </div>
+        <div class="mt-8 space-y-3">
+          <details v-for="g in groups" :key="g.key" class="rounded-xl border border-line dark:border-night-line" :open="g.bad > 0">
+            <summary class="cursor-pointer px-4 py-3 font-medium">{{ g.title }} <span class="font-normal text-muted dark:text-night-muted">({{ g.pass }}/{{ g.items.length }})</span></summary>
+            <ul class="space-y-2 px-4 pb-4 text-sm">
+              <li v-for="t in g.items" :key="t.en" class="flex gap-2.5">
+                <span :class="['mt-0.5 w-4 shrink-0 text-center font-semibold', mark(t).tone]" :title="mark(t).label" aria-hidden="true">{{ mark(t).sym }}</span>
+                <span><span class="sr-only">{{ mark(t).label }}: </span>{{ pick(t) }}<span v-if="t.note" class="mt-0.5 block text-muted dark:text-night-muted">{{ pick(t.note) }}</span><span v-if="t.error" class="mt-0.5 block break-words text-clay-600">{{ t.error }}</span></span>
+              </li>
+            </ul>
+          </details>
+          <details class="rounded-xl border border-line dark:border-night-line" open>
+            <summary class="cursor-pointer px-4 py-3 font-medium">{{ c.tests.nc }} <span class="font-normal text-muted dark:text-night-muted">({{ report.notCovered.length }})</span></summary>
+            <ul class="space-y-2 px-4 pb-4 text-sm">
+              <li v-for="t in report.notCovered" :key="t.en" class="flex gap-2.5"><span class="mt-0.5 w-4 shrink-0 text-center font-semibold text-muted" aria-hidden="true">?</span><span>{{ pick(t) }}<span class="mt-0.5 block text-muted dark:text-night-muted">{{ pick(t.why) }}</span></span></li>
+            </ul>
+          </details>
+        </div>
+      </template>
+      <p class="mt-6 max-w-3xl text-sm text-muted dark:text-night-muted">{{ c.tests.own }}</p>
+    </div></section>
+
+    <!-- Поддръжка -->
+    <section id="maintenance" class="rule"><div class="sec">
+      <h2 class="h2x">{{ c.maint.title }}</h2>
+      <p class="lede">{{ c.maint.lede }}</p>
+      <div class="mt-10 grid grid-cols-1 gap-10 lg:grid-cols-2">
+        <div>
+          <h3 class="h3x">{{ c.maint.depsT }}</h3>
+          <p class="mt-2 text-sm text-muted dark:text-night-muted">{{ c.maint.depsNote }}</p>
+          <table class="mt-3 w-full text-left text-sm"><tbody>
+            <tr v-for="d in c.maint.deps" :key="d[0]" class="border-t border-line dark:border-night-line"><th scope="row" class="py-2 pr-4 align-top font-mono text-xs font-normal">{{ d[0] }}</th><td class="py-2 text-muted dark:text-night-muted">{{ d[1] }}</td></tr>
+          </tbody></table>
+        </div>
+        <div>
+          <template v-if="report && report.packages">
+            <h3 class="h3x">{{ c.maint.nowT }} ({{ report.date.slice(0, 10) }})</h3>
+            <p v-if="report.packages.audit" class="mt-2">{{ c.maint.audit(report.packages.audit) }}</p>
+            <p v-if="report.packages.outdated" class="mt-2">{{ c.maint.outdated(report.packages.outdated.length) }}</p>
+            <ul v-if="report.packages.outdated && report.packages.outdated.length" class="mt-2 space-y-1 text-sm text-muted dark:text-night-muted">
+              <li v-for="p in report.packages.outdated" :key="p.name"><span class="font-mono text-xs">{{ p.name }}</span>: {{ p.current }} → {{ p.latest }}</li>
+            </ul>
+          </template>
+          <h3 class="h3x mt-8">{{ c.maint.howT }}</h3>
+          <p class="mt-2">{{ c.maint.how }}</p>
+          <pre class="shell mt-3">npm outdated     # {{ c.maint.c1 }}
+npm audit        # {{ c.maint.c2 }}
+npm update       # {{ c.maint.c3 }}
+npm test         # {{ c.maint.c4 }}</pre>
+        </div>
+      </div>
+    </div></section>
+
+    <!-- Автори -->
+    <section id="about" class="rule bg-sage-900 text-night-ink"><div class="sec">
+      <h2 class="font-serif text-3xl font-semibold tracking-tight sm:text-4xl">{{ c.about.title }}</h2>
+      <p class="mt-4 max-w-3xl text-lg">{{ c.about.main }}</p>
+      <p class="mt-4 max-w-3xl text-sage-100">{{ c.about.note }}</p>
+      <p class="mt-4 max-w-3xl text-sage-100">{{ c.about.license }} <a class="text-white decoration-sage-200" :href="repo">{{ repo.replace('https://', '') }}</a></p>
+    </div></section>
+
+    <!-- Източници -->
+    <section class="rule"><div class="sec !py-10">
+      <h2 class="h3x">{{ c.refs.title }}</h2>
+      <ul class="mt-3 space-y-2 text-sm text-muted dark:text-night-muted">
+        <li v-for="r in c.refs.items" :key="r[2]" class="pl-6 -indent-6">{{ r[0] }} <i>{{ r[1] }}</i>{{ r[3] }} <a :href="r[2]" class="break-all">{{ r[2] }}</a></li>
+      </ul>
+    </div></section>
+  </main>
+</div>
+<script src="vendor/vue.js"></script>
+<script src="landing.js"></script>
+</body>
+</html>

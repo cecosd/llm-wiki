@@ -150,6 +150,7 @@
         <a href="#/areas" :class="['nav-item', route.name==='areas' && 'active']" @click="drawer=false"><ic name="grid" class="size-4"></ic>{{ $t('Areas') }}</a>
         <a href="#/graph" :class="['nav-item', route.name==='graph' && 'active']" @click="drawer=false"><ic name="graph" class="size-4"></ic>{{ $t('Link map') }}</a>
         <a href="#/setup" :class="['nav-item', route.name==='setup' && 'active']" @click="drawer=false"><ic name="check" class="size-4"></ic><span class="flex-1">{{ $t('Setup') }}</span><span v-if="setupLeft" class="size-2 rounded-full bg-amber-500" :title="$t('{0} required steps are left.', [setupLeft])"></span></a>
+        <a href="#/settings" :class="['nav-item', route.name==='settings' && 'active']" @click="drawer=false"><ic name="gear" class="size-4"></ic>{{ $t('Settings') }}</a>
         <a href="#/p/index" :class="['nav-item', route.slug==='index' && 'active']" @click="drawer=false"><ic name="list" class="size-4"></ic>{{ $t('Index') }}</a>
         <a href="#/p/log" :class="['nav-item', route.slug==='log' && 'active']" @click="drawer=false"><ic name="clock" class="size-4"></ic>{{ $t('Log') }}</a>
       </div>
@@ -194,7 +195,7 @@
         </span>
         {{ live ? $t('Live') : $t('Offline') }}
       </span>
-      <select v-if="I18N.locales.length > 1" :value="I18N.lang" @change="I18N.setLang($event.target.value)" :aria-label="$t('Language')" :title="$t('Language')"
+      <select v-if="I18N.locales.length > 1" :value="I18N.lang" @change="changeLang" :aria-label="$t('Language')" :title="$t('Language')"
               class="rounded-full border border-line bg-transparent px-2 py-1 text-xs text-muted outline-none dark:border-night-line dark:text-night-muted">
         <option v-for="l in I18N.locales" :key="l.code" :value="l.code" class="text-ink">{{ l.name }}</option>
       </select>
@@ -222,6 +223,7 @@
       <graph-view v-else-if="route.name==='graph'" :version="version"></graph-view>
       <find-view v-else-if="route.name==='find'" @toast="toast" @refresh="refresh"></find-view>
       <setup-view v-else-if="route.name==='setup'" @copy="copy" @done="loadAgent"></setup-view>
+      <settings-view v-else-if="route.name==='settings'" @copy="copy"></settings-view>
       <areas-view v-else-if="route.name==='areas'" :pages="pages" @toast="toast" @refresh="refresh"></areas-view>
       <write-view v-else-if="route.name==='write'" :id="route.id" :pages="pages" @toast="toast"></write-view>
       <path-view v-else-if="route.name==='path'" :q="route.q" :mode="route.mode" :pages="pages" @toast="toast"></path-view>
@@ -848,6 +850,7 @@
   <div v-if="selBtn && !ai.open" class="fixed z-40 flex -translate-x-1/2 -translate-y-full gap-1 rounded-full border border-line bg-panel p-1 shadow-lift dark:border-night-line dark:bg-night-panel" :style="{left: selBtn.x+'px', top: selBtn.y+'px'}" role="toolbar" :aria-label="$t('Selected text')">
     <button type="button" class="btn-ghost !px-3 !py-1.5 text-sm" @mousedown.prevent @click="openAi('ask')"><ic name="help" class="size-4"></ic>{{ $t('Ask') }}</button>
     <button type="button" class="btn-ghost !px-3 !py-1.5 text-sm" @mousedown.prevent @click="openManual"><ic name="pen" class="size-4"></ic>{{ $t('Edit') }}</button>
+    <button type="button" class="btn-ghost !px-3 !py-1.5 text-sm" @mousedown.prevent @click="openLink" :title="$t('Makes the selected text a link to a page of the library')"><ic name="link" class="size-4"></ic>{{ $t('Link') }}</button>
     <button type="button" class="btn-ghost !px-3 !py-1.5 text-sm" @mousedown.prevent @click="deleteParagraph" :title="$t('Removes the paragraph together with the links in it')"><ic name="trash" class="size-4"></ic>{{ $t('Remove') }}</button>
     <button type="button" class="btn-primary !px-3 !py-1.5 text-sm" @mousedown.prevent @click="openAi('edit')" :title="$t('Claude proposes a change, you confirm it')"><ic name="sparkle" class="size-4"></ic>{{ $t('With Claude') }}</button>
   </div>
@@ -865,6 +868,27 @@
         <button type="button" class="btn-ghost" @click="man.open=false">{{ $t('Cancel editing') }}</button>
         <button type="button" class="btn-primary" :disabled="man.busy || man.md===man.before || !man.md.trim()" @click="saveManual"><ic name="check" class="size-4"></ic>{{ $t('Save changes') }}</button>
       </div>
+    </div>
+  </div>
+  <!-- Връзка: избраният текст става връзка към страница от библиотеката -->
+  <div v-if="lk.open" class="fixed inset-0 z-[60] grid place-items-center bg-ink/40 p-4" role="dialog" aria-modal="true" :aria-label="$t('Insert a link')" @keydown.esc="lk.open=false">
+    <div class="flex max-h-[85vh] w-full max-w-lg flex-col rounded-3xl border border-line bg-panel p-5 shadow-lift dark:border-night-line dark:bg-night-panel">
+      <p class="text-sm font-semibold">{{ $t('Insert a link') }}</p>
+      <p class="mt-1 text-xs text-muted dark:text-night-muted">{{ $t('The selected text becomes a link to the page you choose.') }}</p>
+      <p class="mt-3 line-clamp-2 rounded-2xl bg-sage-50 px-3 py-2 font-serif text-sm italic text-ink/80 dark:bg-sage-900/30 dark:text-night-ink/80">{{ $t('“{0}”', [lk.sel]) }}</p>
+      <input ref="linkQ" v-model="lk.q" type="search" :placeholder="$t('Search by title or alias')"
+             class="mt-3 w-full rounded-2xl border border-line bg-paper px-3 py-2 text-sm outline-none transition focus:border-sage-400 dark:border-night-line dark:bg-night" />
+      <ul class="scrollbar-thin mt-3 min-h-0 flex-1 overflow-y-auto">
+        <li v-for="p in linkCandidates" :key="p.slug">
+          <button type="button" class="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-sm transition hover:bg-ink/[.04] disabled:opacity-50 dark:hover:bg-white/5" :disabled="lk.busy" @click="pickLink(p)">
+            <span class="min-w-0 flex-1 truncate">{{ p.title }}</span>
+            <span class="shrink-0 text-xs text-muted dark:text-night-muted">{{ (TYPES[p.type]||TYPES.other).label }}</span>
+          </button>
+        </li>
+      </ul>
+      <p v-if="!linkCandidates.length" class="py-6 text-center text-sm text-muted dark:text-night-muted">{{ lk.q.trim() ? $t('No pages match “{0}”.', [lk.q.trim()]) : $t('There are no pages to link to.') }}</p>
+      <p v-if="lk.error" class="mt-3 flex gap-2 rounded-2xl bg-clay-100 px-3 py-2 text-sm text-clay-500 dark:bg-clay-500/15"><ic name="alert" class="mt-0.5 size-4 shrink-0"></ic>{{ lk.error }}</p>
+      <div class="mt-4 flex justify-end"><button type="button" class="btn-ghost" @click="lk.open=false">{{ $t('Cancel') }}</button></div>
     </div>
   </div>
   <button v-if="canAsk && !ai.open" type="button" class="btn-primary fixed bottom-5 right-5 z-30 !rounded-full !px-4 !py-3 shadow-lift" @click="openAi('ask')" :title="$t('Ask Claude about this page')"><ic name="sparkle" class="size-4"></ic>{{ $t('Ask Claude') }}</button>
@@ -1498,6 +1522,137 @@
 </div>
 </script>
 
+<script type="text/x-template" id="tpl-settings">
+<div class="mx-auto max-w-3xl px-5 py-8 sm:px-8 lg:py-12">
+  <p class="eyebrow">{{ $t('Settings') }}</p>
+  <h1 class="mt-1 font-serif text-3xl font-semibold">{{ $t('Updates, data and tests') }}</h1>
+  <p class="mt-2 max-w-2xl text-sm text-muted dark:text-night-muted">{{ $t('Nothing here leaves your computer until you press a button, and nothing is installed by itself. You see the result and decide.') }}</p>
+
+  <p v-if="!info" class="mt-8 text-sm text-muted">{{ $t('Loading…') }}</p>
+  <template v-else>
+    <!-- Версия -->
+    <section class="card mt-6 p-5">
+      <h2 class="font-serif text-xl font-semibold">{{ $t('Version of the code') }}</h2>
+      <p class="mt-1 text-sm text-muted dark:text-night-muted">{{ $t('Installed: {0}', [info.version]) }}<template v-if="info.repo"> · <a :href="info.url" target="_blank" rel="noopener" class="underline">{{ info.repo }}</a></template></p>
+      <button class="btn-primary mt-4 !py-1.5 text-sm" :disabled="busy.code" @click="checkCode"><ic :name="busy.code ? 'spinner' : 'globe'" :class="['size-4', busy.code && 'animate-spin']"></ic>{{ $t('Check for a new version') }}</button>
+      <p class="mt-1 text-xs text-muted dark:text-night-muted">{{ $t('Sends an ordinary request to GitHub. Your library is not sent.') }}</p>
+
+      <div v-if="code" class="mt-4 text-sm">
+        <p v-if="!code.ok" class="text-clay-500">{{ code.error }}</p>
+        <template v-else>
+          <p v-if="code.status==='same'" class="font-medium text-sage-700 dark:text-sage-200">{{ $t('You have the latest version ({0}).', [code.remote]) }}</p>
+          <p v-else-if="code.status==='ahead'" class="font-medium">{{ $t('Your version ({0}) is newer than the one on GitHub ({1}).', [code.version, code.remote]) }}</p>
+          <p v-else class="font-medium text-clay-500">{{ $t('A new version is available: {0} (you have {1}).', [code.remote, code.version]) }}</p>
+          <p v-if="code.commit" class="mt-1 text-muted dark:text-night-muted">{{ $t('Latest change on GitHub: {0}', [code.commit.message]) }} <span v-if="code.commit.date">({{ code.commit.date.slice(0, 10) }})</span></p>
+          <div v-if="code.status==='behind'" class="mt-3 space-y-2">
+            <p>{{ $t('If you installed with git, run this in the project folder. Your library, drafts and settings are not touched:') }}</p>
+            <div class="flex items-center gap-2 rounded-xl bg-ink/[.05] px-3 py-2 dark:bg-white/5">
+              <code class="min-w-0 flex-1 break-all text-xs">{{ updateCmd }}</code>
+              <button class="btn-ghost !p-1.5" :title="$t('Copy')" :aria-label="$t('Copy')" @click="$emit('copy', updateCmd)"><ic name="copy" class="size-4"></ic></button>
+            </div>
+            <p>{{ $t('If you downloaded a ZIP, download the new one and copy your folders raw, wiki, drafts and outputs and the file library.config.json into it.') }}</p>
+          </div>
+        </template>
+      </div>
+    </section>
+
+    <!-- Пакети -->
+    <section class="card mt-5 p-5">
+      <h2 class="font-serif text-xl font-semibold">{{ $t('Node.js packages') }}</h2>
+      <p class="mt-1 text-sm text-muted dark:text-night-muted">{{ $t('The application is built on open-source packages, and they depend on further packages. They get new versions and security fixes on their own schedule, so check them from time to time.') }}</p>
+      <button class="btn-primary mt-4 !py-1.5 text-sm" :disabled="busy.packages" @click="checkPackages"><ic :name="busy.packages ? 'spinner' : 'terminal'" :class="['size-4', busy.packages && 'animate-spin']"></ic>{{ $t('Check the packages') }}</button>
+      <p class="mt-1 text-xs text-muted dark:text-night-muted">{{ $t('Runs npm outdated and npm audit. npm sends the list of packages to its registry, not your library.') }}</p>
+
+      <div v-if="packages" class="mt-4 space-y-4 text-sm">
+        <div>
+          <h3 class="font-medium">{{ $t('New versions') }}</h3>
+          <p v-if="!packages.outdated.ok" class="mt-1 text-clay-500">{{ packages.outdated.error }}</p>
+          <p v-else-if="!packages.outdated.items.length" class="mt-1 text-sage-700 dark:text-sage-200">{{ $t('All packages are up to date.') }}</p>
+          <div v-else class="mt-2 overflow-x-auto">
+            <table class="w-full text-left text-xs">
+              <thead class="text-muted dark:text-night-muted"><tr><th class="py-1 pr-3 font-medium">{{ $t('Package') }}</th><th class="py-1 pr-3 font-medium">{{ $t('Installed') }}</th><th class="py-1 pr-3 font-medium">{{ $t('Safe update') }}</th><th class="py-1 font-medium">{{ $t('Latest') }}</th></tr></thead>
+              <tbody>
+                <tr v-for="p in packages.outdated.items" :key="p.name" class="border-t border-line/70 dark:border-night-line">
+                  <td class="py-1.5 pr-3 font-mono">{{ p.name }}</td><td class="py-1.5 pr-3">{{ p.current || '–' }}</td><td class="py-1.5 pr-3">{{ p.wanted }}</td>
+                  <td class="py-1.5">{{ p.latest }} <span v-if="p.major" class="ml-1 text-clay-500">{{ $t('major change, test first') }}</span></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <div v-if="packages.outdated.ok && packages.outdated.items.length" class="mt-2 flex items-center gap-2 rounded-xl bg-ink/[.05] px-3 py-2 dark:bg-white/5">
+            <code class="min-w-0 flex-1 break-all text-xs">npm update &amp;&amp; npm test</code>
+            <button class="btn-ghost !p-1.5" :title="$t('Copy')" :aria-label="$t('Copy')" @click="$emit('copy', 'npm update && npm test')"><ic name="copy" class="size-4"></ic></button>
+          </div>
+        </div>
+        <div>
+          <h3 class="font-medium">{{ $t('Known vulnerabilities') }}</h3>
+          <p v-if="!packages.audit.ok" class="mt-1 text-clay-500">{{ packages.audit.error }}</p>
+          <p v-else-if="!packages.audit.total" class="mt-1 text-sage-700 dark:text-sage-200">{{ $t('npm audit reports none.') }}</p>
+          <template v-else>
+            <p class="mt-1">{{ $t('npm audit reports {0}: {1} critical, {2} high, {3} moderate, {4} low.', [packages.audit.total, packages.audit.critical, packages.audit.high, packages.audit.moderate, packages.audit.low]) }}</p>
+            <ul class="mt-2 space-y-0.5 text-xs text-muted dark:text-night-muted">
+              <li v-for="v in packages.audit.items" :key="v.name"><span class="font-mono">{{ v.name }}</span> · {{ v.severity }}<template v-if="v.direct"> · {{ $t('used directly') }}</template></li>
+            </ul>
+          </template>
+        </div>
+      </div>
+    </section>
+
+    <!-- Данни -->
+    <section class="card mt-5 p-5">
+      <h2 class="font-serif text-xl font-semibold">{{ $t('Your data and Anthropic') }}</h2>
+      <p class="mt-1 text-sm">{{ $t('Whatever Claude processes (the text of a source, the pages and your question) goes to Anthropic through Claude Code. Reading, searching and local modes stay on this computer.') }}</p>
+      <div :class="['mt-3 rounded-xl px-4 py-3 text-sm', info.account.terms==='commercial' ? 'bg-sage-50 text-sage-700 dark:bg-sage-900/40 dark:text-sage-200' : 'bg-amber-50 text-amber-800 dark:bg-amber-500/10 dark:text-amber-300']">
+        <p v-if="info.account.terms==='consumer'"><b>{{ $t('Your plan: {0} (consumer terms).', [info.account.plan]) }}</b> {{ $t('Your data trains Anthropic models only if the model improvement setting of your account is on. The application cannot read this setting, so check it yourself.') }}</p>
+        <p v-else-if="info.account.terms==='commercial'"><b>{{ $t('Your plan: {0} (commercial terms).', [info.account.plan]) }}</b> {{ $t('Anthropic does not train models on this data by default, unless your organization has opted in, for example to the Development Partner Program.') }}</p>
+        <p v-else>{{ $t('The plan could not be determined. Check your plan and privacy setting in your Claude account.') }}</p>
+      </div>
+      <ol class="mt-3 list-decimal space-y-1 pl-5 text-sm">
+        <li>{{ $t('Free, Pro, Max or Ultra: open the privacy settings and turn off the use of your data for model improvement.') }} <a href="https://claude.ai/settings/data-privacy-controls" target="_blank" rel="noopener" class="underline">claude.ai/settings/data-privacy-controls</a></li>
+        <li>{{ $t('Do not send sessions through /feedback or thumbs up and down: these are kept separately.') }}</li>
+        <li>{{ $t('For material that must never leave your computer: do not process it with Claude at all.') }}</li>
+      </ol>
+      <a href="/product/#data" target="_blank" rel="noopener" class="mt-3 inline-block text-sm underline">{{ $t('Full explanation with sources') }}</a>
+    </section>
+
+    <!-- Тестове -->
+    <section class="card mt-5 p-5">
+      <h2 class="font-serif text-xl font-semibold">{{ $t('What works and what does not') }}</h2>
+      <p class="mt-1 text-sm text-muted dark:text-night-muted">{{ $t('The tests run in a temporary copy with a simulated Claude. They do not touch your library and cost nothing.') }}</p>
+      <button class="btn-primary mt-4 !py-1.5 text-sm" :disabled="busy.tests" @click="runTests"><ic :name="busy.tests ? 'spinner' : 'play'" :class="['size-4', busy.tests && 'animate-spin']"></ic>{{ busy.tests ? $t('The tests are running, about a minute…') : $t('Run the tests on this computer') }}</button>
+      <p v-if="testError" class="mt-2 text-sm text-clay-500">{{ testError }}</p>
+
+      <div v-if="tests" class="mt-4 text-sm">
+        <p class="text-xs text-muted dark:text-night-muted">{{ tests.origin==='local' ? $t('Last run on this computer') : $t('Report from the release') }}: {{ tests.date.slice(0, 16).replace('T', ' ') }} · {{ $t('version') }} {{ tests.version }} · {{ tests.environment.platform }} · Node {{ tests.environment.node }}</p>
+        <div class="mt-3 flex flex-wrap gap-2 text-xs">
+          <span class="chip bg-sage-50 text-sage-700 dark:bg-sage-900/40 dark:text-sage-200">{{ $t('{0} work', [tests.summary.pass]) }}</span>
+          <span v-if="tests.summary.fail" class="chip bg-clay-100 text-clay-500">{{ $t('{0} do not work', [tests.summary.fail]) }}</span>
+          <span class="chip bg-amber-50 text-amber-800 dark:bg-amber-500/10 dark:text-amber-300">{{ $t('{0} known limitations', [tests.summary.known]) }}</span>
+          <span class="chip bg-ink/5 dark:bg-white/5">{{ $t('{0} not tested', [tests.summary.notCovered + tests.summary.notRun]) }}</span>
+        </div>
+        <details v-for="g in testGroups" :key="g.key" class="mt-3" :open="g.bad > 0">
+          <summary class="cursor-pointer font-medium">{{ g.title }} <span class="font-normal text-muted dark:text-night-muted">({{ g.pass }}/{{ g.items.length }})</span></summary>
+          <ul class="mt-2 space-y-1.5 pl-1">
+            <li v-for="t in g.items" :key="t.en" class="flex items-start gap-2">
+              <ic :name="t.status==='pass' ? 'check' : t.status==='not_run' ? 'clock' : 'alert'" :class="['mt-0.5 size-4 shrink-0', t.status==='pass' ? 'text-sage-600' : t.status==='fail' ? 'text-clay-500' : t.status==='known' ? 'text-amber-600' : 'text-muted']"></ic>
+              <span>{{ pick(t) }}<span v-if="t.note" class="block text-xs text-muted dark:text-night-muted">{{ pick(t.note) }}</span><span v-if="t.error" class="block break-words text-xs text-clay-500">{{ t.error }}</span></span>
+            </li>
+          </ul>
+        </details>
+        <details class="mt-3">
+          <summary class="cursor-pointer font-medium">{{ $t('Not covered by automatic tests') }} <span class="font-normal text-muted dark:text-night-muted">({{ tests.notCovered.length }})</span></summary>
+          <ul class="mt-2 space-y-1.5 pl-1">
+            <li v-for="t in tests.notCovered" :key="t.en">{{ pick(t) }}<span class="block text-xs text-muted dark:text-night-muted">{{ pick(t.why) }}</span></li>
+          </ul>
+        </details>
+      </div>
+    </section>
+
+    <p class="mt-6 text-sm"><a href="/product/" target="_blank" rel="noopener" class="underline">{{ $t('About the product') }}</a></p>
+  </template>
+</div>
+</script>
+
 <script type="text/x-template" id="tpl-areas">
 <div class="mx-auto max-w-4xl px-5 py-8 sm:px-8 lg:py-12">
   <p class="eyebrow">{{ $t('Areas') }}</p>
@@ -1621,6 +1776,7 @@
         </div>
       </div>
 
+      <p v-if="langNote" class="mt-4 flex gap-2 rounded-2xl bg-clay-100 px-3 py-2 text-sm text-clay-500 dark:bg-clay-500/15"><ic name="alert" class="mt-0.5 size-4 shrink-0"></ic>{{ langNote }}</p>
       <div class="mt-4 flex flex-wrap items-center gap-2">
         <button class="btn-primary !py-3" :disabled="topic.trim().length < 4 || loading"><ic :name="loading ? 'spinner' : (level==='local' ? 'pen' : 'sparkle')" :class="['size-4', loading && 'animate-spin']"></ic>{{ level==='local' ? $t('Compose a draft') : $t('Write with Claude') }}</button>
         <button v-if="loading && level!=='local'" type="button" class="btn-soft !py-3" @click="cancel"><ic name="x" class="size-4"></ic>{{ $t('Cancel') }}</button>

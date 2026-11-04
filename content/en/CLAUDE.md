@@ -238,6 +238,8 @@ The sections are: Overview, Topics, Concepts, People and organizations, Sources 
 | `npm run new -- <type> <slug>` | New page from a template |
 | `npm run content -- <bg\|en>` | Installs the language pack of this file, the skills, the agent, the templates and the starter pages, and sets the content language |
 | `npm run i18n:check` | Checks the interface translations in `locales/` (a new language = a new JSON file, see README and PROJECT-HISTORY.md, section 11) |
+| `npm test` | Runs the tests in a temporary copy with a fake Claude (does not touch the library, spends no tokens) and writes a report to `outputs/test-results.json`. The result is shown under Settings (`#/settings`) |
+| `npm run release:docs` | Before a release: refreshes `docs/vendor/` and the report `docs/test-results.json` for the product page (`docs/index.html`, locally at `/product/`) |
 
 The page "Write with the wiki" (`#/write`) composes an article on a topic from the library (abstract, introduction, theoretical framework, analysis, discussion, conclusion, bibliography in APA 7), locally or with Claude on three levels. Do not write in `drafts/` during ingest.
 
