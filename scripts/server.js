@@ -48,7 +48,7 @@ function fromElsewhere(req) {
   return !(req.method === 'GET' && req.headers['sec-fetch-mode'] === 'navigate');
 }
 app.use((req, res, next) => {
-  res.set({ 'Content-Security-Policy': CSP, 'X-Content-Type-Options': 'nosniff', 'Referrer-Policy': 'no-referrer', 'Cross-Origin-Opener-Policy': 'same-origin', 'Cross-Origin-Resource-Policy': 'same-origin' });
+  res.set({ 'Content-Security-Policy': CSP, 'X-Content-Type-Options': 'nosniff', 'Referrer-Policy': 'same-origin', 'Cross-Origin-Opener-Policy': 'same-origin', 'Cross-Origin-Resource-Policy': 'same-origin' });
   if (req.path.startsWith('/api/')) res.set('Cache-Control', 'no-store');
   if (!ALLOWED_HOSTS.has(req.headers.host)) return res.status(403).send($t('Localhost only'));
   if (fromElsewhere(req)) return res.status(403).send($t('Forbidden'));
