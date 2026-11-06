@@ -1114,6 +1114,26 @@
     "Sign out": "Sign out",
     "The password was removed.": "The password was removed.",
     "The password was saved.": "The password was saved.",
-    "If you forget it, stop the application and delete the file .library-auth.json in the project folder.": "If you forget it, stop the application and delete the file .library-auth.json in the project folder."
+    "If you forget it, stop the application and delete the file .library-auth.json in the project folder.": "If you forget it, stop the application and delete the file .library-auth.json in the project folder.",
+    "Focus": "Focus",
+    "Exit focus": "Exit focus",
+    "Show only the text, without the sidebars": "Show only the text, without the sidebars",
+    "Show the sidebars again (Esc)": "Show the sidebars again (Esc)",
+    "Read-only copy": "Read-only copy",
+    "Read-only archive": "Read-only archive",
+    "A copy of the library made on {0}, with {1} pages. You can read, search and learn from it. Claude does not change it, and the original files are not included.": "A copy of the library made on {0}, with {1} pages. You can read, search and learn from it. Claude does not change it, and the original files are not included.",
+    "Archive for reading": "Archive for reading",
+    "A copy of the library in one ZIP file, for reading on another computer. It has the pages with their links and tags, and the markdown files. The original files from raw/ are not included, and the copy cannot be changed by Claude.": "A copy of the library in one ZIP file, for reading on another computer. It has the pages with their links and tags, and the markdown files. The original files from raw/ are not included, and the copy cannot be changed by Claude.",
+    "Make the archive": "Make the archive",
+    "Making the archive…": "Making the archive…",
+    "The archive could not be made.": "The archive could not be made.",
+    "Ready: {0} pages, {1} MB.": "Ready: {0} pages, {1} MB.",
+    "Download {0}": "Download {0}",
+    "To open it: unzip the file and open index.html in any browser. It works without internet and without Claude.": "To open it: unzip the file and open index.html in any browser. It works without internet and without Claude.",
+    "No archives yet.": "No archives yet.",
+    "Earlier archives": "Earlier archives",
+    "Delete the archive {0}? The file cannot be restored.": "Delete the archive {0}? The file cannot be restored.",
+    "There is no such archive": "There is no such archive",
+    "The reader texts (the extracted text of books, without the original files) are in the reader folder next to index.html.": "The reader texts (the extracted text of books, without the original files) are in the reader folder next to index.html."
   }
 }

@@ -1114,6 +1114,26 @@
     "Sign out": "Изход",
     "The password was removed.": "Паролата е махната.",
     "The password was saved.": "Паролата е записана.",
-    "If you forget it, stop the application and delete the file .library-auth.json in the project folder.": "Ако я забравите, спрете приложението и изтрийте файла .library-auth.json в папката на проекта."
+    "If you forget it, stop the application and delete the file .library-auth.json in the project folder.": "Ако я забравите, спрете приложението и изтрийте файла .library-auth.json в папката на проекта.",
+    "Focus": "Фокус",
+    "Exit focus": "Излез от фокуса",
+    "Show only the text, without the sidebars": "Показва само текста, без страничните ленти",
+    "Show the sidebars again (Esc)": "Показва страничните ленти отново (Esc)",
+    "Read-only copy": "Копие само за четене",
+    "Read-only archive": "Архив за четене",
+    "A copy of the library made on {0}, with {1} pages. You can read, search and learn from it. Claude does not change it, and the original files are not included.": "Копие на библиотеката от {0}, със {1} страници. Можеш да четеш, да търсиш и да учиш от него. Claude не го променя, а оригиналните файлове не са включени.",
+    "Archive for reading": "Архив за четене",
+    "A copy of the library in one ZIP file, for reading on another computer. It has the pages with their links and tags, and the markdown files. The original files from raw/ are not included, and the copy cannot be changed by Claude.": "Копие на библиотеката в един ZIP файл, за четене на друг компютър. Съдържа страниците с техните връзки и етикети, и markdown файловете. Оригиналните файлове от raw/ не са включени, а Claude не може да промени копието.",
+    "Make the archive": "Направи архива",
+    "Making the archive…": "Архивът се прави…",
+    "The archive could not be made.": "Архивът не можа да се направи.",
+    "Ready: {0} pages, {1} MB.": "Готово: {0} страници, {1} MB.",
+    "Download {0}": "Свали {0}",
+    "To open it: unzip the file and open index.html in any browser. It works without internet and without Claude.": "За отваряне: разархивирай файла и отвори index.html в който и да е браузър. Работи без интернет и без Claude.",
+    "No archives yet.": "Още няма направени архиви.",
+    "Earlier archives": "Направени архиви",
+    "Delete the archive {0}? The file cannot be restored.": "Да се изтрие архивът {0}? Файлът не може да се възстанови.",
+    "There is no such archive": "Няма такъв архив",
+    "The reader texts (the extracted text of books, without the original files) are in the reader folder next to index.html.": "Текстовете за четеца (извлеченият текст на книгите, без оригиналните файлове) са в папката reader до index.html."
   }
 }

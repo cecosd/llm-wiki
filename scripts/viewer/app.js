@@ -76,8 +76,12 @@ async function copyText(text) {
 const api = (url, opts = {}) => fetch(url, { ...opts, headers: { 'x-library': '1', ...(opts.headers || {}) } });
 const store = { get: (k, d) => { try { return localStorage.getItem(k) ?? d; } catch { return d; } }, set: (k, v) => { try { localStorage.setItem(k, v); } catch {} } };
 
+// Четецът: на живо – всички източници и глави; в архива – само текстовете, които са записани в него (LIB_STATIC.readerOf)
+const readerOk = (type, slug) => ['source', 'chapter'].includes(type) && (!window.LIB_STATIC || Object.prototype.hasOwnProperty.call(window.LIB_STATIC.readerOf || {}, slug));
+
 // Общи помощници, достъпни във всички шаблони
-const shared = { MODEL_OPTS, MODES, TYPES, typeOrder, KINDS, FORMATS, FORMAT_ICON, FORMAT_BG, STATUS, CONF, relDate, size, plural, fileIcon };
+// ro: архивът за четене (виж archive.js). Там няма записи, Claude и пътища към raw/.
+const shared = { MODEL_OPTS, MODES, TYPES, typeOrder, KINDS, FORMATS, FORMAT_ICON, FORMAT_BG, STATUS, CONF, relDate, size, plural, fileIcon, ro: !!window.LIB_STATIC };
 
 // ---------- Иконки (линейни, 24×24) ----------
 const ICONS = {
@@ -125,6 +129,7 @@ const ICONS = {
   grid: 'M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z',
   route: 'M6 20a2 2 0 1 0 0-4 2 2 0 0 0 0 4zM18 8a2 2 0 1 0 0-4 2 2 0 0 0 0 4zM8 18h7a3.5 3.5 0 0 0 0-7H9a3.5 3.5 0 0 1 0-7h7',
   alert: 'M12 9v4M12 17h.01M10.3 3.9L2 18a2 2 0 0 0 1.7 3h16.6a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z',
+  focus: 'M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5',
 };
 const Ic = defineComponent({
   props: { name: String },
@@ -367,8 +372,8 @@ const HomeView = defineComponent({
 
 const PageView = defineComponent({
   template: '#tpl-page',
-  props: { slug: String, pages: Array, version: Number },
-  emits: ['toast', 'refresh'],
+  props: { slug: String, pages: Array, version: Number, focus: Boolean },
+  emits: ['toast', 'refresh', 'focus'],
   data: () => ({
     ...shared, LEVELS, rename: { on: false, value: '', busy: false }, man: { open: false, md: '', before: '', hash: '', busy: false, error: '' }, page: null, error: false, toc: [], activeH: null, observer: null, chapView: store.get('view:chapters', 'cards'),
     selBtn: null, lk: { open: false, sel: '', q: '', busy: false, error: '' },
@@ -381,12 +386,14 @@ const PageView = defineComponent({
       const types = new Map(this.pages.map((p) => [p.slug, p.type]));
       return renderMarkdown(this.page.content, new Set(this.pages.map((p) => p.slug)), new Map(this.pages.map((p) => [p.slug, p.title])), {
         readerSrc: ['source', 'chapter'].includes(this.page.type) ? this.page.readerSrc : null,
-        readable: (slug) => ['source', 'chapter'].includes(types.get(slug)),
+        readable: (slug) => readerOk(types.get(slug), slug),
         stripSection: this.page.chapters?.length ? $t('Chapters') : null,
       });
     },
     firstPage() { return Number(String(this.page?.pages || '').split(/[-–]/)[0]) || undefined; },
-    canAsk() { return !!this.page && !['index', 'log', 'overview'].includes(this.page.slug); },
+    canAsk() { return !!this.page && !['index', 'log', 'overview'].includes(this.page.slug) && !this.ro; },
+    // Режимът фокус важи за всички страници от колекциите (и в архива)
+    canFocus() { return !!this.page && !['index', 'log', 'overview'].includes(this.page.slug); },
     // страниците, към които може да се сочи от избрания текст: без служебните и без текущата
     linkCandidates() {
       const q = this.lk.q.trim().toLowerCase();
@@ -400,7 +407,7 @@ const PageView = defineComponent({
       const types = new Map(this.pages.map((p) => [p.slug, p.type]));
       return renderMarkdown(this.ai.answer, new Set(this.pages.map((p) => p.slug)), new Map(this.pages.map((p) => [p.slug, p.title])), {
         readerSrc: ['source', 'chapter'].includes(this.page?.type) ? this.page.readerSrc : null,
-        readable: (slug) => ['source', 'chapter'].includes(types.get(slug)),
+        readable: (slug) => readerOk(types.get(slug), slug),
       });
     },
     // „Сочат насам“: главите се групират под книгата си
@@ -781,7 +788,7 @@ const CollectionView = defineComponent({
   },
   methods: {
     async loadDupes() {
-      if (this.tag || !['entity', 'concept', 'topic', 'source'].includes(this.type)) { this.dupes = { pairs: [], authors: [] }; return; }
+      if (this.ro || this.tag || !['entity', 'concept', 'topic', 'source'].includes(this.type)) { this.dupes = { pairs: [], authors: [] }; return; }
       try { this.dupes = await (await fetch('/api/dupes')).json(); } catch { /* не е критично */ }
     },
     pk(p) { return p.a.slug + '|' + p.b.slug; },
@@ -987,7 +994,7 @@ const PathView = defineComponent({
       if (!this.panel) return '';
       return renderMarkdown(this.panel.content, this.known, this.titles, {
         readerSrc: ['source', 'chapter'].includes(this.panel.type) ? this.panel.readerSrc : null,
-        readable: (slug) => ['source', 'chapter'].includes(this.types.get(slug)),
+        readable: (slug) => readerOk(this.types.get(slug), slug),
         stripSection: this.panel.chapters?.length ? $t('Chapters') : null,
       });
     },
@@ -1172,7 +1179,7 @@ const SetupView = defineComponent({
 const SettingsView = defineComponent({
   template: '#tpl-settings',
   emits: ['copy'],
-  data: () => ({ info: null, code: null, packages: null, tests: null, testError: '', busy: { code: false, packages: false, tests: false, auth: false }, pw: { current: '', next: '', message: '', bad: false } }),
+  data: () => ({ info: null, code: null, packages: null, tests: null, testError: '', archive: { busy: false, result: null, error: '', list: [] }, busy: { code: false, packages: false, tests: false, auth: false }, pw: { current: '', next: '', message: '', bad: false } }),
   computed: {
     updateCmd() {
       const pack = this.info?.contentLang && this.info.contentLang !== 'en' ? ` && npm run content -- ${this.info.contentLang}` : '';
@@ -1188,7 +1195,7 @@ const SettingsView = defineComponent({
       });
     },
   },
-  created() { this.load(); },
+  created() { this.load(); this.loadArchives(); },
   methods: {
     pick(o) { return (window.__I18N?.lang === 'bg' && o.bg) || o.en; },
     async load() {
@@ -1202,6 +1209,22 @@ const SettingsView = defineComponent({
       try { return await (await api(url, { method: 'POST' })).json(); }
       catch { return { ok: false, error: $t('The server is not responding.') }; }
       finally { this.busy[key] = false; }
+    },
+    // Архивът за четене: ZIP файл в outputs/archive/, после бутон за свалянето му
+    async makeArchive() {
+      this.archive = { ...this.archive, busy: true, result: null, error: '' };
+      try {
+        const d = await (await api('/api/archive', { method: 'POST' })).json();
+        if (d.ok) this.archive.result = d; else this.archive.error = d.error || $t('The archive could not be made.');
+      } catch { this.archive.error = $t('The server is not responding.'); }
+      finally { this.archive.busy = false; this.loadArchives(); }
+    },
+    // Направените архиви: списък с изтриване на избрани
+    async loadArchives() { try { this.archive.list = await (await fetch('/api/archives')).json(); } catch { this.archive.list = []; } },
+    async removeArchive(a) {
+      if (!window.confirm($t('Delete the archive {0}? The file cannot be restored.', [a.name]))) return;
+      try { await api('/api/archive/' + encodeURIComponent(a.name), { method: 'DELETE' }); } catch { /* списъкът се презарежда отдолу */ }
+      this.loadArchives();
     },
     async checkCode() { this.code = await this.post('code', '/api/updates/code'); },
     async checkPackages() {
@@ -1569,6 +1592,13 @@ const GraphView = defineComponent({
 });
 
 // ---------- Приложение ----------
+// Начало на архива (само за четене): броячи, последни промени и етикети. Заменя началната страница с Claude.
+const ArchiveHome = defineComponent({
+  template: '#tpl-archive-home',
+  props: { stats: Object },
+  data: () => ({ ...shared, meta: window.LIB_ARCHIVE_META || {} }),
+});
+
 function parseRoute() {
   const [hashPath, hashQuery = ''] = location.hash.split('?');
   const parts = hashPath.replace(/^#\/?/, '').split('/').map(decodeURIComponent);
@@ -1591,9 +1621,11 @@ const app = createApp({
   data: () => ({
     ...shared, I18N, route: parseRoute(), pages: [], stats: {}, version: 0, live: false, setupLeft: 0,
     drawer: false, palette: false, pq: '', hits: [], pi: 0, toasts: [], agent: null, reader: null, cost: null,
+    focus: store.get('focus', '0') === '1', // режим фокус: само текстът на страницата (запомня се на този компютър)
     theme: store.get('theme', 'system'), isMac: /Mac|iPhone|iPad/.test(navigator.platform),
   }),
   computed: {
+    focusOn() { return this.focus && this.route.name === 'page' && !['index', 'log', 'overview'].includes(this.route.slug); },
     countBy() { return this.pages.reduce((a, p) => (p.special ? a : ((a[p.type] = (a[p.type] || 0) + 1), a)), {}); },
     paletteItems() {
       if (this.pq.trim().length >= 2) return this.hits;
@@ -1601,6 +1633,9 @@ const app = createApp({
     },
   },
   methods: {
+    setFocus(v) { this.focus = !!v; store.set('focus', v ? '1' : '0'); },
+    // В архива екраните, които пишат или викат Claude, не работят: връщаме към началото
+    guardArchive() { if (window.LIB_STATIC && ['path', 'write', 'find', 'areas', 'setup', 'settings'].includes(this.route.name)) location.hash = '#/'; },
     async refresh() {
       const [pages, stats] = await Promise.all([fetch('/api/pages').then((r) => r.json()), fetch('/api/stats').then((r) => r.json())]);
       this.pages = pages; this.stats = stats;
@@ -1702,16 +1737,20 @@ const app = createApp({
     },
   },
   async mounted() {
-    window.addEventListener('hashchange', () => { this.route = parseRoute(); this.drawer = false; if (this.route.name !== 'page') document.title = $t('Library'); });
+    window.addEventListener('hashchange', () => { this.route = parseRoute(); this.drawer = false; if (this.route.name !== 'page') document.title = $t('Library'); this.guardArchive(); });
     window.addEventListener('keydown', (e) => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') { e.preventDefault(); this.palette ? (this.palette = false) : this.openPalette(); }
       else if (e.key === '/' && !/INPUT|TEXTAREA|SELECT/.test(document.activeElement?.tagName)) { e.preventDefault(); this.openPalette(); }
-      else if (e.key === 'Escape') { this.palette = false; this.drawer = false; this.reader = null; }
+      else if (e.key === 'Escape') {
+        if (this.focusOn && !this.reader && !this.palette && !this.drawer) this.setFocus(false); // Esc излиза от фокуса
+        this.palette = false; this.drawer = false; this.reader = null;
+      }
       else if (this.reader && !this.palette && (e.key === 'ArrowRight' || e.key === 'ArrowLeft')) { e.preventDefault(); this.readerGo(e.key === 'ArrowRight' ? 1 : -1); }
     });
     matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => this.theme === 'system' && this.setTheme('system'));
-    await Promise.all([this.refresh(), this.loadAgent()]);
-    this.connect();
+    this.guardArchive();
+    await Promise.all([this.refresh(), window.LIB_STATIC ? null : this.loadAgent()]);
+    if (!window.LIB_STATIC) this.connect(); // архивът няма сървър и живи събития
   },
 });
 
@@ -1730,4 +1769,5 @@ app.component('setup-view', SetupView);
 app.component('settings-view', SettingsView);
 app.component('scope-bar', ScopeBar);
 app.component('view-toggle', ViewToggle);
+app.component('archive-home', ArchiveHome);
 app.mount('#app');
