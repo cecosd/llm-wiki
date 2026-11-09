@@ -1,18 +1,18 @@
 {
-  "version": "1.2.0",
-  "date": "2026-11-04T17:32:07.144Z",
-  "durationMs": 15931,
+  "version": "1.3.0",
+  "date": "2026-11-09T17:38:55.844Z",
+  "durationMs": 19767,
   "environment": {
     "platform": "linux",
     "node": "26.12.1"
   },
   "summary": {
-    "total": 62,
-    "pass": 61,
+    "total": 94,
+    "pass": 91,
     "fail": 0,
     "known": 1,
-    "notRun": 0,
-    "notCovered": 7
+    "notRun": 2,
+    "notCovered": 9
   },
   "groups": {
     "app": {
@@ -26,6 +26,10 @@
     "claude": {
       "en": "Work with Claude (simulated)",
       "bg": "Работа с Claude (симулирана)"
+    },
+    "ai": {
+      "en": "Other models: API, local, copy and paste (simulated)",
+      "bg": "Други модели: API, локален, копиране (симулирано)"
     },
     "security": {
       "en": "Security",
@@ -41,6 +45,102 @@
     }
   },
   "tests": [
+    {
+      "group": "ai",
+      "en": "The model settings list the providers and start with the Claude subscription",
+      "bg": "Настройките на модела показват доставчиците и започват с абонамента за Claude",
+      "status": "pass"
+    },
+    {
+      "group": "ai",
+      "en": "An API key is kept only in .library-secrets.json and never returned to the page",
+      "bg": "API ключът се пази само в .library-secrets.json и не се връща към страницата",
+      "status": "pass"
+    },
+    {
+      "group": "ai",
+      "en": "The interface texts carry the name of the chosen model",
+      "bg": "Текстовете в интерфейса носят името на избрания модел",
+      "status": "pass"
+    },
+    {
+      "group": "ai",
+      "en": "Testing the connection and loading the models go to the chosen address with the key",
+      "bg": "Проверката на връзката и списъкът с модели отиват на избрания адрес с ключа",
+      "status": "pass"
+    },
+    {
+      "group": "ai",
+      "en": "A model on this computer is free in the estimate, which shows the tokens and the number of requests",
+      "bg": "Модел на този компютър е безплатен в оценката, която показва токените и броя заявки",
+      "status": "pass"
+    },
+    {
+      "group": "ai",
+      "en": "A model without tools processes a book: source, chapters, concepts, index and log",
+      "bg": "Модел без инструменти обработва книга: източник, глави, понятия, индекс и дневник",
+      "status": "pass"
+    },
+    {
+      "group": "ai",
+      "en": "A question about a page sends the page and the original text inside the request",
+      "bg": "Въпрос към страница праща страницата и оригиналния текст в самата заявка",
+      "status": "pass"
+    },
+    {
+      "group": "ai",
+      "en": "Copy and paste: the request waits for the answer pasted from a chat",
+      "bg": "Копиране и поставяне: заявката чака отговора, поставен от чата",
+      "status": "pass"
+    },
+    {
+      "group": "ai",
+      "en": "Claude Code with another provider gets its address and models, without the Claude effort flag",
+      "bg": "Claude Code с друг доставчик получава адреса и моделите му, без флага за усилие на Claude",
+      "status": "pass"
+    },
+    {
+      "group": "ai",
+      "en": "The Claude subscription leaves the environment of Claude Code untouched",
+      "bg": "Абонаментът за Claude оставя средата на Claude Code непроменена",
+      "status": "pass"
+    },
+    {
+      "group": "ai",
+      "en": "Used-up prepaid credit, a used-up daily limit and a model without a free tier get a clear message and no repeated requests",
+      "bg": "Изчерпан предплатен кредит, изчерпан дневен лимит и модел без безплатно ниво дават ясно съобщение и без повторни заявки",
+      "status": "pass"
+    },
+    {
+      "group": "ai",
+      "en": "Gemini has a free profile (Flash-Lite reads, Flash writes) and a paid one with prices for the estimate",
+      "bg": "Gemini има безплатен профил (Flash-Lite чете, Flash пише) и платен с цени за оценката",
+      "status": "pass"
+    },
+    {
+      "group": "ai",
+      "en": "Groq: a model for speech, terms to accept, a request over the limit per minute and a used-up daily limit get a clear message; the test reaches every level",
+      "bg": "Groq: модел за реч, условия за приемане, заявка над лимита на минута и изчерпан дневен лимит дават ясно съобщение; проверката стига до всяко ниво",
+      "status": "pass"
+    },
+    {
+      "group": "ai",
+      "en": "An answer cut off at the output limit is asked again with more room; a cut JSON keeps its complete part",
+      "bg": "Отговор, отрязан на лимита за изход, се иска пак с повече място; отрязан JSON запазва завършената си част",
+      "status": "pass"
+    },
+    {
+      "group": "ai",
+      "en": "Groq has text models by default and a context that fits its free limit per minute; the estimate warns when a source needs more tokens than a day gives",
+      "bg": "Groq има модели за текст по подразбиране и контекст, който се побира в безплатния лимит на минута; оценката предупреждава, когато източникът иска повече токени, отколкото дава един ден",
+      "status": "pass"
+    },
+    {
+      "group": "ai",
+      "en": "The agent cannot read the file with the keys",
+      "bg": "Агентът не може да прочете файла с ключовете",
+      "status": "pass"
+    },
     {
       "group": "app",
       "en": "All server and browser scripts have valid syntax",
@@ -79,6 +179,12 @@
     },
     {
       "group": "app",
+      "en": "A saved Claude path opens with its scope and is offered when the chosen scope differs",
+      "bg": "Запазена пътека с Claude се отваря с обхвата си и се предлага, когато избраният обхват е друг",
+      "status": "pass"
+    },
+    {
+      "group": "app",
       "en": "A page can be renamed by hand without changing its file name",
       "bg": "Страница може да се преименува на ръка, без да се сменя името на файла",
       "status": "pass"
@@ -105,6 +211,40 @@
       "group": "app",
       "en": "Screens and the product page open in a real browser",
       "bg": "Екраните и страницата за продукта се отварят в истински браузър",
+      "status": "not_run",
+      "note": {
+        "en": "No browser was found on the test machine, or Node.js is older than 22. Set CHROME_BIN to run this test.",
+        "bg": "На тестовата машина няма браузър или Node.js е по-стар от 22. Задайте CHROME_BIN, за да се пусне този тест."
+      }
+    },
+    {
+      "group": "library",
+      "en": "The reader text of a source with extracted pages goes into the archive, next to index.html",
+      "bg": "Текстът за четеца на източник с извлечени страници влиза в архива до index.html",
+      "status": "pass"
+    },
+    {
+      "group": "library",
+      "en": "The archives are listed and one can be deleted",
+      "bg": "Направените архиви се виждат в списък и един от тях може да се изтрие",
+      "status": "pass"
+    },
+    {
+      "group": "library",
+      "en": "The archive holds the markdown pages and one index.html, and no original files",
+      "bg": "Архивът съдържа markdown страниците и един index.html, без оригиналните файлове",
+      "status": "pass"
+    },
+    {
+      "group": "library",
+      "en": "The archive page works offline: scripts and fonts are inside the file",
+      "bg": "Архивната страница работи офлайн: скриптовете и шрифтовете са вътре във файла",
+      "status": "pass"
+    },
+    {
+      "group": "library",
+      "en": "The archive is made from the running server and can be downloaded",
+      "bg": "Архивът се прави от работещия сървър и може да се свали",
       "status": "pass"
     },
     {
@@ -253,6 +393,42 @@
     },
     {
       "group": "security",
+      "en": "The isolation launcher loads no packages from node_modules",
+      "bg": "Стартерът на изолацията не зарежда пакети от node_modules",
+      "status": "pass"
+    },
+    {
+      "group": "security",
+      "en": "Requests from inside the isolation: only listed actions, links are not followed",
+      "bg": "Заявки отвътре на изолацията: само изброени действия, връзките не се следват",
+      "status": "pass"
+    },
+    {
+      "group": "security",
+      "en": "Outside the isolation only real language packs and only protected files are installed",
+      "bg": "Отвън на изолацията се инсталират само истински езикови пакети и само защитените файлове",
+      "status": "pass"
+    },
+    {
+      "group": "security",
+      "en": "The isolation mounts only the project, read-only code and the Claude sign-in",
+      "bg": "Изолацията монтира само проекта, кода само за четене и входа в Claude",
+      "status": "pass"
+    },
+    {
+      "group": "security",
+      "en": "Inside the isolation the program sees only the project folder (real check)",
+      "bg": "В изолацията програмата вижда само папката на проекта (истинска проверка)",
+      "status": "pass"
+    },
+    {
+      "group": "security",
+      "en": "Inside the isolation the language menu still changes the content language",
+      "bg": "В изолацията менюто за език пак сменя езика на съдържанието",
+      "status": "pass"
+    },
+    {
+      "group": "security",
       "en": "The server listens only on this computer (127.0.0.1)",
       "bg": "Сървърът слуша само на този компютър (127.0.0.1)",
       "status": "pass"
@@ -321,7 +497,11 @@
       "group": "security",
       "en": "Content from a document cannot run code in the browser",
       "bg": "Съдържание от документ не може да изпълни код в браузъра",
-      "status": "pass"
+      "status": "not_run",
+      "note": {
+        "en": "No browser was found on the test machine, or Node.js is older than 22. Set CHROME_BIN to run this test.",
+        "bg": "На тестовата машина няма браузър или Node.js е по-стар от 22. Задайте CHROME_BIN, за да се пусне този тест."
+      }
     },
     {
       "group": "security",
@@ -345,6 +525,30 @@
       "group": "security",
       "en": "Claude can read only inside the project folder",
       "bg": "Claude може да чете само в папката на проекта",
+      "status": "pass"
+    },
+    {
+      "group": "security",
+      "en": "Claude cannot copy files from outside raw/ through text extraction",
+      "bg": "Claude не може да копира файлове извън raw/ чрез извличането на текст",
+      "status": "pass"
+    },
+    {
+      "group": "security",
+      "en": "A forged raw_path cannot delete files outside the library",
+      "bg": "Подправен raw_path не може да изтрие файлове извън библиотеката",
+      "status": "pass"
+    },
+    {
+      "group": "security",
+      "en": "The guard settings are outside the folders Claude may write to",
+      "bg": "Настройките на пазача са извън папките, в които Claude може да пише",
+      "status": "pass"
+    },
+    {
+      "group": "security",
+      "en": "The my.wiki name is accepted only after it is set in hosts",
+      "bg": "Името my.wiki се приема само след запис в hosts",
       "status": "pass"
     },
     {
@@ -420,6 +624,14 @@
   ],
   "notCovered": [
     {
+      "en": "Real providers other than Claude (OpenAI, Gemini, Groq, OpenRouter, DeepSeek, Mistral, Ollama, LM Studio) and the quality of pages written by small models",
+      "bg": "Истинските доставчици освен Claude (OpenAI, Gemini, Groq, OpenRouter, DeepSeek, Mistral, Ollama, LM Studio) и качеството на страниците от малки модели",
+      "why": {
+        "en": "The tests use a simulated server that follows the documented formats. A real provider can differ in details (limits, model names, JSON). Try the connection in Settings → Model and check the first processed source.",
+        "bg": "Тестовете ползват симулиран сървър по документираните формати. Истинският доставчик може да се различава в детайли (лимити, имена на модели, JSON). Опитай връзката в Настройки → Модел и провери първия обработен източник."
+      }
+    },
+    {
       "en": "Quality of what the real Claude writes (accuracy of summaries, citations, page numbers)",
       "bg": "Качеството на написаното от истинския Claude (точност на обобщенията, цитатите и страниците)",
       "why": {
@@ -474,16 +686,38 @@
         "en": "This is outside the application and cannot be read or verified from it.",
         "bg": "Това е извън приложението и не може да се прочете или провери от него."
       }
+    },
+    {
+      "en": "Isolation (npm run serve:safe) on macOS and Windows without WSL",
+      "bg": "Изолацията (npm run serve:safe) в macOS и Windows без WSL",
+      "why": {
+        "en": "It uses bubblewrap, which exists only on Linux. There the packages of the program run with all your rights.",
+        "bg": "Ползва bubblewrap, който го има само в Linux. Там пакетите на програмата работят с всичките ви права."
+      }
     }
   ],
   "packages": {
     "outdated": [
+      {
+        "name": "@tailwindcss/browser",
+        "current": "4.3.4",
+        "wanted": "4.3.5",
+        "latest": "4.3.5",
+        "major": false
+      },
       {
         "name": "unpdf",
         "current": "1.9.1",
         "wanted": "1.9.1",
         "latest": "2.1.0",
         "major": true
+      },
+      {
+        "name": "vue",
+        "current": "3.5.44",
+        "wanted": "3.5.45",
+        "latest": "3.5.45",
+        "major": false
       }
     ],
     "audit": {

@@ -1746,13 +1746,14 @@
               <span class="chip" style="color:var(--sage)">✓ {{ S.tests.sum[0](TESTS.summary.pass) }}</span>
               <span class="chip">✕ {{ S.tests.sum[1](TESTS.summary.fail) }}</span>
               <span class="chip" style="color:var(--gold)">◐ {{ S.tests.sum[2](TESTS.summary.known) }}</span>
+              <span v-if="TESTS.summary.notRun" class="chip">– {{ S.tests.notRunN(TESTS.summary.notRun) }}</span>
               <span class="chip">○ {{ S.tests.sum[3](TESTS.summary.notCovered) }}</span>
             </div>
             <div class="mt-4 grid gap-2">
               <details v-for="g in groups" :key="g.id" class="setx-group" :open="g.id === 'security'">
                 <summary><span class="flex-1">{{ g.name }}</span><span class="mono text-xs" :style="{ color: g.known ? 'var(--gold)' : 'var(--sage)' }">{{ g.pass }}/{{ g.items.length }}</span></summary>
                 <ul class="grid gap-1.5 px-4 pb-3 text-sm">
-                  <li v-for="(x, i) in g.items" :key="i" class="flex gap-2"><span :style="{ color: x[1] === 'pass' ? 'var(--sage)' : 'var(--gold)' }">{{ x[1] === 'pass' ? '✓' : '◐' }}</span><span>{{ x[L === 'bg' ? 2 : 3] }}<template v-if="x[1] === 'known'"> <span class="chip" style="color:var(--gold);font-size:.66rem">{{ S.tests.known }}</span><span class="block text-xs muted mt-1">{{ S.tests.knownWhy }}</span></template></span></li>
+                  <li v-for="(x, i) in g.items" :key="i" class="flex gap-2"><span :class="{ faint: x[1] === 'not_run' }" :style="{ color: x[1] === 'pass' ? 'var(--sage)' : x[1] === 'known' ? 'var(--gold)' : null }">{{ x[1] === 'pass' ? '✓' : x[1] === 'known' ? '◐' : '–' }}</span><span>{{ x[L === 'bg' ? 2 : 3] }}<template v-if="x[1] === 'known'"> <span class="chip" style="color:var(--gold);font-size:.66rem">{{ S.tests.known }}</span><span class="block text-xs muted mt-1">{{ S.tests.knownWhy }}</span></template><template v-else-if="x[1] === 'not_run'"> <span class="chip" style="font-size:.66rem">{{ S.tests.notRun }}</span><span class="block text-xs muted mt-1">{{ x[L === 'bg' ? 4 : 5] }}</span></template></span></li>
                 </ul>
               </details>
             </div>
