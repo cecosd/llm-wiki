@@ -96,10 +96,26 @@ npm run serve   # http://localhost:4321
 | Начин | Доставчици | Как работи |
 |---|---|---|
 | **Агент с инструменти** | абонамент за Claude, API ключ на Claude, DeepSeek, локален Ollama 0.14+, всеки адрес, съвместим с Anthropic | Claude Code както досега; за друг доставчик получава `ANTHROPIC_BASE_URL` и трите модела (Anthropic, n.d.; DeepSeek, n.d.; Ollama, n.d.) |
-| **Без инструменти** | OpenAI, Google Gemini (безплатен ключ), Groq, OpenRouter, DeepSeek, Mistral, Claude API, Ollama, LM Studio, всеки адрес с `/chat/completions` | Сървърът подава текста на модела глава по глава и сам пише страниците по шаблоните, затова работят и малки локални модели (Google, n.d.) |
+| **Без инструменти** | OpenAI, Google Gemini (безплатен или платен ключ), Groq, OpenRouter, DeepSeek, Mistral, Claude API, Ollama, LM Studio, всеки адрес с `/chat/completions` | Сървърът подава текста на модела глава по глава и сам пише страниците по шаблоните, затова работят и малки локални модели (Google, n.d.-c) |
 | **Копиране и поставяне** | всеки чат в браузъра, включително безплатен акаунт | Всяка стъпка е заявка, която копираш в чата; отговора поставяш обратно |
 
-Ключовете се пазят в `.library-secrets.json` (извън git, четим само от теб, затворен за агента) или идват от променлива на средата. Безплатните нива може да ползват съдържанието за обучение: не пращай там лични материали. Страница, обработена от слаб модел, може да се надгради по-късно с по-силен („Надгради“).
+Ключовете се пазят в `.library-secrets.json` (извън git, четим само от теб, затворен за агента) или идват от променлива на средата. Безплатните нива може да ползват съдържанието за обучение: не пращай там лични материали. Страница, обработена от слаб модел, може да се надгради по-късно с по-силен („Надгради“). Всеки профил в „Настройки → Модел“ има кратък списък „Какво се случва и защо“ със стъпките на настройката.
+
+#### Gemini: безплатен или платен ключ
+
+Ключът принадлежи на проект в Google AI Studio, а проектът определя нивото (Google, n.d.-a; Google, n.d.-d):
+
+| | Безплатно ниво | Платено ниво |
+|---|---|---|
+| Профил в „Настройки → Модел“ | „Google Gemini, безплатно ниво (проект без платежна сметка)“ | „Google Gemini, платен (проект с платежна сметка)“ |
+| Проект | не е свързан с платежна сметка | свързан с платежна сметка; новите сметки плащат предварително (Prepay, поне 5 USD) |
+| Модели | Flash и Flash-Lite; Pro и Gemini 4 Argon нямат безплатно ниво (Google, n.d.-b) | всички |
+| Лимити | на минута и на ден, за всеки проект и модел, виждат се само в AI Studio (Rate limits); дневните се нулират в полунощ тихоокеанско време (около 10:00 българско време) | по-високи, с месечен таван на разходите според нивото на сметката |
+| Съдържанието ти | използва се за подобряване на продуктите на Google | не се използва |
+
+- **Грешка 402 „Your prepayment credits are depleted“.** Ключът е от проект, свързан с платежна сметка без кредит. Такъв проект взима платеното ниво на сметката и не се връща на безплатното при 0, затова спират всички ключове на сметката. Добави кредит в AI Studio (Billing) или създай проект без платежна сметка и вземи ключа оттам (Google, n.d.-a).
+- **Платен акаунт в Gemini.** Ключът му се слага в платения профил, който носи цените на Google, затова оценката показва сума (цените могат да се сменят). Абонаментът Google AI Pro или Ultra за приложението Gemini сам по себе си не дава API ключ, но включва месечни кредити за Google Cloud (10 USD при AI Pro), които важат за Gemini API, след като ги активираш в Google Developer Program (Google, 2026).
+- **Колко заявки.** Една книга иска приблизително по една заявка на глава плюс 5 до 10. Лекият модел (Flash-Lite) чете главите, а средният (Flash) пише страниците, така че лимитите на двата модела се харчат поотделно. Когато дневният лимит свърши, опашката чака нулирането и започва този източник отначало.
 
 ### Ако индексът, дневникът или обзорът са празни или загубени
 
@@ -287,7 +303,15 @@ Anthropic. (n.d.). *Environment variables*. Claude Code Docs. https://code.claud
 
 DeepSeek. (n.d.). *Anthropic API*. DeepSeek API Docs. https://api-docs.deepseek.com/guides/anthropic_api
 
-Google. (n.d.). *OpenAI compatibility*. Gemini API. https://ai.google.dev/gemini-api/docs/openai
+Google. (2026, January 27). *New developer tools for Google AI Pro and Ultra subscribers*. The Keyword. https://blog.google/innovation-and-ai/technology/developers-tools/gdp-premium-ai-pro-ultra/
+
+Google. (n.d.-a). *Billing*. Google AI Studio. Извлечено на 9 ноември 2026 г. от https://aistudio.google.com/docs/billing
+
+Google. (n.d.-b). *Gemini Developer API pricing*. Google AI Studio. Извлечено на 9 ноември 2026 г. от https://aistudio.google.com/docs/pricing
+
+Google. (n.d.-c). *OpenAI compatibility*. Google AI Studio. https://aistudio.google.com/docs/openai
+
+Google. (n.d.-d). *Rate limits*. Google AI Studio. Извлечено на 9 ноември 2026 г. от https://aistudio.google.com/docs/rate-limits
 
 Ollama. (n.d.). *Anthropic compatibility*. Ollama Docs. https://docs.ollama.com/api/anthropic-compatibility
 

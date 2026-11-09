@@ -52,6 +52,12 @@ function fakeModel() {
       const prompt = String(j.messages?.at(-1)?.content || '');
       calls.push({ url: req.url, auth: req.headers.authorization || null, model: j.model, prompt });
       res.setHeader('content-type', 'application/json');
+      // Грешките на Google, както ги връща крайната точка, съвместима с OpenAI (масив с един обект)
+      const google = (code, status, message, extra = {}) => { res.statusCode = code; res.end(JSON.stringify([{ error: { code, message, status, ...extra } }])); };
+      if (j.model === 'err-prepay') return google(402, 'RESOURCE_EXHAUSTED', 'Your prepayment credits are depleted. Please go to AI Studio at https://ai.studio/projects to manage your project and billing.');
+      if (j.model === 'err-daily') return google(429, 'RESOURCE_EXHAUSTED', 'You exceeded your current quota.\n* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 20, model: err-daily\nPlease retry in 3.2s.', { details: [{ '@type': 'type.googleapis.com/google.rpc.QuotaFailure', violations: [{ quotaId: 'GenerateRequestsPerDayPerProjectPerModel-FreeTier', quotaValue: '20' }] }] });
+      if (j.model === 'err-free0') return google(429, 'RESOURCE_EXHAUSTED', 'You exceeded your current quota.\n* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 0, model: err-free0');
+      if (j.model === 'err-minute' && calls.filter((c) => c.model === 'err-minute').length === 1) return google(429, 'RESOURCE_EXHAUSTED', 'You exceeded your current quota.\n* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 5, model: err-minute\nPlease retry in 1s.', { details: [{ '@type': 'type.googleapis.com/google.rpc.QuotaFailure', violations: [{ quotaId: 'GenerateRequestsPerMinutePerProjectPerModel-FreeTier', quotaValue: '5' }] }] });
       res.end(JSON.stringify({ choices: [{ message: { content: answer(prompt) } }], usage: { prompt_tokens: 100, completion_tokens: 50 } }));
     });
   });
@@ -199,6 +205,41 @@ test(T('ai', 'The Claude subscription leaves the environment of Claude Code unto
   const call = await waitFor(() => box.claudeCalls().slice(before).find((c) => c.args.includes('stream-json')));
   assert.equal(call.env.baseUrl, null);
   assert.equal(call.env.sonnet, null);
+});
+
+test(T('ai', 'Used-up prepaid credit, a used-up daily limit and a model without a free tier get a clear message and no repeated requests', 'Изчерпан предплатен кредит, изчерпан дневен лимит и модел без безплатно ниво дават ясно съобщение и без повторни заявки'), async () => {
+  const cases = [['err-prepay', /prepaid credit of the project.*without billing/s], ['err-daily', /daily limit of requests for the model “err-daily”.*midnight Pacific/s], ['err-free0', /“err-free0” has no free tier/]];
+  for (const [m, re] of cases) {
+    await setProvider({ provider: 'openai-compatible', profile: { models: { light: m, medium: 'fake-small', strong: '' } } });
+    const t = await api(srv.port, 'POST', '/api/setup/test');
+    assert.equal(t.json.ok, false, m);
+    assert.match(t.json.error, re);
+    assert.equal(calls.filter((c) => c.model === m).length, 1, `${m}: no repeated request`);
+  }
+  // Лимит на минута: изчаква колкото казва Google („retry in 1s“) и минава от втория опит
+  await setProvider({ provider: 'openai-compatible', profile: { models: { light: 'err-minute', medium: 'fake-small', strong: '' } } });
+  const started = Date.now();
+  const t = await api(srv.port, 'POST', '/api/setup/test');
+  assert.equal(t.json.ok, true, JSON.stringify(t.json));
+  assert.equal(calls.filter((c) => c.model === 'err-minute').length, 2);
+  assert.ok(Date.now() - started < 4500, 'waits about the time Google asks, not the default 5 s');
+  await setProvider({ provider: 'openai-compatible', profile: { models: { light: 'fake-small', medium: 'fake-big', strong: '' } } });
+});
+
+test(T('ai', 'Gemini has a free profile (Flash-Lite reads, Flash writes) and a paid one with prices for the estimate', 'Gemini има безплатен профил (Flash-Lite чете, Flash пише) и платен с цени за оценката'), async () => {
+  const { json } = await api(srv.port, 'GET', '/api/ai');
+  const free = json.presets.find((p) => p.id === 'gemini'), paid = json.presets.find((p) => p.id === 'gemini-paid');
+  assert.equal(free.free, true);
+  assert.match(free.defaults.models.light, /flash-lite/);
+  assert.match(free.defaults.models.medium, /flash/);
+  assert.equal(paid.free, false);
+  assert.ok(paid.defaults.prices.medium.in > 0 && paid.values.prices.medium.out > 0, 'the prices of the profile are filled in');
+  await setProvider({ provider: 'gemini-paid', key: 'AIza-test-key' });
+  const e = await api(srv.port, 'POST', '/api/estimate', { kind: 'ingest', paths: [BOOK] });
+  assert.equal(e.json.free, false);
+  assert.ok(e.json.usd?.mid > 0, JSON.stringify(e.json));
+  const { msToPacificMidnight } = await import(pathToFileURL(path.join(box.root, 'scripts', 'llm.js')).href);
+  assert.equal(msToPacificMidnight(new Date('2026-11-09T20:00:00Z')), 12 * 3600000, 'noon in Los Angeles is 12 hours before the reset');
 });
 
 test(T('ai', 'The agent cannot read the file with the keys', 'Агентът не може да прочете файла с ключовете'), async () => {

@@ -15,7 +15,7 @@ import { $t, currentLang } from './i18n.js';
 import { P, lazy } from './vocab.js';
 import { aiConfig, aiPublic, readiness, claudeEnv } from './providers.js';
 import { runPipeline, TIER_OF } from './pipeline.js';
-import { errorText } from './llm.js';
+import { errorText, msToPacificMidnight } from './llm.js';
 
 const SETTINGS_FILE = path.join(ROOT, 'library.config.json');
 const HISTORY_FILE = path.join(OUTPUTS, '.agent-history.json');
@@ -196,8 +196,7 @@ function describe(name, input, job) {
   }
 }
 
-const RETRY_MS = Number(process.env.LIBRARY_RETRY_MS) || 30 * 60 * 1000; // повторен опит след лимит
-// Сканиран ли е източникът: под 15 думи средно на страница (или под 30 думи общо) текстът е твърде беден
+const RETRY_MS = Number(process.env.LIBRARY_RETRY_MS) || 30 * 60 * 1000; // повторен опит след лимит// Сканиран ли е източникът: под 15 думи средно на страница (или под 30 думи общо) текстът е твърде беден
 const MIN_WORDS_PER_PAGE = 15, MIN_WORDS = 30;
 function pdfPageCount(file) {
   try { return (fs.readFileSync(file).toString('latin1').match(/\/Type\s*\/Page[^s]/g) || []).length; } catch { return 0; }
@@ -426,6 +425,8 @@ export function createAgent({ broadcast }) {
       .catch((e) => {
         if (job.cancelled || e.kind === 'cancelled') return finish(job, { status: 'cancelled', message: $t('Stopped by you.') });
         if (e.kind === 'limit') return finish(job, { status: 'limited', message: errorText(e, cfg) + ' ' + $t('The queue is waiting.'), detail: e.message });
+        // Дневният лимит се нулира в полунощ тихоокеанско време: опашката чака дотогава, не опитва на всеки 30 минути
+        if (e.kind === 'daily') return finish(job, { status: 'limited', message: errorText(e, cfg) + ' ' + $t('The queue is waiting.'), detail: e.message, retryMs: msToPacificMidnight() + 120000 });
         if (!e.kind) return finish(job, { status: 'error', message: $t('The processing stopped with an error.'), detail: String(e.stack || e).slice(0, 2000) });
         finish(job, { status: 'error', message: errorText(e, cfg), detail: String(e.detail || e.message || '').slice(0, 2000) });
       });
@@ -530,7 +531,7 @@ export function createAgent({ broadcast }) {
     if (ev.type === 'result') { job.usage = { costUsd: ev.total_cost_usd ?? null, in: ev.usage?.input_tokens ?? null, out: ev.usage?.output_tokens ?? null, cacheRead: ev.usage?.cache_read_input_tokens ?? null, cacheWrite: ev.usage?.cache_creation_input_tokens ?? null }; setResult(ev); }
   }
 
-  function finish(job, { status, message, detail }) {
+  function finish(job, { status, message, detail, retryMs }) {
     if (job.finished) return;
     job.finished = true;
     child = null;
@@ -556,7 +557,7 @@ export function createAgent({ broadcast }) {
     if (status === 'limited') {
       state.queue.unshift({ id: String(++seq), kind: job.kind, target: job.target, label: job.label });
       state.paused = { reason: 'limit', at: now() };
-      scheduleRetry();
+      scheduleRetry(retryMs);
     }
     else state.batch.done++;
     if (status === 'cancelled') state.queue = [];
@@ -583,11 +584,11 @@ export function createAgent({ broadcast }) {
     push();
   }
 
-  function scheduleRetry() {
+  function scheduleRetry(ms = RETRY_MS) {
     clearTimeout(retryTimer); retryTimer = null;
     if (!state.settings.autoResume || state.paused?.reason !== 'limit') return;
-    state.paused.retryAt = new Date(Date.now() + RETRY_MS).toISOString();
-    retryTimer = setTimeout(() => { if (state.paused?.reason === 'limit') resume(); }, RETRY_MS);
+    state.paused.retryAt = new Date(Date.now() + ms).toISOString();
+    retryTimer = setTimeout(() => { if (state.paused?.reason === 'limit') resume(); }, ms);
   }
 
   function resume() { clearTimeout(retryTimer); retryTimer = null; state.paused = null; push(); next(); }

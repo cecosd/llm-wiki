@@ -13,6 +13,9 @@ export function errorText(r, cfg = aiConfig()) {
     case 'auth': return $t('{0} rejected the key. Check it in Settings → Model.', [name]);
     case 'limit': return cfg.subscription ? $t('The subscription limit has been reached. Try later or with a lighter model.') : $t('{0} reports a limit on requests. Try later or with a lighter model.', [name]);
     case 'quota': return $t('{0} reports that the credit or the free quota is used up.', [name]);
+    case 'prepay': return $t('{0}: the prepaid credit of the project of this key is used up. A project linked to a billing account is on the paid tier even with no credit, so the free tier does not apply to it. Add credit in AI Studio (Billing), or for the free tier use a key from a project without billing.', [name]);
+    case 'daily': return $t('{0}: the daily limit of requests for the model “{1}” is used up. It resets at midnight Pacific time. Try again then, set a lighter model for reading chapters, or use a paid key.', [name, r.model || cfg.models.medium || '?']);
+    case 'no-free': return $t('{0}: the model “{1}” has no free tier for this project (limit 0). Choose a model with a free tier (for Gemini: Flash or Flash-Lite) or use a paid key.', [name, r.model || cfg.models.medium || '?']);
     case 'model': return $t('{0} does not know the model “{1}”. Choose another one in Settings → Model.', [name, r.model || cfg.models.medium || '?']);
     case 'context': return $t('The text is too long for the context of the model. Set “Context” in Settings → Model to the real size of the model, or choose a lighter level.');
     case 'offline': return $t('{0} does not answer at {1}. Start it and try again.', [name, cfg.baseUrl || '?']);
@@ -107,6 +110,14 @@ function manualRequest({ label, system, prompt, json, signal, step }) {
   });
 }
 
+/** Милисекунди до следващата полунощ в Лос Анджелис: тогава Google нулира дневните лимити (Google, n.d., Rate limits) */
+export function msToPacificMidnight(at = new Date()) {
+  const p = Object.fromEntries(new Intl.DateTimeFormat('en-US', { timeZone: 'America/Los_Angeles', hour12: false, hour: 'numeric', minute: 'numeric', second: 'numeric' })
+    .formatToParts(at).filter((x) => x.type !== 'literal').map((x) => [x.type, Number(x.value)]));
+  const passed = ((p.hour % 24) * 3600 + p.minute * 60 + p.second) * 1000;
+  return Math.max(60000, 86400000 - passed);
+}
+
 // ---------- Пауза между заявките (безплатните ключове имат лимит на минута) ----------
 const lastAt = new Map();
 async function pace(cfg, signal) {
@@ -117,8 +128,14 @@ async function pace(cfg, signal) {
   lastAt.set(cfg.provider, Date.now());
 }
 
+// Видът на грешката по кода и текста. msg е целият отговор (при Google в него са и подробностите за квотата).
+// Google: изчерпана предплата е 402 (по-рано 429) с „prepayment credits are depleted“; дневен лимит е 429 с
+// quotaId „...PerDay...“; модел без безплатно ниво е 429 с „limit: 0“. Тези три не минават с повторен опит.
 const errKind = (status, msg) => {
-  if (status === 401 || status === 403) return 'auth';
+  if (/prepayment credits|prepay/i.test(msg)) return 'prepay';
+  if (status === 401 || status === 403 || /API key not valid|API_KEY_INVALID|invalid[_ ]api[_ ]key|incorrect api key/i.test(msg)) return 'auth';
+  if (status === 429 && (/limit:\s*0\b|"quotaValue":\s*"0"/.test(msg))) return 'no-free';
+  if (status === 429 && /PerDay|per day|daily/i.test(msg)) return 'daily';
   if (status === 429) return 'limit';
   if (status === 404 || /model.*(not found|does not exist|unknown)|no such model/i.test(msg)) return 'model';
   if (status === 400 && /context|too long|maximum.*tokens|token limit|too many tokens/i.test(msg)) return 'context';
@@ -159,8 +176,12 @@ async function request(cfg, { model, system, prompt, images, json, maxTokens, te
     const raw = await r.text();
     let j = null; try { j = JSON.parse(raw); } catch {}
     if (!r.ok) {
-      const message = String(j?.error?.message || j?.error || j?.message || raw || r.statusText).slice(0, 600);
-      return { ok: false, status: r.status, message, retryAfter: Number(r.headers.get('retry-after')) || 0 };
+      // Google връща грешката и като масив: [{ "error": {...} }]
+      const e = Array.isArray(j) ? j[0] : j;
+      const message = String(e?.error?.message || (typeof e?.error === 'string' ? e.error : '') || e?.message || raw || r.statusText).slice(0, 600);
+      // Колко да се чака: заглавката Retry-After, или „retry in 34.5s“ / "retryDelay": "34s" в отговора на Google
+      const hinted = Number((raw.match(/retry in ([\d.]+)\s*s/i) || raw.match(/"retryDelay":\s*"([\d.]+)s"/) || [])[1]) || 0;
+      return { ok: false, status: r.status, message, raw: raw.slice(0, 4000), retryAfter: Number(r.headers.get('retry-after')) || Math.ceil(hinted) };
     }
     const out = pick(j || {});
     return { ok: true, text: String(out.text || ''), usage: out.usage };
@@ -213,13 +234,14 @@ export async function complete({ tier = 'medium', system = '', prompt, images = 
         const costUsd = cfg.local ? 0 : pr && res.usage.in != null ? ((res.usage.in || 0) * pr.in + (res.usage.out || 0) * pr.out) / 1e6 : null;
         return { ok: true, text: res.text, usage: res.usage, costUsd, model };
       }
-      const kind = errKind(res.status, res.message);
-      const retryable = res.status === 429 || res.status >= 500;
+      const kind = errKind(res.status, res.raw || res.message);
+      // Лимит на минута и сривове при доставчика минават с изчакване; изчерпан кредит или дневен лимит не
+      const retryable = (res.status === 429 && kind === 'limit') || res.status >= 500;
       if (retryable && attempt < 3) {
-        await sleep(Math.min(65000, (res.retryAfter ? res.retryAfter * 1000 : 0) || [5000, 15000, 40000][attempt]), ac.signal);
+        await sleep(Math.min(65000, (res.retryAfter ? res.retryAfter * 1000 + 500 : 0) || [5000, 15000, 40000][attempt]), ac.signal);
         continue;
       }
-      return { ok: false, kind, error: res.message, status: res.status };
+      return { ok: false, kind, error: res.message, status: res.status, model };
     }
     return signal?.aborted ? { ok: false, kind: 'cancelled', error: 'cancelled' } : { ok: false, kind: 'timeout', error: 'timeout', minutes: Math.round(timeoutMs / 60000) };
   } finally { clearTimeout(timer); signal?.removeEventListener?.('abort', onAbort); }
@@ -239,9 +261,12 @@ export async function listModels(cfg = aiConfig()) {
   if (key) { headers.authorization = `Bearer ${key}`; headers['x-api-key'] = key; headers['anthropic-version'] = '2023-06-01'; }
   try {
     const r = await fetch(url, { headers, signal: AbortSignal.timeout(20000) });
-    const j = await r.json().catch(() => null);
-    if (!r.ok) return { ok: false, kind: errKind(r.status, String(j?.error?.message || '')), error: String(j?.error?.message || j?.error || r.statusText).slice(0, 300) };
-    const list = (j?.data || j?.models || []).map((m) => String(m.id || m.name || m.model || '')).filter(Boolean);
+    const raw = await r.text().catch(() => '');
+    let j = null; try { j = JSON.parse(raw); } catch {}
+    const e = Array.isArray(j) ? j[0] : j;
+    if (!r.ok) return { ok: false, kind: errKind(r.status, raw), error: String(e?.error?.message || (typeof e?.error === 'string' ? e.error : '') || r.statusText).slice(0, 300) };
+    // Google дава имената като „models/gemini-...“; в заявките се ползват без представката
+    const list = (j?.data || j?.models || []).map((m) => String(m.id || m.name || m.model || '').replace(/^models\//, '')).filter(Boolean);
     return { ok: true, models: [...new Set(list)].sort((a, b) => a.localeCompare(b)).slice(0, 400) };
   } catch (e) {
     return { ok: false, kind: cfg.local ? 'offline' : 'error', error: String(e?.cause?.code || e?.message || e) };

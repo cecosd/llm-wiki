@@ -98,7 +98,7 @@ function pipelineIngest(files, settings, kind) {
   const reader = cfg.engine === 'manual' ? 'medium' : TIER_OF[eff.reader] || 'light';
   const writer = cfg.engine === 'manual' ? 'medium' : TIER_OF[eff.writer] || 'medium';
   const rb = Math.max(1200, Math.floor(cfg.context * 0.85) - 1800 - 1100);
-  const batch = cfg.engine === 'manual' ? 12 : Math.max(1, Math.min(6, Math.floor((cfg.context * 0.35) / 650)));
+  const batch = cfg.engine === 'manual' ? 12 : Math.max(1, Math.min(cfg.context >= 100000 ? 12 : 6, Math.floor((cfg.context * 0.35) / 650))); // като batchSize в pipeline.js
   const parts = [], items = [];
   for (const raw of files) {
     const ex = path.join(EXTRACTED, path.relative(RAW, path.join(ROOT, raw)) + '.md');

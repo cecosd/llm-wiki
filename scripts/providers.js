@@ -57,10 +57,21 @@ export const PRESETS = [
     label: $t('OpenAI API'), hint: $t('Paid per token. The server gives the model the text in parts and writes the pages itself.'),
     baseUrl: 'https://api.openai.com/v1', models: { light: '', medium: '', strong: '' }, context: 128000,
     keyUrl: 'https://platform.openai.com/api-keys', docs: 'https://platform.openai.com/docs/api-reference/chat' },
+  // Gemini: безплатното ниво е само за проект БЕЗ платежна сметка. От 23.03.2026 проект, свързан с платежна сметка,
+  // е на платеното ниво дори при 0 кредит, и тогава заявките връщат 402 (Google, n.d., Billing). Лимитите са на
+  // проект и на модел, затова четенето на главите (light) е на Flash-Lite, а писането (medium) на Flash.
+  // Pro и Gemini 4 Argon нямат безплатно ниво (Google, n.d., Pricing).
   { id: 'gemini', group: 'free', engine: 'api', protocol: 'openai', name: 'Gemini', vendor: 'Google', needsKey: true, envKey: 'GEMINI_API_KEY', free: true,
-    label: $t('Google Gemini (free key from AI Studio)'), hint: $t('A key from Google AI Studio works without a card, within daily limits. On the free tier Google may use the content to improve its products: do not send private material.'),
-    baseUrl: 'https://generativelanguage.googleapis.com/v1beta/openai', models: { light: '', medium: '', strong: '' }, context: 1000000, rpm: 10,
-    keyUrl: 'https://aistudio.google.com/apikey', docs: 'https://ai.google.dev/gemini-api/docs/openai' },
+    label: $t('Google Gemini, free tier (project without billing)'), hint: $t('A key from Google AI Studio, from a project that is NOT linked to a billing account. Limits per minute and per day apply to each project and model (see Rate limits in AI Studio); a book takes about as many requests as it has chapters, plus 5 to 10. On the free tier Google uses the content to improve its products: do not send private material.'),
+    baseUrl: 'https://generativelanguage.googleapis.com/v1beta/openai', models: { light: 'gemini-3.5-flash-lite', medium: 'gemini-3.8-flash', strong: 'gemini-3.8-flash' }, context: 1000000, rpm: 5,
+    keyUrl: 'https://aistudio.google.com/apikey', docs: 'https://aistudio.google.com/docs/rate-limits', limitsUrl: 'https://aistudio.google.com/rate-limit' },
+  // Цените са стандартните след въвеждащите отстъпки (Flash до 31.12.2026, Argon до 30.11.2026 са на половин цена),
+  // за да не излиза оценката по-ниска от сметката. Сменят се в Настройки → Модел.
+  { id: 'gemini-paid', group: 'api', engine: 'api', protocol: 'openai', name: 'Gemini', vendor: 'Google', needsKey: true, envKey: 'GEMINI_API_KEY',
+    label: $t('Google Gemini, paid (project with billing)'), hint: $t('A key from an AI Studio project linked to a billing account. New accounts pay in advance (Prepay, at least 5 USD); at 0 credit every key of the account stops. The content is not used to improve Google products. Google AI Pro and Ultra include monthly Cloud credits that count for the Gemini API after you activate them in the Google Developer Program.'),
+    baseUrl: 'https://generativelanguage.googleapis.com/v1beta/openai', models: { light: 'gemini-3.5-flash-lite', medium: 'gemini-3.8-flash', strong: 'gemini-4-argon' }, context: 1000000,
+    prices: { light: { in: 0.30, out: 2.50 }, medium: { in: 1.50, out: 7.50 }, strong: { in: 4.00, out: 20.00 } },
+    keyUrl: 'https://aistudio.google.com/apikey', docs: 'https://aistudio.google.com/docs/billing', billingUrl: 'https://aistudio.google.com/billing' },
   { id: 'groq', group: 'free', engine: 'api', protocol: 'openai', name: 'Groq', vendor: 'Groq', needsKey: true, envKey: 'GROQ_API_KEY', free: true,
     label: $t('Groq (free tier)'), hint: $t('Fast open models with a free tier and limits per minute and per day.'),
     baseUrl: 'https://api.groq.com/openai/v1', models: { light: '', medium: '', strong: '' }, context: 128000, rpm: 20,
@@ -129,7 +140,8 @@ export function aiConfig(raw = readConfig().ai) {
   for (const t of TIERS) if (!models[t]) models[t] = (t === 'light' ? models.medium : t === 'strong' ? models.medium : '') || fill || '';
   const prices = {};
   for (const t of TIERS) {
-    const x = own.prices?.[t];
+    // Цените на профила, ако човекът не е въвел свои (празно поле в настройките = неизвестна цена)
+    const x = own.prices ? own.prices[t] : p.prices?.[t];
     prices[t] = x && (x.in !== '' && x.in != null) ? { in: num(x.in), out: num(x.out) } : null;
   }
   return {
@@ -242,8 +254,8 @@ export function aiSettings() {
         id: p.id, group: p.group, engine: p.engine, protocol: p.protocol, name: p.name, vendor: p.vendor, label: p.label, hint: p.hint,
         needsKey: !!p.needsKey, keyOptional: !p.needsKey && p.engine !== 'manual' && p.id !== 'claude-code' && p.id !== 'agent-ollama',
         hasKey: !!keyFor(p.id), keyMasked: mask(keyFor(p.id)), keySource: keySource(p.id), envKey: p.envKey || null,
-        free: !!p.free, local: !!p.local, keyUrl: p.keyUrl || null, docs: p.docs || null,
-        defaults: { baseUrl: p.baseUrl || '', models: p.models, context: p.context, rpm: p.rpm || 0 },
+        free: !!p.free, local: !!p.local, keyUrl: p.keyUrl || null, docs: p.docs || null, limitsUrl: p.limitsUrl || null, billingUrl: p.billingUrl || null,
+        defaults: { baseUrl: p.baseUrl || '', models: p.models, context: p.context, rpm: p.rpm || 0, prices: p.prices || null },
         values: {
           baseUrl: (raw.profiles?.[p.id]?.baseUrl) || '', models: raw.profiles?.[p.id]?.models || { light: '', medium: '', strong: '' }, prices: c.prices,
           context: raw.profiles?.[p.id]?.context || '', rpm: raw.profiles?.[p.id]?.rpm ?? '', vision: c.vision, maxOutput: raw.profiles?.[p.id]?.maxOutput || '',

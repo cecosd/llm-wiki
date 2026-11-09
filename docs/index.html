@@ -1546,8 +1546,72 @@
       </nav>
 
       <div class="relative min-w-0 p-5 sm:p-8" :key="tab + L" style="animation:slidein .35s ease both">
+        <!-- Модел -->
+        <template v-if="tab === 'model'">
+          <h3 class="setx-h">{{ S.model.h }}</h3>
+          <p class="mt-2 muted text-sm" style="max-width:44rem">{{ S.model.p }}</p>
+          <div class="mt-5 grid gap-5 lg:grid-cols-[15rem_1fr]">
+            <div class="grid gap-2 content-start" role="radiogroup" :aria-label="S.model.h">
+              <button v-for="o in S.model.opts" :key="o.id" type="button" role="radio" :aria-checked="mdl.sel === o.id" class="card-soft px-3 py-2.5 text-left"
+                      :style="mdl.sel === o.id ? 'outline:2px solid var(--sage);outline-offset:-1px' : ''" @click="pickModel(o.id)">
+                <b class="text-sm flex flex-wrap items-center gap-1.5">{{ o.name }}<span v-if="o.badge" class="chip" style="font-size:.62rem;color:var(--sage)">{{ o.badge }}</span></b>
+                <span class="block text-xs muted mt-0.5">{{ o.sub }}</span>
+              </button>
+            </div>
+            <div class="min-w-0" :key="mdl.sel" style="animation:slidein .3s ease both">
+              <p class="text-sm" style="max-width:42rem">{{ opt.how }}</p>
+              <div class="mt-4 grid gap-2 sm:grid-cols-3">
+                <div v-for="(f, i) in S.model.facts" :key="f" class="card-soft px-3 py-2">
+                  <div class="text-[11px] font-semibold uppercase tracking-wider faint">{{ f }}</div>
+                  <div class="text-xs mt-1">{{ [opt.cost, opt.data, opt.limits][i] }}</div>
+                </div>
+              </div>
+
+              <div class="mt-5 flex flex-wrap items-center gap-3">
+                <span class="text-xs font-semibold uppercase tracking-wider faint">{{ S.model.flowH }}</span>
+                <button type="button" class="btn btn-ghost btn-sm" style="padding:.2rem .7rem" :disabled="mdl.busy" @click="runFlow">▶ {{ S.model.run }}</button>
+              </div>
+              <ol class="mt-2 grid gap-1.5 text-sm">
+                <li v-for="(s, i) in opt.flow" :key="i" class="flex items-center gap-2" :style="{ opacity: mdl.step === -1 || i <= mdl.step ? 1 : .35 }">
+                  <span v-if="mdl.done || (mdl.step > i)" style="color:var(--sage)">✓</span><span v-else-if="mdl.busy && i === mdl.step" class="spin" style="width:12px;height:12px"></span><span v-else class="faint mono text-xs">{{ i + 1 }}</span>{{ s }}
+                </li>
+              </ol>
+
+              <div class="mt-5 text-xs font-semibold uppercase tracking-wider faint">{{ S.model.setupH }}</div>
+              <ol class="mt-2 grid gap-2.5 text-sm">
+                <li v-for="(x, i) in opt.setup" :key="i" class="flex gap-3">
+                  <span class="mono text-xs mt-0.5" style="color:var(--sage)">{{ i + 1 }}.</span>
+                  <span><b class="font-medium">{{ x[0] }}</b><span class="block text-xs muted mt-0.5">{{ S.model.why }} {{ x[1] }}</span></span>
+                </li>
+              </ol>
+
+              <div class="mt-5 card-soft p-4">
+                <div class="flex flex-wrap items-center gap-3">
+                  <button type="button" class="btn btn-primary btn-sm" :disabled="mdl.test.busy" @click="testModel">{{ S.model.test }}</button>
+                  <span v-if="mdl.test.busy" class="spin" style="width:14px;height:14px"></span>
+                  <span v-if="mdl.test.ok" class="text-sm" style="color:var(--sage)">✓ {{ opt.test ? S.model.testOk(opt.test[0], opt.test[1], mdl.test.s) : S.model.testManual }}</span>
+                </div>
+                <p class="mt-2 text-xs muted">{{ S.model.testNote }}</p>
+              </div>
+
+              <template v-if="opt.errs">
+                <div class="mt-5 text-xs font-semibold uppercase tracking-wider faint">{{ S.model.errH }}</div>
+                <div class="mt-2 grid gap-2">
+                  <details v-for="(e, i) in S.model.errs" :key="i" class="setx-group" :open="i === 0">
+                    <summary><span class="mono text-xs" style="color:var(--clay)">{{ e[0] }}</span><span class="flex-1">{{ e[1] }}</span></summary>
+                    <div class="px-4 pb-3 text-sm"><p class="muted">{{ e[2] }}</p><p class="mt-1"><span style="color:var(--sage)">→</span> {{ e[3] }}</p></div>
+                  </details>
+                </div>
+              </template>
+            </div>
+          </div>
+          <p class="mt-5 callout text-sm" style="--c:var(--sage)">{{ S.model.keys }}</p>
+          <p class="mt-2 text-xs muted">{{ S.model.names }}</p>
+          <p class="mt-2 text-xs faint">{{ S.model.where }}</p>
+        </template>
+
         <!-- Парола -->
-        <template v-if="tab === 'pwd'">
+        <template v-else-if="tab === 'pwd'">
           <h3 class="setx-h">{{ S.pwd.h }}</h3>
           <p class="mt-2 muted text-sm" style="max-width:40rem">{{ S.pwd.p }}</p>
           <div class="mt-5 card-soft p-4 flex items-center gap-3"><span class="dot" :style="{ '--c': pw.set ? 'var(--sage)' : 'var(--faint)' }"></span><b class="text-sm">{{ pw.set ? S.pwd.on : S.pwd.off }}</b></div>

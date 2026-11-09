@@ -1237,6 +1237,28 @@ const AiSettings = defineComponent({
       return all.filter((k) => k.toLowerCase().includes(q) || this.preview(k, true).toLowerCase().includes(q)).slice(0, 60);
     },
     changedLabels() { return Object.values(this.form?.labels || {}).filter(Boolean).length; },
+    /** „Какво се случва и защо“ за избрания профил: стъпките на настройката и причината за всяка */
+    howSteps() {
+      const p = this.preset; if (!p) return [];
+      const out = [];
+      if (p.id === 'claude-code') {
+        out.push($t('Claude Code reads the sources and writes the pages itself, with the skills and the rules in CLAUDE.md. Why: as an agent it can open files, check the existing pages and fix links on its own.'));
+        out.push($t('Sign in once with claude in a terminal (see Setup). Nothing else is needed here.'));
+      } else if (p.engine === 'agent') {
+        out.push($t('Claude Code still does the work, but every request goes to this provider. Why: you keep the agent and the skills and only change who answers.'));
+      } else if (p.engine === 'api') {
+        out.push($t('The server cuts each source into chapters, sends them one by one and writes the pages from the answers. Why: this model has no tools, so it cannot open files itself.'));
+      } else {
+        out.push($t('Every step is a request that you copy into the chat and an answer that you paste back. Why: a free chat has no API that the library could call.'));
+      }
+      if (p.needsKey) out.push($t('Get a key (link above) and paste it. Why: the provider counts the limits and the cost by this key.'));
+      if (this.show.models) out.push($t('Choose the models, or press “Load the models”. The light one reads the chapters, the medium one writes the pages, the powerful one is for synthesis and the “Best” mode. Why: reading makes the most requests, so a cheaper model there saves money and limits.'));
+      if (p.local) out.push($t('Set the context to the real size of the model. Why: the server splits the text so that every part fits.'));
+      if (p.free) out.push($t('Free tiers count requests per minute and per day. A book takes about one request per chapter plus 5 to 10. When the daily limit runs out, the queue waits for the reset.'));
+      if (p.billingUrl) out.push($t('Check the credit before a big job (link “Credit and billing”). Why: with prepayment every key of the account stops at 0.'));
+      if (p.engine !== 'manual' && p.id !== 'claude-code') out.push($t('Press “Test the connection”: one short request of a few tokens. Why: a wrong key, a missing credit or a wrong model show up before a whole book is sent.'));
+      return out;
+    },
   },
   created() { this.load(); },
   methods: {

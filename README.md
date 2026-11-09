@@ -107,10 +107,26 @@ Before every action with Claude the app shows approximate tokens and cost (it ca
 | Way of working | Providers | How it works |
 |---|---|---|
 | **Agent with tools** | Claude subscription, Claude API key, DeepSeek, local Ollama 0.14+, any endpoint compatible with Anthropic | Claude Code as usual; for another provider it gets `ANTHROPIC_BASE_URL` and the three models (Anthropic, n.d.; DeepSeek, n.d.; Ollama, n.d.) |
-| **Without tools** | OpenAI, Google Gemini (free key), Groq, OpenRouter, DeepSeek, Mistral, Claude API, Ollama, LM Studio, any `/chat/completions` endpoint | The server gives the model the text chapter by chapter and writes the pages itself from the templates, so small and local models work too (Google, n.d.) |
+| **Without tools** | OpenAI, Google Gemini (free or paid key), Groq, OpenRouter, DeepSeek, Mistral, Claude API, Ollama, LM Studio, any `/chat/completions` endpoint | The server gives the model the text chapter by chapter and writes the pages itself from the templates, so small and local models work too (Google, n.d.-c) |
 | **Copy and paste** | any chat in the browser, including free accounts | Each step is a request you copy into the chat; you paste the answer back |
 
-Keys are stored in `.library-secrets.json` (outside git, readable only by you, closed to the agent) or come from an environment variable. Free tiers may use your content for training: do not send private material there.
+Keys are stored in `.library-secrets.json` (outside git, readable only by you, closed to the agent) or come from an environment variable. Free tiers may use your content for training: do not send private material there. Each profile in Settings → Model has a short “What happens and why” list with the steps of its setup.
+
+#### Gemini: free key or paid key
+
+The key belongs to a project in Google AI Studio, and the project decides the tier (Google, n.d.-a; Google, n.d.-d):
+
+| | Free tier | Paid tier |
+|---|---|---|
+| Profile in Settings → Model | “Google Gemini, free tier (project without billing)” | “Google Gemini, paid (project with billing)” |
+| Project | not linked to a billing account | linked to a billing account; new accounts pay in advance (Prepay, at least 5 USD) |
+| Models | Flash and Flash-Lite; Pro and Gemini 4 Argon have no free tier (Google, n.d.-b) | all |
+| Limits | per minute and per day, for each project and model, shown only in AI Studio (Rate limits); the daily ones reset at midnight Pacific time | higher, with a monthly spending cap by the tier of the account |
+| Your content | used to improve Google products | not used |
+
+- **Error 402 “Your prepayment credits are depleted”.** The key is from a project linked to a billing account that has no credit. Such a project takes the paid tier of the account and is not moved back to the free tier at 0, so every key of the account stops. Add credit in AI Studio (Billing), or create a project without billing and take the key from there (Google, n.d.-a).
+- **A paid Gemini account.** Its key goes into the paid profile, which carries Google's prices, so the estimate shows an amount (the prices can be changed). A Google AI Pro or Ultra subscription to the Gemini app does not give an API key by itself, but it includes monthly Google Cloud credits (10 USD with AI Pro) that count for the Gemini API after you activate them in the Google Developer Program (Google, 2026).
+- **How many requests.** A book takes about one request per chapter plus 5 to 10. The light model (Flash-Lite) reads the chapters and the medium one (Flash) writes the pages, so the limits of the two models are used separately. When the daily limit runs out, the queue waits for the reset and starts that source again.
 
 ### Claude Code commands
 
@@ -206,7 +222,15 @@ Anthropic. (n.d.). *Environment variables*. Claude Code Docs. https://code.claud
 
 DeepSeek. (n.d.). *Anthropic API*. DeepSeek API Docs. https://api-docs.deepseek.com/guides/anthropic_api
 
-Google. (n.d.). *OpenAI compatibility*. Gemini API. https://ai.google.dev/gemini-api/docs/openai
+Google. (2026, January 27). *New developer tools for Google AI Pro and Ultra subscribers*. The Keyword. https://blog.google/innovation-and-ai/technology/developers-tools/gdp-premium-ai-pro-ultra/
+
+Google. (n.d.-a). *Billing*. Google AI Studio. Retrieved November 9, 2026, from https://aistudio.google.com/docs/billing
+
+Google. (n.d.-b). *Gemini Developer API pricing*. Google AI Studio. Retrieved November 9, 2026, from https://aistudio.google.com/docs/pricing
+
+Google. (n.d.-c). *OpenAI compatibility*. Google AI Studio. https://aistudio.google.com/docs/openai
+
+Google. (n.d.-d). *Rate limits*. Google AI Studio. Retrieved November 9, 2026, from https://aistudio.google.com/docs/rate-limits
 
 Ollama. (n.d.). *Anthropic compatibility*. Ollama Docs. https://docs.ollama.com/api/anthropic-compatibility
 

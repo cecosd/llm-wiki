@@ -807,6 +807,7 @@ const PageTools = defineComponent({
 
 /* ===== Настройки: парола, архив, инсталация, обновления, тестове ===== */
 const SET_ICO = {
+  model: '<rect x="6" y="6" width="12" height="12" rx="2"/><path d="M9 2v4M15 2v4M9 18v4M15 18v4M2 9h4M2 15h4M18 9h4M18 15h4"/>',
   pwd: '<rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/>',
   archive: '<path d="M21 8v13H3V8M1 3h22v5H1zM10 12h4"/>',
   setup: '<path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>',
@@ -818,7 +819,8 @@ const SettingsDemo = defineComponent({
   template: '#tpl-settings',
   data() {
     return {
-      store, TESTS, ICO: SET_ICO, tab: 'pwd', seen: { pwd: true }, pulseTests: false,
+      store, TESTS, ICO: SET_ICO, tab: 'model', seen: { model: true }, pulseTests: false,
+      mdl: { sel: 'claude', step: -1, busy: false, done: false, test: { busy: false, ok: false, s: '' } },
       pw: { set: '', next: '', cur: '', msg: '', bad: false }, login: { open: false, pw: '', msg: '', ok: false, fails: 0, wait: 0 },
       arc: { busy: false, done: false, step: -1, name: archName(), list: [] }, chk: { busy: false, at: 99 }, conn: { busy: false, ok: false, s: '' },
       ver: { busy: false, done: false }, pkg: { busy: false, done: false }, run: { busy: false, done: false, n: 0 },
@@ -826,6 +828,7 @@ const SettingsDemo = defineComponent({
   },
   computed: {
     S() { return this.t.set; },
+    opt() { return this.S.model.opts.find(o => o.id === this.mdl.sel) || this.S.model.opts[0]; },
     loc() { return this.L === 'bg' ? 'bg-BG' : 'en-US'; },
     nPages() { return LIB.length; },
     mb() { return (1.6).toLocaleString(this.loc); },
@@ -839,6 +842,19 @@ const SettingsDemo = defineComponent({
     toast,
     setTab(k) { this.tab = k; if (!this.seen[k]) this.seen = { ...this.seen, [k]: true }; },
     mark() { store.tour.settings = true; },
+    /* Модел: избор на начин на работа, стъпките на обработката и опит за връзка (всичко е само в паметта на страницата) */
+    pickModel(id) { this.mdl = { sel: id, step: -1, busy: false, done: false, test: { busy: false, ok: false, s: '' } }; },
+    async runFlow() {
+      const M = this.mdl, id = M.sel; if (M.busy) return; M.busy = true; M.done = false;
+      for (let i = 0; i < this.opt.flow.length; i++) { if (this.mdl.sel !== id) return; M.step = i; await sleep(REDUCED ? 60 : 700); }
+      M.step = 99; M.busy = false; M.done = true; this.mark();
+    },
+    async testModel() {
+      const T = this.mdl.test; if (T.busy) return; T.ok = false;
+      if (!this.opt.test) { T.ok = true; T.s = ''; this.mark(); return; }
+      T.busy = true; await sleep(REDUCED ? 100 : 1200); T.busy = false; T.ok = true;
+      T.s = ({ local: 2.3, gfree: 0.9, gpaid: 0.8, agent: 1.6 }[this.mdl.sel] || 1.4).toLocaleString(this.loc); this.mark();
+    },
     msg(text, bad) { this.pw.msg = text; this.pw.bad = !!bad; },
     setPwd() { const v = this.pw.next; if (v.length < 8) { this.msg(this.S.pwd.short, true); return; } this.pw.set = v; this.pw.next = ''; this.msg(this.S.pwd.setDone); this.mark(); },
     removePwd() { if (this.pw.cur !== this.pw.set) { this.msg(this.S.pwd.wrongCur, true); return; } this.pw.set = ''; this.pw.cur = ''; this.msg(this.S.pwd.removed); },
@@ -1046,7 +1062,7 @@ const app = createApp({
         { k: 'wiki', c: 'var(--t-concept)', icon: '<circle cx="6" cy="6" r="2.5"/><circle cx="18" cy="7" r="2.5"/><circle cx="12" cy="18" r="2.5"/><path d="M8 7l7.5 0M7.5 8l3.5 8M16.5 9l-3.5 7"/>' },
         { k: 'lint', c: 'var(--gold)', icon: '<path d="M12 3l8 3v6c0 4.5-3.4 8.2-8 9-4.6-.8-8-4.5-8-9V6z"/><path d="M8.5 12l2.5 2.5 4.5-5"/>' },
         { k: 'run', c: 'var(--t-question)', icon: '<path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z"/>' }],
-      refs: [REF.ahrens, REF.anth, REF.bush, REF.ebb, REF.kar, REF.luh],
+      refs: [REF.ahrens, REF.anth, REF.bush, REF.ebb, REF.goog, REF.kar, REF.luh],
     };
   },
   watch: { 'store.lang': { handler() { this.applyLang(); }, immediate: true } },

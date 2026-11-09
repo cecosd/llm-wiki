@@ -247,6 +247,7 @@
               </div>
             </div>
             <p v-if="cost.est.manual" class="mt-3 rounded-xl bg-sage-50 p-2 text-xs text-sage-800 dark:bg-sage-900/40 dark:text-sage-200">{{ $t('About {0} requests to copy into the chat and answers to paste back. A window opens for each one.', [cost.est.calls || 1]) }}</p>
+            <p v-else-if="cost.est.free && !cost.est.local && cost.est.calls > 1" class="mt-3 rounded-xl bg-sage-50 p-2 text-xs text-sage-800 dark:bg-sage-900/40 dark:text-sage-200">{{ $t('About {0} requests. Free tiers limit the requests per day: if the limit runs out, the job waits for the reset and starts again from the beginning of that source.', [cost.est.calls]) }}</p>
             <p class="mt-3 text-xs text-muted dark:text-night-muted">
               {{ $t('Model: {0}.', [cost.est.models.join(' + ')]) }}
               <template v-if="cost.est.engine && cost.est.engine !== 'agent' && cost.est.calls > 1">{{ $t('{0} requests in total.', [cost.est.calls]) }}</template>
@@ -1677,7 +1678,15 @@
       <p v-if="preset.docs || preset.keyUrl" class="mt-1 text-xs">
         <a v-if="preset.docs" :href="preset.docs" target="_blank" rel="noopener" class="underline">{{ $t('Documentation') }}</a>
         <template v-if="preset.keyUrl"><template v-if="preset.docs"> · </template><a :href="preset.keyUrl" target="_blank" rel="noopener" class="underline">{{ $t('Get a key') }}</a></template>
+        <template v-if="preset.limitsUrl"> · <a :href="preset.limitsUrl" target="_blank" rel="noopener" class="underline">{{ $t('Your limits') }}</a></template>
+        <template v-if="preset.billingUrl"> · <a :href="preset.billingUrl" target="_blank" rel="noopener" class="underline">{{ $t('Credit and billing') }}</a></template>
       </p>
+      <details v-if="howSteps.length" class="mt-3 rounded-xl bg-paper px-3 py-2 text-sm dark:bg-night/60" open>
+        <summary class="cursor-pointer font-medium">{{ $t('What happens and why') }}</summary>
+        <ol class="mt-2 list-decimal space-y-1 pl-5 text-xs text-muted dark:text-night-muted">
+          <li v-for="(x, i) in howSteps" :key="i">{{ x }}</li>
+        </ol>
+      </details>
 
       <div class="mt-4 grid gap-3 sm:grid-cols-2">
         <label v-if="show.url" class="block text-sm sm:col-span-2"><span class="mb-1 block font-medium">{{ $t('Address') }}</span>

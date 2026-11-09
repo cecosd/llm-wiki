@@ -395,7 +395,8 @@ const notesBlock = (c, src) => c.notes.map((n) => `- ${n.text} ${cite(n.slug, n.
 
 const NEW_SCHEMA = '{"pages":[{"name":"","title":"","kind":"concept","definition":"","detail":"","aliases":[""],"tags":[""]}]}';
 const UPD_SCHEMA = '{"updates":[{"slug":"","add":"","contradiction":"","aliases":[""]}]}';
-const batchSize = (ctx) => (ctx.cfg.engine === 'manual' ? 12 : Math.max(1, Math.min(6, Math.floor((ctx.cfg.context * 0.35) / 650))));
+// Колко понятия в една заявка. При голям контекст (100 000+) по 12: по-малко заявки, което пази дневните лимити.
+const batchSize = (ctx) => (ctx.cfg.engine === 'manual' ? 12 : Math.max(1, Math.min(ctx.cfg.context >= 100000 ? 12 : 6, Math.floor((ctx.cfg.context * 0.35) / 650))));
 
 async function newPagesFor(ctx, list, src, meta) {
   const out = [];
