@@ -1,2 +1,7 @@
-// Theme before the first paint. A separate file, because the Content-Security-Policy forbids inline code.
-(() => { document.documentElement.classList.toggle('dark', matchMedia('(prefers-color-scheme: dark)').matches); })();
+// Тема преди първото изрисуване. Отделен файл, защото Content-Security-Policy забранява вградения код.
+(function () {
+  var t = null;
+  try { t = localStorage.getItem('llmwiki-theme'); } catch (e) {}
+  if (!t) t = matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+  document.documentElement.setAttribute('data-theme', t);
+})();

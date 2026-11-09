@@ -186,6 +186,8 @@ npm run serve   # http://localhost:4321
 | `npm run lint` | Механичен отчет в `outputs/` |
 | `npm run new -- concept my-concept "Моето понятие"` | Нова страница от шаблон |
 | `npm run serve` | Интерфейсът на http://localhost:4321 (друг порт: `PORT=5000 npm run serve`) |
+| `npm run serve:safe` | Интерфейсът в изолация (Linux и WSL, иска `sudo apt install bubblewrap`): програмата и пакетите ѝ виждат само тази папка. Виж [SECURITY.md](SECURITY.md) |
+| `npm run sandbox:check` | Показва какво се вижда и какво не отвътре на изолацията |
 | `npm run i18n:check` | Проверка на файловете с преводи в `locales/` |
 
 ## Езици (интерфейс)

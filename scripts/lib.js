@@ -92,6 +92,17 @@ export function normRaw(p) {
 /** Ключ за сравнение (без значение от главни/малки букви, като на macOS и Windows) */
 export const rawKey = (p) => normRaw(p).toLowerCase();
 
+/**
+ * Файлът с извлечения текст за raw_path от страница, или null. raw_path се пише от Claude и може да е подправен
+ * от документ (raw/../../чужд-файл), затова пътят се приема само ако остава вътре в raw/.extracted/.
+ */
+export function extractedPathOf(rawPath) {
+  if (!rawPath) return null;
+  const f = path.resolve(EXTRACTED, path.relative('raw', normRaw(rawPath)) + '.md');
+  const r = path.relative(EXTRACTED, f);
+  return r && !r.startsWith('..') && !path.isAbsolute(r) ? f : null;
+}
+
 /** Карта: ключ → source страница. Глава с raw_path (книга, обединена от отделно качени файлове) също се брои за обработена. */
 export function sourceIndex(pages) {
   const m = new Map();

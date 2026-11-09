@@ -117,6 +117,8 @@ Before every action with Claude the app shows approximate tokens and cost (it ca
 | Command | What it does |
 |---|---|
 | `npm run serve` | The web app (`PORT=5000 npm run serve` for another port) |
+| `npm run serve:safe` | The web app in isolation (Linux and WSL, needs `sudo apt install bubblewrap`): the program and its packages see only this folder. See [SECURITY.md](SECURITY.md) |
+| `npm run sandbox:check` | Shows what can and cannot be seen from inside the isolation |
 | `npm run inbox` | Sort `raw/inbox/` (`-- --dry` to preview) |
 | `npm run extract` | Extract text from all raw files (`-- --force` to redo) |
 | `npm run status` / `npm run pending` | What is processed and what waits |

@@ -7,7 +7,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import matter from 'gray-matter';
-import { ROOT, WIKI, EXTRACTED, rel, today, normRaw, wikiPages, extractLinks } from './lib.js';
+import { WIKI, rel, today, extractedPathOf, wikiPages, extractLinks } from './lib.js';
 import { askClaude, PATH_LEVELS } from './agent.js';
 import { $t } from './i18n.js';
 import { V, any, anyP, P, pageUnits, lazy } from './vocab.js';
@@ -47,9 +47,8 @@ export function locateRange(body, selection, titles = new Map()) {
 
 // ---------- Върху какво да се опре Claude ----------
 const extractedFor = (rawPath) => {
-  if (!rawPath) return null;
-  const f = path.join(EXTRACTED, path.relative('raw', normRaw(rawPath)) + '.md');
-  return fs.existsSync(f) ? rel(f) : null;
+  const f = extractedPathOf(rawPath); // null, ако raw_path сочи извън raw/.extracted/
+  return f && fs.existsSync(f) ? rel(f) : null;
 };
 
 /** Оригиналните текстове (в raw/.extracted/) и диапазоните, от които е написана страницата. */

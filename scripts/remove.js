@@ -7,7 +7,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import { ROOT, OUTPUTS, EXTRACTED, WIKI, rel, today, wikiPages, extractLinks, ingestState, normRaw, loadManifest, saveManifest } from './lib.js';
+import { OUTPUTS, WIKI, rel, today, wikiPages, extractLinks, ingestState, normRaw, extractedPathOf, loadManifest, saveManifest } from './lib.js';
 import { $t } from './i18n.js';
 import { any, P } from './vocab.js';
 
@@ -100,7 +100,7 @@ export function planRemoval(slug) {
     ok: true, slug, title: titles.get(slug), rawPath, originalMissing: missing,
     pages: [source, ...chapters].map((p) => ({ rel: p.rel, slug: p.slug, type: p.data.type })),
     touched, orphaned, hasNotes: notes.length > 0 && !/^\(.*\)$|^_.*_$/.test(notes), notesPreview: notes.slice(0, 300),
-    extracted: rawPath ? rel(path.join(EXTRACTED, path.relative('raw', rawPath) + '.md')) : null,
+    extracted: extractedPathOf(rawPath) ? rel(extractedPathOf(rawPath)) : null, // null при път извън raw/.extracted/
   };
 }
 
@@ -127,7 +127,8 @@ export function applyRemoval(slug) {
   }
   // 3. Изтриване на страниците на източника, текстовата версия и записа в manifest
   for (const p of [source, ...chapters]) fs.rmSync(p.file, { force: true });
-  if (plan.extracted) fs.rmSync(path.join(ROOT, plan.extracted), { force: true });
+  const extracted = extractedPathOf(rawPath); // проверено наново точно преди изтриването
+  if (extracted) fs.rmSync(extracted, { force: true });
   try {
     const m = loadManifest();
     const key = Object.keys(m.files || {}).find((k) => normRaw(k).toLowerCase() === (rawPath || '').toLowerCase());

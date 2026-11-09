@@ -45,7 +45,8 @@ export async function setPassword(password) {
 }
 
 export function clearPassword() {
-  fs.rmSync(FILE, { force: true });
+  // В изолацията файлът е монтиран поотделно и не може да се изтрие; празен файл значи същото: без парола.
+  try { fs.rmSync(FILE, { force: true }); } catch { fs.writeFileSync(FILE, ''); }
   sessions.clear();
 }
 

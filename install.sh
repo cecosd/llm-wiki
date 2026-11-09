@@ -48,8 +48,16 @@ fi
 
 say "4/4  Optional"
 have git && ok "git $(git --version | cut -d' ' -f3) (gives the Undo button)" || warn "git not found: the Undo button will be unavailable (macOS: brew install git; Ubuntu: sudo apt install git)."
+SERVE=serve
+if [ "$(uname -s)" = "Linux" ]; then
+  if ! have bwrap; then
+    warn "bubblewrap not found: without it the libraries the program uses can see all your files (see SECURITY.md)."
+    if have apt-get && ask "Install bubblewrap now (sudo apt install bubblewrap)?"; then sudo apt-get install -y bubblewrap; fi
+  fi
+  if have bwrap; then ok "isolation (bubblewrap): the program sees only this folder"; SERVE=serve:safe; fi
+fi
 
-[ "$START" = 1 ] || { say "Ready. Start with: npm run serve"; exit 0; }
+[ "$START" = 1 ] || { say "Ready. Start with: npm run $SERVE"; exit 0; }
 say "Starting the library at http://localhost:4321  (Ctrl+C stops it)"
 ( sleep 2; { have xdg-open && xdg-open http://localhost:4321; } >/dev/null 2>&1 || { have open && open http://localhost:4321; } >/dev/null 2>&1 || { have cmd.exe && cmd.exe /c start "" http://localhost:4321; } >/dev/null 2>&1 ) &
-exec npm run serve
+exec npm run "$SERVE"

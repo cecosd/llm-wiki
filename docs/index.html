@@ -1,296 +1,1709 @@
 <!doctype html>
-<html lang="bg">
+<html lang="bg" data-theme="dark">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <title>LLM Wiki</title>
-  <meta name="description" content="A local knowledge library for any field: Claude reads your sources and maintains a linked wiki on your computer. Developed by SDevelopers LTD with Claude.">
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='9' fill='%232f6f62'/><path d='M9 9h4v14H9zM15 9h3v14h-3zM20 10l3-1 3 13-3 1z' fill='white'/></svg>">
-  <script src="theme.js"></script>
-  <style>
-    @font-face { font-family: "Inter Variable"; src: url(vendor/inter-latin.woff2) format("woff2-variations"); font-weight: 100 900; font-display: swap; unicode-range: U+0000-00FF, U+2000-206F, U+20AC, U+2122; }
-    @font-face { font-family: "Inter Variable"; src: url(vendor/inter-cyrillic.woff2) format("woff2-variations"); font-weight: 100 900; font-display: swap; unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116; }
-    @font-face { font-family: "Literata Variable"; src: url(vendor/literata-latin.woff2) format("woff2-variations"); font-weight: 200 900; font-display: swap; unicode-range: U+0000-00FF, U+2000-206F, U+20AC, U+2122; }
-    @font-face { font-family: "Literata Variable"; src: url(vendor/literata-cyrillic.woff2) format("woff2-variations"); font-weight: 200 900; font-display: swap; unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116; }
-    [v-cloak] { display: none; }
-    html { scroll-behavior: smooth; scroll-padding-top: 5rem; }
-    @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
-  </style>
-  <script src="vendor/tailwind.js"></script>
-  <style type="text/tailwindcss">
-    @custom-variant dark (&:where(.dark, .dark *));
-    @theme {
-      --font-sans: "Inter Variable", ui-sans-serif, system-ui, sans-serif;
-      --font-serif: "Literata Variable", ui-serif, Georgia, serif;
-      --color-paper: #f6f3ec;
-      --color-panel: #fffdf9;
-      --color-ink: #26231e;
-      --color-muted: #6f675b;
-      --color-line: #e7e1d5;
-      --color-night: #12110f;
-      --color-night-panel: #1b1a17;
-      --color-night-line: #2e2b26;
-      --color-night-ink: #ece7dd;
-      --color-night-muted: #a39b90;
-      --color-sage-50: #eef5f2;
-      --color-sage-100: #d7e9e2;
-      --color-sage-200: #b1d3c6;
-      --color-sage-400: #5fa08c;
-      --color-sage-600: #2f6f62;
-      --color-sage-700: #255a4f;
-      --color-sage-900: #163731;
-      --color-clay-100: #f6e4d6;
-      --color-clay-400: #d98a55;
-      --color-clay-600: #a85a2c;
-    }
-    @layer base {
-      html { -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility; }
-      body { @apply bg-paper text-ink font-sans leading-relaxed dark:bg-night dark:text-night-ink; }
-      a { @apply underline decoration-sage-400/50 underline-offset-2 hover:decoration-sage-600; }
-      :focus-visible { @apply outline-2 outline-offset-2 outline-sage-600; }
-      code { @apply font-mono text-[.88em]; }
-    }
-    @utility sec { @apply mx-auto max-w-5xl px-4 py-14 sm:px-8 sm:py-20; }
-    @utility rule { @apply border-t border-line dark:border-night-line; }
-    @utility h2x { @apply font-serif text-3xl font-semibold tracking-tight sm:text-4xl; }
-    @utility h3x { @apply font-serif text-xl font-semibold; }
-    @utility lede { @apply mt-4 max-w-2xl text-lg text-muted dark:text-night-muted; }
-    @utility cardx { @apply rounded-2xl border border-line bg-panel p-5 dark:border-night-line dark:bg-night-panel; }
-    @utility shell { @apply overflow-x-auto rounded-xl bg-ink px-4 py-3 font-mono text-[13px] leading-6 text-night-ink dark:bg-black/40; }
-    @utility btnx { @apply inline-flex items-center justify-center rounded-full px-5 py-2.5 text-sm font-medium no-underline transition; }
-  </style>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>LLM Wiki: прочетеното, подредено и свързано</title>
+<meta name="description" content="Интерактивно демо на LLM Wiki: лична библиотека, в която Claude чете книгите, статиите и таблиците ви и ги свързва в wiki на вашия компютър. Твърденията в страниците водят до източника и до страницата, от която идват.">
+<meta property="og:type" content="website">
+<meta property="og:title" content="LLM Wiki: прочетеното, подредено и свързано">
+<meta property="og:description" content="Пробвайте демото: обработете източник, отворете цитат до страницата, разгледайте картата на знанието, попитайте библиотеката и напишете чернова с APA 7.">
+<meta property="og:url" content="https://sdevelopers.eu/projects/llm-wiki/">
+<meta property="og:site_name" content="LLM Wiki">
+<meta property="og:locale" content="bg_BG">
+<meta property="og:locale:alternate" content="en_US">
+<meta property="og:image" content="https://sdevelopers.eu/projects/llm-wiki/og-image.jpg">
+<meta property="og:image:secure_url" content="https://sdevelopers.eu/projects/llm-wiki/og-image.jpg">
+<meta property="og:image:type" content="image/jpeg">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="LLM Wiki: това, което четете, подредено и свързано. Карта на връзките от източник през глава до понятие, с цитат до страницата.">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://sdevelopers.eu/projects/llm-wiki/og-image.jpg">
+<link rel="canonical" href="https://sdevelopers.eu/projects/llm-wiki/">
+<meta name="theme-color" content="#0c0d0b">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='9' fill='%232f6f62'/><path d='M9 9h4v14H9zM15 9h3v14h-3zM20 10l3-1 3 13-3 1z' fill='white'/></svg>">
+<script src="theme.js"></script>
+<script src="vendor/tailwind.js"></script>
+<style type="text/tailwindcss">
+  @theme inline {
+    --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+    --font-serif: "Literata", ui-serif, Georgia, serif;
+    --font-mono: "JetBrains Mono", ui-monospace, monospace;
+    --color-bg: var(--bg);
+    --color-bg2: var(--bg2);
+    --color-panel: var(--panel);
+    --color-panel2: var(--panel2);
+    --color-line: var(--line);
+    --color-ink: var(--ink);
+    --color-muted: var(--muted);
+    --color-sage: var(--sage);
+    --color-sage2: var(--sage2);
+    --color-clay: var(--clay);
+    --color-gold: var(--gold);
+  }
+</style>
+<style>
+  @layer theme, base, components, utilities;
+  /* Шрифтовете са локални (npm run docs ги копира във vendor/): CSP на сървъра позволява само font-src 'self'. */
+  @font-face { font-family: "Inter"; src: url(vendor/inter-latin.woff2) format("woff2-variations"); font-weight: 100 900; font-display: swap; unicode-range: U+0000-00FF, U+2000-206F, U+20AC, U+2122; }
+  @font-face { font-family: "Inter"; src: url(vendor/inter-cyrillic.woff2) format("woff2-variations"); font-weight: 100 900; font-display: swap; unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116; }
+  @font-face { font-family: "Literata"; src: url(vendor/literata-latin.woff2) format("woff2-variations"); font-weight: 200 900; font-display: swap; unicode-range: U+0000-00FF, U+2000-206F, U+20AC, U+2122; }
+  @font-face { font-family: "Literata"; src: url(vendor/literata-cyrillic.woff2) format("woff2-variations"); font-weight: 200 900; font-display: swap; unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116; }
+  :root, [data-theme="dark"] {
+    --bg: #0c0d0b; --bg2: #11130f; --panel: #161915; --panel2: #1c201b; --line: #2a3028;
+    --ink: #ece7dd; --muted: #a39b90; --faint: #6d675e;
+    --sage: #6fb39d; --sage2: #2f6f62; --sage-glow: rgba(111,179,157,.35);
+    --clay: #e09460; --gold: #e7c47c; --rose: #e48a98; --sky: #8fb0e6; --violet: #c49ae0;
+    --t-source: #e09460; --t-chapter: #d4ad72; --t-concept: #6fb39d; --t-entity: #8fb0e6;
+    --t-topic: #c49ae0; --t-comparison: #e7c47c; --t-question: #e48a98;
+    --shadow: 0 20px 60px -20px rgba(0,0,0,.6);
+    --grid: rgba(255,255,255,.035);
+    color-scheme: dark;
+  }
+  [data-theme="light"] {
+    --bg: #f6f3ec; --bg2: #efeadf; --panel: #fffdf9; --panel2: #f8f4ec; --line: #e2dbcd;
+    --ink: #26231e; --muted: #6a6256; --faint: #9b9284;
+    --sage: #2f6f62; --sage2: #2f6f62; --sage-glow: rgba(47,111,98,.22);
+    --clay: #b0602f; --gold: #9a7420; --rose: #b4485a; --sky: #3b62a8; --violet: #7b4c9c;
+    --t-source: #b8652f; --t-chapter: #9c7434; --t-concept: #2f7d68; --t-entity: #3b62a8;
+    --t-topic: #8251a3; --t-comparison: #96741f; --t-question: #b4485a;
+    --shadow: 0 20px 50px -24px rgba(60,45,20,.28);
+    --grid: rgba(0,0,0,.04);
+    color-scheme: light;
+  }
+  [v-cloak] { display: none !important; }
+  @layer components {
+  html { scroll-behavior: smooth; scroll-padding-top: 4.5rem; -webkit-text-size-adjust: 100%; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font-family: "Inter", ui-sans-serif, system-ui, sans-serif; line-height: 1.6; -webkit-font-smoothing: antialiased; overflow-x: hidden; overflow-wrap: break-word; }
+  footer li, #privacy p, .doc .bib p { overflow-wrap: anywhere; }
+  ::selection { background: var(--sage-glow); }
+  a { color: inherit; }
+  :focus-visible { outline: 2px solid var(--sage); outline-offset: 2px; border-radius: 6px; }
+  .serif { font-family: "Literata", ui-serif, Georgia, serif; }
+  .mono { font-family: "JetBrains Mono", ui-monospace, monospace; }
+  .wrap { max-width: 1200px; margin: 0 auto; padding-left: 16px; padding-right: 16px; }
+  @media (min-width: 640px) { .wrap { padding-left: 28px; padding-right: 28px; } }
+  section.sec { padding: 88px 0; position: relative; }
+  @media (max-width: 640px) { section.sec { padding: 64px 0; } }
+  .eyebrow { display: inline-flex; align-items: center; gap: .5rem; font-size: .78rem; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--sage); }
+  .eyebrow::before { content: ""; width: 18px; height: 2px; background: currentColor; border-radius: 2px; }
+  .h2 { font-family: "Literata", serif; font-weight: 650; font-size: clamp(1.9rem, 4.2vw, 3rem); line-height: 1.12; letter-spacing: -.02em; margin: .6rem 0 0; }
+  .lede { margin-top: 1rem; max-width: 46rem; font-size: 1.12rem; color: var(--muted); }
+  .grad { background: linear-gradient(100deg, var(--sage) 10%, var(--gold) 55%, var(--clay) 95%); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 20px; box-shadow: var(--shadow); }
+  .card-soft { background: var(--panel); border: 1px solid var(--line); border-radius: 16px; }
+  .glow-card { position: relative; isolation: isolate; }
+  .glow-card::after { content: ""; position: absolute; inset: -1px; border-radius: inherit; padding: 1px; background: radial-gradient(400px circle at var(--mx, 50%) var(--my, 0%), var(--sage), transparent 45%); -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor; mask-composite: exclude; opacity: 0; transition: opacity .3s; pointer-events: none; z-index: 1; }
+  .glow-card:hover::after { opacity: 1; }
+  .grid { grid-template-columns: minmax(0, 1fr); }
+  .aside-r .chip { white-space: normal; text-align: left; }
+  .btn { white-space: nowrap; display: inline-flex; align-items: center; justify-content: center; gap: .5rem; border-radius: 999px; padding: .72rem 1.25rem; font-weight: 600; font-size: .95rem; text-decoration: none; border: 1px solid transparent; cursor: pointer; transition: transform .15s, background .2s, border-color .2s, box-shadow .2s; font-family: inherit; color: inherit; background: none; }
+  .btn:active { transform: scale(.97); }
+  .btn-primary { background: var(--sage2); color: #fff; box-shadow: 0 8px 30px -8px var(--sage-glow); }
+  .btn-primary:hover { background: #377f70; box-shadow: 0 10px 40px -6px var(--sage-glow); }
+  .btn-ghost { border-color: var(--line); background: color-mix(in srgb, var(--panel) 70%, transparent); }
+  .btn-ghost:hover { border-color: var(--sage); }
+  .btn-sm { padding: .42rem .85rem; font-size: .84rem; }
+  .btn[disabled] { opacity: .45; cursor: not-allowed; }
+  .chip { display: inline-flex; align-items: center; gap: .35rem; border-radius: 999px; padding: .16rem .6rem; font-size: .76rem; font-weight: 600; border: 1px solid var(--line); background: var(--panel2); white-space: nowrap; }
+  .chip-type { border-color: color-mix(in srgb, var(--c) 45%, transparent); background: color-mix(in srgb, var(--c) 14%, transparent); color: var(--c); }
+  .dot { width: 8px; height: 8px; border-radius: 99px; background: var(--c, var(--sage)); display: inline-block; flex: none; }
+  .kbd { font-family: "JetBrains Mono", monospace; font-size: .72rem; border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 6px; padding: 0 .35rem; background: var(--panel2); color: var(--muted); }
+  .grid-bg { background-image: linear-gradient(var(--grid) 1px, transparent 1px), linear-gradient(90deg, var(--grid) 1px, transparent 1px); background-size: 44px 44px; }
+  .divider { border-top: 1px solid var(--line); }
+  .muted { color: var(--muted); }
+  .faint { color: var(--faint); }
+
+  /* Навигация */
+  .nav { position: fixed; inset: 0 0 auto 0; z-index: 50; transition: background .3s, border-color .3s, backdrop-filter .3s; border-bottom: 1px solid transparent; }
+  .nav.scrolled { background: color-mix(in srgb, var(--bg) 82%, transparent); backdrop-filter: blur(14px) saturate(1.4); -webkit-backdrop-filter: blur(14px) saturate(1.4); border-color: var(--line); }
+  .nav a.nl { font-size: .88rem; color: var(--muted); text-decoration: none; padding: .3rem .1rem; position: relative; }
+  .nav a.nl:hover, .nav a.nl.on { color: var(--ink); }
+  .nav a.nl.on::after { content: ""; position: absolute; left: 0; right: 0; bottom: -4px; height: 2px; border-radius: 2px; background: var(--sage); }
+  .progress { position: fixed; top: 0; left: 0; height: 2px; z-index: 60; background: linear-gradient(90deg, var(--sage), var(--gold), var(--clay)); transform-origin: 0 50%; }
+  .iconbtn { width: 36px; height: 36px; display: grid; place-items: center; border-radius: 10px; border: 1px solid var(--line); background: var(--panel); cursor: pointer; color: var(--ink); }
+  .iconbtn:hover { border-color: var(--sage); }
+
+  /* Начало */
+  .hero { min-height: 100svh; position: relative; display: flex; align-items: center; overflow: hidden; padding: 110px 0 70px; }
+  .hero canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
+  .hero::after { content: ""; position: absolute; inset: auto 0 0 0; height: 180px; background: linear-gradient(transparent, var(--bg)); pointer-events: none; }
+  .hero-title { font-family: "Literata", serif; font-weight: 680; font-size: clamp(2.6rem, 7.4vw, 5.6rem); line-height: 1.02; letter-spacing: -.035em; margin: 1.1rem 0 0; }
+  .pill { display: inline-flex; align-items: center; gap: .55rem; padding: .38rem .8rem .38rem .45rem; border-radius: 999px; border: 1px solid var(--line); background: color-mix(in srgb, var(--panel) 75%, transparent); backdrop-filter: blur(8px); font-size: .82rem; color: var(--muted); }
+  .pill b { background: var(--sage2); color: #fff; border-radius: 999px; padding: .08rem .5rem; font-size: .72rem; font-weight: 700; }
+  .live { position: relative; width: 8px; height: 8px; border-radius: 99px; background: var(--sage); flex: none; }
+  .live::after { content: ""; position: absolute; inset: -4px; border-radius: 99px; border: 2px solid var(--sage); animation: ping 1.6s ease-out infinite; }
+  @keyframes ping { from { transform: scale(.5); opacity: 1; } to { transform: scale(1.6); opacity: 0; } }
+  .feed { backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); background: color-mix(in srgb, var(--panel) 78%, transparent); }
+  .feed-line { display: flex; gap: .6rem; align-items: flex-start; font-size: .86rem; padding: .45rem 0; border-top: 1px dashed var(--line); animation: slidein .45s ease both; }
+  .feed-line:first-child { border-top: 0; }
+  @keyframes slidein { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+  .stat-n { font-family: "Literata", serif; font-size: clamp(1.8rem, 3.6vw, 2.6rem); font-weight: 650; line-height: 1; }
+  .scroll-cue { width: 24px; height: 38px; border: 2px solid var(--line); border-radius: 14px; position: relative; }
+  .scroll-cue::after { content: ""; position: absolute; left: 50%; top: 7px; width: 4px; height: 8px; margin-left: -2px; border-radius: 4px; background: var(--sage); animation: cue 1.8s infinite; }
+  @keyframes cue { 0% { opacity: 0; transform: translateY(0); } 30% { opacity: 1; } 100% { opacity: 0; transform: translateY(12px); } }
+
+  /* Поява при превъртане */
+  .reveal { opacity: 0; transform: translateY(26px); transition: opacity .8s cubic-bezier(.2,.7,.2,1), transform .8s cubic-bezier(.2,.7,.2,1); }
+  .reveal[data-in] { opacity: 1; transform: none; }
+  .pt { display: grid; grid-template-columns: 270px minmax(0,1fr); }
+  .pt.focus { grid-template-columns: minmax(0,1fr); }
+  .pt-rail { border-right: 1px solid var(--line); background: color-mix(in srgb, var(--panel2) 55%, transparent); }
+  .pt-tools { display: grid; gap: 2px; }
+  .pt-tool { display: flex; align-items: flex-start; gap: .65rem; width: 100%; text-align: left; border: 1px solid transparent; background: none; color: var(--ink); font: inherit; font-size: .88rem; padding: .55rem .6rem; border-radius: 12px; cursor: pointer; transition: background .2s, border-color .2s; }
+  .pt-tool:hover { background: var(--panel2); }
+  .pt-tool.on { background: color-mix(in srgb, var(--sage) 12%, var(--panel)); border-color: color-mix(in srgb, var(--sage) 45%, transparent); }
+  .pt-tool b { font-weight: 600; display: block; line-height: 1.35; padding-top: .2rem; }
+  .pt-desc { display: block; margin-top: .3rem; font-size: .78rem; line-height: 1.5; color: var(--muted); animation: slidein .3s ease both; }
+  .pt-ico { width: 28px; height: 28px; flex: none; display: grid; place-items: center; border-radius: 9px; background: var(--panel2); border: 1px solid var(--line); color: var(--sage); }
+  .pt-tool.on .pt-ico { background: var(--sage2); border-color: var(--sage2); color: #fff; }
+  .pt-page { min-height: 660px; }
+  .pt-title { font-family: "Literata", serif; font-size: clamp(1.6rem, 3.2vw, 2.2rem); font-weight: 650; line-height: 1.15; letter-spacing: -.015em; cursor: text; border-radius: 10px; display: inline-block; }
+  .pt-title-inp { width: 100%; background: var(--panel2); border: 1px solid var(--sage); padding: .1rem .5rem; color: var(--ink); outline: none; box-shadow: 0 0 0 4px var(--sage-glow); }
+  .pt-flash { animation: flash 1.8s ease; border-radius: 10px; }
+  .pt-bubble { flex-wrap: wrap; justify-content: center; width: max-content; max-width: calc(100% - 16px); }
+  .pt-bubble button.pri { background: var(--sage2); color: #fff; }
+  .pt-ai { position: absolute; top: 0; right: 0; bottom: 0; z-index: 35; width: min(410px, 100%); display: flex; flex-direction: column; background: var(--panel); border-left: 1px solid var(--line); box-shadow: -20px 0 50px -20px rgba(0,0,0,.35); }
+  .pt-ai-body { flex: 1; overflow: auto; min-height: 0; align-content: start; }
+  .pt-answer { font-size: .92rem; line-height: 1.65; }
+  .pt-answer h3 { font-size: 1.05rem; margin: 1.1em 0 .3em; }
+  .pt-before, .pt-after { border-radius: 12px; padding: .6rem .75rem; }
+  .pt-before { background: color-mix(in srgb, var(--rose) 10%, transparent); }
+  .pt-before p { text-decoration: line-through; text-decoration-color: color-mix(in srgb, var(--rose) 55%, transparent); }
+  .pt-after { background: color-mix(in srgb, var(--sage) 12%, transparent); }
+  .pt-before p, .pt-after p { margin-top: .25rem; font-size: .86rem; line-height: 1.55; }
+  .pt-lbl { font-size: .66rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
+  .slide-enter-active, .slide-leave-active { transition: transform .3s cubic-bezier(.2,.8,.2,1), opacity .3s; }
+  .slide-enter-from, .slide-leave-to { transform: translateX(30px); opacity: 0; }
+  .glow { outline: 2px solid var(--gold); outline-offset: 2px; animation: glowp 1.3s ease-in-out infinite; }
+  @keyframes glowp { 50% { outline-color: transparent; outline-offset: 5px; } }
+  .spin { display: inline-block; width: 18px; height: 18px; border: 2px solid var(--line); border-top-color: var(--sage); border-radius: 99px; animation: spin .8s linear infinite; vertical-align: middle; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  @media (max-width: 900px) {
+    .pt { grid-template-columns: minmax(0,1fr); }
+    .pt-rail { border-right: 0; border-bottom: 1px solid var(--line); }
+    .pt-tools { grid-template-columns: 1fr 1fr; }
+    .pt-tool.on { grid-column: 1 / -1; }
+    .pt-page { min-height: 600px; }
+  }
+  .setx { display: grid; grid-template-columns: 220px minmax(0,1fr); min-height: 560px; }
+  .setx-tabs { border-right: 1px solid var(--line); background: color-mix(in srgb, var(--panel2) 55%, transparent); display: grid; align-content: start; gap: 2px; }
+  .setx-h { font-family: "Literata", serif; font-size: 1.35rem; font-weight: 650; }
+  .setx-zip { border: 1px dashed var(--line); border-radius: 16px; padding: 1rem; background: var(--panel2); min-width: 0; }
+  .setx-row { display: grid; grid-template-columns: minmax(0,9.5rem) minmax(0,1fr); gap: .75rem; font-size: .8rem; padding: .22rem 0; }
+  .setx-table { width: 100%; border-collapse: collapse; font-size: .82rem; }
+  .setx-table th, .setx-table td { border-bottom: 1px solid var(--line); padding: .45rem .6rem; text-align: left; white-space: nowrap; }
+  .setx-table th { color: var(--muted); font-weight: 600; }
+  .setx-group { border: 1px solid var(--line); border-radius: 14px; background: var(--panel); }
+  .setx-group summary { list-style: none; display: flex; align-items: center; gap: .75rem; padding: .7rem 1rem; cursor: pointer; font-weight: 600; font-size: .9rem; }
+  .setx-group summary::-webkit-details-marker { display: none; }
+  .setx-group summary::after { content: "+"; color: var(--muted); }
+  .setx-group[open] summary::after { content: "\2212"; }
+  .setx-login { position: absolute; inset: 0; z-index: 20; display: grid; place-content: center; padding: 16px; background: color-mix(in srgb, var(--bg) 94%, transparent); backdrop-filter: blur(8px); animation: fade .2s ease; }
+  .setx-browser { width: min(360px, calc(100vw - 64px)); border: 1px solid var(--line); border-radius: 16px; overflow: hidden; background: var(--panel); box-shadow: var(--shadow); animation: pop .3s ease; }
+  @media (max-width: 760px) {
+    .setx { grid-template-columns: minmax(0,1fr); }
+    .setx-tabs { border-right: 0; border-bottom: 1px solid var(--line); display: flex; overflow-x: auto; }
+    .setx-tabs .coll { width: auto; flex: none; }
+    .setx-row { grid-template-columns: minmax(0,1fr); gap: 0; }
+  }
+  .reveal.d1 { transition-delay: .08s; } .reveal.d2 { transition-delay: .16s; } .reveal.d3 { transition-delay: .24s; } .reveal.d4 { transition-delay: .32s; }
+
+  /* Преди и след */
+  .seg { display: inline-flex; padding: 4px; border-radius: 999px; background: var(--panel2); border: 1px solid var(--line); }
+  .seg button { border: 0; background: none; color: var(--muted); font: inherit; font-size: .88rem; font-weight: 600; padding: .45rem 1rem; border-radius: 999px; cursor: pointer; transition: background .25s, color .25s; }
+  .seg button.on { background: var(--sage2); color: #fff; }
+  .chaos { position: relative; height: 340px; overflow: hidden; }
+  @media (max-width: 480px) { .chaos .f { font-size: .7rem; padding: .35rem .55rem; } }
+  .chaos .f { position: absolute; transition: all 1s cubic-bezier(.6,.05,.2,1); padding: .45rem .7rem; border-radius: 10px; font-size: .78rem; border: 1px solid var(--line); background: var(--panel); white-space: nowrap; box-shadow: var(--shadow); }
+  .chaos svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+  .chaos svg path { transition: stroke-dashoffset 1.2s ease .5s, opacity .6s; }
+
+  /* Как работи */
+  .pipe { display: grid; grid-template-columns: repeat(5, minmax(0,1fr)); gap: 14px; position: relative; }
+  @media (max-width: 900px) { .pipe { grid-template-columns: 1fr; } }
+  .pipe-step { position: relative; padding: 18px; border-radius: 18px; border: 1px solid var(--line); background: var(--panel); cursor: pointer; transition: transform .25s, border-color .25s, background .25s; text-align: left; font: inherit; color: inherit; }
+  .pipe-step:hover { transform: translateY(-4px); }
+  .pipe-step.on { border-color: var(--sage); background: color-mix(in srgb, var(--sage) 9%, var(--panel)); }
+  .pipe-ico { width: 42px; height: 42px; border-radius: 12px; display: grid; place-items: center; background: color-mix(in srgb, var(--c) 16%, transparent); color: var(--c); }
+  .flowline { height: 2px; background: repeating-linear-gradient(90deg, var(--sage) 0 8px, transparent 8px 16px); background-size: 32px 2px; animation: flow 1s linear infinite; opacity: .6; }
+  @keyframes flow { to { background-position: 32px 0; } }
+
+  /* Демо: обработка */
+  .filecard { display: flex; gap: .75rem; align-items: center; padding: .7rem .8rem; border-radius: 14px; border: 1px solid var(--line); background: var(--panel2); cursor: grab; transition: transform .2s, border-color .2s, opacity .3s; user-select: none; width: 100%; text-align: left; font: inherit; color: inherit; }
+  .filecard:hover { border-color: var(--sage); transform: translateX(3px); }
+  .filecard.done { opacity: .45; cursor: default; transform: none; }
+  .filecard.busy { border-color: var(--gold); }
+  .fext { width: 38px; height: 46px; border-radius: 6px 12px 6px 6px; display: grid; place-items: end center; padding-bottom: 5px; font-size: .62rem; font-weight: 800; color: #fff; background: var(--c); flex: none; position: relative; letter-spacing: .03em; }
+  .fext::before { content: ""; position: absolute; top: 0; right: 0; width: 12px; height: 12px; background: rgba(255,255,255,.35); border-radius: 0 10px 0 6px; }
+  .drop { border: 2px dashed var(--line); border-radius: 18px; transition: border-color .2s, background .2s; }
+  .drop.over { border-color: var(--sage); background: color-mix(in srgb, var(--sage) 8%, transparent); }
+  .stepper { display: flex; gap: 6px; }
+  .stepper > div { flex: 1; height: 5px; border-radius: 9px; background: var(--line); overflow: hidden; position: relative; }
+  .stepper > div.on::after { content: ""; position: absolute; inset: 0; background: var(--sage); animation: grow .6s ease both; transform-origin: left; }
+  .stepper > div.cur::after { content: ""; position: absolute; inset: 0; background: linear-gradient(90deg, transparent, var(--gold), transparent); animation: shimmer 1.2s linear infinite; }
+  @keyframes grow { from { transform: scaleX(0); } }
+  @keyframes shimmer { from { transform: translateX(-100%); } to { transform: translateX(100%); } }
+  .term { background: #0a0b09; color: #d9d4c9; border-radius: 16px; border: 1px solid #262b24; font-family: "JetBrains Mono", monospace; font-size: .8rem; line-height: 1.7; }
+  [data-theme="light"] .term { background: #1b1d19; }
+  .term-bar { display: flex; align-items: center; gap: 6px; padding: 10px 14px; border-bottom: 1px solid #262b24; }
+  .term-bar i { width: 10px; height: 10px; border-radius: 99px; background: #3a3f37; display: block; }
+  .term .ok { color: #7fd1b3; } .term .wr { color: #e7c47c; } .term .rd { color: #8fb0e6; } .term .er { color: #e48a98; } .term .dim { color: #7b766d; }
+  .logline { animation: slidein .3s ease both; white-space: pre-wrap; word-break: break-word; }
+  .caret::after { content: "▍"; animation: blink 1s steps(1) infinite; color: var(--sage); margin-left: 1px; }
+  @keyframes blink { 50% { opacity: 0; } }
+  .modal-back { position: fixed; inset: 0; z-index: 80; background: rgba(5,6,5,.6); backdrop-filter: blur(4px); display: grid; place-items: center; padding: 16px; animation: fade .2s ease; }
+  @keyframes fade { from { opacity: 0; } }
+  .modal { width: min(520px, 100%); max-height: calc(100svh - 32px); overflow: auto; animation: pop .3s cubic-bezier(.2,.9,.3,1.2); }
+  @keyframes pop { from { opacity: 0; transform: scale(.94) translateY(10px); } }
+  .mode { border: 1px solid var(--line); border-radius: 14px; padding: .7rem .8rem; cursor: pointer; text-align: left; background: var(--panel2); font: inherit; color: inherit; transition: border-color .2s, background .2s; width: 100%; }
+  .mode.on { border-color: var(--sage); background: color-mix(in srgb, var(--sage) 10%, var(--panel2)); }
+  .tree { font-family: "JetBrains Mono", monospace; font-size: .76rem; }
+  .tree .row { display: flex; justify-content: space-between; padding: .14rem 0; }
+  .bump { animation: bump .5s ease; }
+  @keyframes bump { 40% { transform: scale(1.35); color: var(--gold); } }
+
+  /* Граф */
+  .graph-wrap { position: relative; border-radius: 22px; overflow: hidden; border: 1px solid var(--line); background: radial-gradient(ellipse at 50% 40%, color-mix(in srgb, var(--sage) 8%, var(--panel)) 0%, var(--panel) 70%); }
+  .gnode { touch-action: none; }
+  .graph-wrap svg { display: block; width: 100%; user-select: none; }
+  .gnode { cursor: pointer; }
+  .gnode .pop { transform-box: fill-box; transform-origin: center; animation: nodepop .7s cubic-bezier(.2,1.4,.4,1) both; }
+  @keyframes nodepop { from { transform: scale(0); } }
+  .gnode text { font-size: 11px; fill: var(--ink); paint-order: stroke; stroke: var(--panel); stroke-width: 3.5px; stroke-linejoin: round; pointer-events: none; font-family: "Inter", sans-serif; }
+  .glink { stroke: var(--muted); stroke-opacity: .28; transition: stroke-opacity .2s, stroke .2s; }
+  .glink.hl { stroke: var(--sage); stroke-opacity: .95; }
+  .dim-out { opacity: .16; transition: opacity .25s; }
+  .ring { fill: none; stroke: var(--gold); stroke-width: 2; transform-box: fill-box; transform-origin: center; animation: ring 1.2s ease-out both; }
+  @keyframes ring { from { transform: scale(.6); opacity: 1; } to { transform: scale(2.6); opacity: 0; } }
+  .gpreview { position: absolute; right: 14px; bottom: 14px; width: min(340px, calc(100% - 28px)); animation: slidein .3s ease both; }
+
+  /* Библиотека */
+  .lib { display: grid; grid-template-columns: 230px minmax(0,1fr) 250px; min-height: 640px; }
+  .lib.focus { grid-template-columns: minmax(0,1fr); }
+  @media (max-width: 1080px) { .lib { grid-template-columns: 210px minmax(0,1fr); } .lib .aside-r { grid-column: 1 / -1; border-left: 0 !important; border-top: 1px solid var(--line); } }
+  @media (max-width: 760px) { .lib { grid-template-columns: minmax(0,1fr); } .lib .aside-l { border-right: 0 !important; border-bottom: 1px solid var(--line); } }
+  .coll { display: flex; align-items: center; gap: .55rem; width: 100%; padding: .42rem .6rem; border-radius: 10px; font-size: .88rem; border: 0; background: none; color: var(--muted); cursor: pointer; text-align: left; font-family: inherit; }
+  .coll:hover { background: var(--panel2); color: var(--ink); }
+  .coll.on { background: color-mix(in srgb, var(--c) 14%, transparent); color: var(--ink); }
+  @media (max-width: 760px) { .plist { max-height: 170px !important; } }
+  .plist button { display: block; width: 100%; text-align: left; border: 0; background: none; font: inherit; font-size: .84rem; color: var(--muted); padding: .3rem .6rem; border-radius: 8px; cursor: pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .plist button:hover { color: var(--ink); background: var(--panel2); }
+  .plist button.on { color: var(--ink); font-weight: 600; background: var(--panel2); }
+  .md { font-size: 1.02rem; line-height: 1.75; }
+  .md p { margin: .8em 0; }
+  .md h3 { font-family: "Literata", serif; font-size: 1.28rem; font-weight: 650; margin: 1.6em 0 .4em; }
+  .md ul { padding-left: 1.2em; margin: .6em 0; list-style: disc; } .md li { margin: .35em 0; }
+  .md table { width: 100%; border-collapse: collapse; font-size: .88rem; margin: 1em 0; display: block; overflow-x: auto; }
+  .md th, .md td { border-bottom: 1px solid var(--line); padding: .5rem .6rem; text-align: left; vertical-align: top; }
+  .md th { color: var(--muted); font-weight: 600; }
+  .md strong { font-weight: 650; }
+  .wl { color: var(--c, var(--sage)); text-decoration: none; border-bottom: 1px solid color-mix(in srgb, var(--c, var(--sage)) 40%, transparent); cursor: pointer; font-weight: 550; transition: background .2s; border-radius: 3px; }
+  .wl:hover { background: color-mix(in srgb, var(--c, var(--sage)) 14%, transparent); }
+  .wl.new { animation: flash 1.6s ease; }
+  @keyframes flash { 0%, 40% { background: color-mix(in srgb, var(--gold) 45%, transparent); } }
+  .cite { white-space: nowrap; font-size: .9em; color: var(--muted); }
+  .pg { display: inline-flex; align-items: center; gap: 3px; border: 1px solid color-mix(in srgb, var(--clay) 50%, transparent); background: color-mix(in srgb, var(--clay) 12%, transparent); color: var(--clay); border-radius: 6px; padding: 0 .35rem; font-size: .82em; font-weight: 650; cursor: pointer; font-family: inherit; line-height: 1.5; }
+  .pg:hover { background: color-mix(in srgb, var(--clay) 25%, transparent); }
+  .callout { border-left: 3px solid var(--c, var(--sage)); background: color-mix(in srgb, var(--c, var(--sage)) 8%, transparent); border-radius: 0 12px 12px 0; padding: .8rem 1rem; }
+  .contra { --c: var(--rose); }
+  .bubble { position: absolute; z-index: 30; display: flex; gap: 2px; padding: 4px; border-radius: 12px; background: var(--ink); color: var(--bg); box-shadow: var(--shadow); transform: translate(-50%, calc(-100% - 10px)); animation: fade .15s ease; }
+  .bubble button { border: 0; background: none; color: inherit; font: inherit; font-size: .8rem; font-weight: 600; padding: .35rem .6rem; border-radius: 8px; cursor: pointer; white-space: nowrap; }
+  .bubble button:hover { background: color-mix(in srgb, var(--bg) 18%, transparent); }
+  .yaml { white-space: pre-wrap; word-break: break-word; font-family: "JetBrains Mono", monospace; font-size: .78rem; line-height: 1.65; }
+  .yaml .k { color: var(--sage); } .yaml .s { color: var(--clay); } .yaml .c { color: var(--faint); }
+
+  /* Четец */
+  .drawer { position: fixed; z-index: 90; top: 0; right: 0; bottom: 0; width: min(520px, 100%); background: var(--panel); border-left: 1px solid var(--line); box-shadow: -30px 0 80px -30px rgba(0,0,0,.6); display: flex; flex-direction: column; animation: drawer .35s cubic-bezier(.2,.8,.2,1); }
+  @keyframes drawer { from { transform: translateX(100%); } }
+  .paper { background: #fbf8f1; color: #2a2620; border-radius: 6px; box-shadow: 0 10px 40px -10px rgba(0,0,0,.5); font-family: "Literata", serif; padding: 34px 32px; position: relative; font-size: .95rem; line-height: 1.7; }
+  .paper .hl { background: linear-gradient(transparent 15%, rgba(231,196,124,.65) 15%, rgba(231,196,124,.65) 88%, transparent 88%); animation: hl 1.2s ease both .3s; background-size: 0% 100%; background-repeat: no-repeat; }
+  @keyframes hl { to { background-size: 100% 100%; } }
+  .paper.scan { background: #efe9dc; filter: contrast(1.02); }
+  .paper.scan::before { content: ""; position: absolute; inset: 0; background: repeating-linear-gradient(0deg, rgba(0,0,0,.018) 0 2px, transparent 2px 4px); pointer-events: none; border-radius: 6px; }
+
+  /* Търсене */
+  .palette { position: fixed; inset: 0; z-index: 95; background: rgba(5,6,5,.55); backdrop-filter: blur(5px); display: flex; justify-content: center; align-items: flex-start; padding: 12vh 16px 16px; animation: fade .15s; }
+  .palette .box { width: min(640px, 100%); animation: pop .25s cubic-bezier(.2,.9,.3,1.2); overflow: hidden; }
+  .palette input { width: 100%; background: transparent; border: 0; outline: 0; font: inherit; font-size: 1.08rem; color: var(--ink); padding: 1rem 1.1rem; }
+  .res { display: flex; gap: .7rem; align-items: flex-start; padding: .65rem 1.1rem; cursor: pointer; border-left: 3px solid transparent; }
+  .res.on { background: var(--panel2); border-left-color: var(--sage); }
+  mark { background: color-mix(in srgb, var(--gold) 40%, transparent); color: inherit; border-radius: 3px; padding: 0 1px; }
+
+  /* Учене и писане */
+  .qchip { border: 1px solid var(--line); background: var(--panel2); border-radius: 999px; padding: .45rem .9rem; font: inherit; font-size: .86rem; color: var(--ink); cursor: pointer; text-align: left; transition: border-color .2s, transform .2s; }
+  .qchip:hover { border-color: var(--sage); transform: translateY(-2px); }
+  .inp { width: 100%; background: var(--panel2); border: 1px solid var(--line); border-radius: 14px; padding: .85rem 1rem; font: inherit; color: var(--ink); outline: 0; transition: border-color .2s, box-shadow .2s; }
+  .inp:focus { border-color: var(--sage); box-shadow: 0 0 0 4px var(--sage-glow); }
+  .pathstep { display: grid; grid-template-columns: 34px minmax(0,1fr); gap: 14px; position: relative; animation: slidein .45s ease both; }
+  .pathstep::before { content: ""; position: absolute; left: 16px; top: 36px; bottom: -14px; width: 2px; background: var(--line); }
+  .pathstep:last-child::before { display: none; }
+  .pnum { width: 34px; height: 34px; border-radius: 99px; display: grid; place-items: center; font-weight: 700; font-size: .85rem; border: 2px solid var(--c); color: var(--c); background: var(--panel); z-index: 1; cursor: pointer; transition: background .2s, color .2s; }
+  .pnum.done { background: var(--c); color: #fff; }
+  .doc { background: #fbf8f1; color: #2a2620; border-radius: 10px; font-family: "Literata", serif; box-shadow: 0 20px 60px -20px rgba(0,0,0,.55); }
+  [data-theme="light"] .doc { background: #fff; border: 1px solid var(--line); }
+  .doc h4 { font-family: "Literata", serif; font-size: 1.05rem; font-weight: 700; margin: 1.3em 0 .3em; color: #1d1a15; }
+  .doc p { margin: .5em 0; line-height: 1.7; }
+  .doc .bib p { padding-left: 2em; text-indent: -2em; font-size: .9rem; }
+  .doc .added { background: rgba(111,179,157,.18); border-radius: 6px; animation: fade .6s; }
+  .doc .ct { color: #2f6f62; }
+
+  /* Още възможности */
+  .bento { display: grid; grid-template-columns: repeat(6, minmax(0,1fr)); gap: 16px; }
+  .bento > * { grid-column: span 2; }
+  .bento > .w3 { grid-column: span 3; } .bento > .w4 { grid-column: span 4; }
+  @media (max-width: 960px) { .bento { grid-template-columns: repeat(2, minmax(0,1fr)); } .bento > *, .bento > .w3, .bento > .w4 { grid-column: span 1; } .bento > .wfull { grid-column: 1 / -1; } }
+  @media (max-width: 600px) { .bento { grid-template-columns: minmax(0,1fr); } .bento > *, .bento > .wfull { grid-column: 1 / -1; } }
+  .feat { padding: 22px; border-radius: 20px; border: 1px solid var(--line); background: var(--panel); position: relative; overflow: hidden; transition: transform .3s, border-color .3s; }
+  .feat:hover { transform: translateY(-4px); border-color: color-mix(in srgb, var(--sage) 50%, var(--line)); }
+  .feat h3 { font-weight: 700; font-size: 1.04rem; margin: .8rem 0 .3rem; }
+  .feat p { font-size: .9rem; color: var(--muted); margin: 0; }
+  .scanbox { position: relative; height: 92px; border-radius: 10px; overflow: hidden; background: #efe9dc; }
+  .scanbox .line { position: absolute; left: 0; right: 0; height: 2px; background: var(--sage); box-shadow: 0 0 14px 3px var(--sage-glow); animation: scan 2.6s ease-in-out infinite; }
+  @keyframes scan { 0%, 100% { top: 6%; } 50% { top: 92%; } }
+
+  /* Таблица за сравнение */
+  .cmp { width: 100%; border-collapse: separate; border-spacing: 0; font-size: .92rem; }
+  .cmp th, .cmp td { padding: .9rem 1rem; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
+  .cmp thead th { font-weight: 600; color: var(--muted); font-size: .84rem; }
+  .cmp .us { background: color-mix(in srgb, var(--sage) 8%, transparent); }
+  .cmp thead .us { border-radius: 14px 14px 0 0; color: var(--sage); }
+  .yes { color: var(--sage); font-weight: 700; } .no { color: var(--faint); } .part { color: var(--gold); font-weight: 600; }
+
+  /* Поверителност */
+  .zone { border: 1px solid var(--line); border-radius: 18px; padding: 18px; background: var(--panel); transition: border-color .3s, box-shadow .3s, transform .3s; }
+  .zone.hit { border-color: var(--c); box-shadow: 0 0 0 4px color-mix(in srgb, var(--c) 18%, transparent), var(--shadow); transform: translateY(-3px); }
+  .packet { position: absolute; width: 12px; height: 12px; border-radius: 99px; background: var(--c); box-shadow: 0 0 16px 4px color-mix(in srgb, var(--c) 50%, transparent); }
+
+  /* Обиколка */
+  .tour { position: fixed; z-index: 70; right: 16px; bottom: 16px; }
+  .tour-btn { display: flex; align-items: center; gap: .6rem; padding: .5rem .9rem .5rem .55rem; border-radius: 999px; border: 1px solid var(--line); background: color-mix(in srgb, var(--panel) 90%, transparent); backdrop-filter: blur(10px); cursor: pointer; font: inherit; font-size: .85rem; font-weight: 600; color: var(--ink); box-shadow: var(--shadow); }
+  .tour-panel { position: absolute; right: 0; bottom: calc(100% + 10px); width: min(330px, calc(100vw - 32px)); animation: pop .25s ease; }
+  .check { width: 20px; height: 20px; border-radius: 99px; border: 2px solid var(--line); display: grid; place-items: center; flex: none; transition: all .3s; }
+  .check.on { background: var(--sage2); border-color: var(--sage2); color: #fff; }
+  .stat-cell + .stat-cell { border-left: 1px solid var(--line); }
+  @media (max-width: 767px) { .stat-cell:nth-child(3) { border-left: 0; } .stat-cell:nth-child(n+3) { border-top: 1px solid var(--line); } }
+  @media (max-width: 640px) { .toast { bottom: 78px; } }
+  .toast { position: fixed; z-index: 99; left: 50%; bottom: 22px; transform: translateX(-50%); padding: .7rem 1rem; border-radius: 14px; background: var(--ink); color: var(--bg); font-size: .9rem; font-weight: 550; box-shadow: var(--shadow); animation: toast .35s cubic-bezier(.2,.9,.3,1.2); max-width: calc(100vw - 32px); }
+  @keyframes toast { from { opacity: 0; transform: translate(-50%, 16px); } }
+  .confetti { position: fixed; inset: 0; pointer-events: none; z-index: 100; }
+
+  details.faq { border-bottom: 1px solid var(--line); }
+  details.faq summary { list-style: none; cursor: pointer; padding: 1.15rem 0; font-weight: 600; font-size: 1.04rem; display: flex; justify-content: space-between; gap: 1rem; align-items: center; }
+  details.faq summary::-webkit-details-marker { display: none; }
+  details.faq summary .pl { transition: transform .3s; color: var(--sage); font-size: 1.4rem; line-height: 1; flex: none; }
+  details.faq[open] summary .pl { transform: rotate(45deg); }
+  details.faq .ans { padding: 0 0 1.2rem; color: var(--muted); max-width: 52rem; }
+  .shell { background: #0a0b09; color: #d9d4c9; border-radius: 14px; padding: 14px 16px; font-family: "JetBrains Mono", monospace; font-size: .8rem; line-height: 1.8; overflow-x: auto; position: relative; border: 1px solid #262b24; }
+  .shell .c { color: #7b766d; }
+  .copy { position: absolute; top: 8px; right: 8px; border: 1px solid #333a31; background: #161915; color: #d9d4c9; border-radius: 8px; font: inherit; font-size: .7rem; padding: .2rem .5rem; cursor: pointer; }
+  .scrollx { overflow-x: auto; scrollbar-width: thin; }
+  .noscroll { overflow: hidden; }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; scroll-behavior: auto !important; }
+    .reveal { opacity: 1; transform: none; }
+  }
+  }
+</style>
 </head>
 <body>
 <div id="app" v-cloak>
-  <header class="sticky top-0 z-20 border-b border-line/70 bg-paper/90 backdrop-blur dark:border-night-line dark:bg-night/90">
-    <div class="mx-auto flex max-w-5xl items-center gap-4 px-4 py-3 sm:px-8">
-      <a href="#top" class="flex items-center gap-2.5 font-serif text-lg font-semibold no-underline">
-        <span class="grid size-8 place-items-center rounded-xl bg-sage-600 text-white" aria-hidden="true"><svg viewBox="0 0 24 24" class="size-4.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 5v14M8 5v14M12 6l4 13M17 5l3 1-1 13"/></svg></span>
+  <div class="progress" ref="prog" style="transform:scaleX(0);width:100%"></div>
+
+  <header class="nav" :class="{ scrolled: scrolled || menu }">
+    <div class="wrap flex items-center gap-4 py-3">
+      <a href="#top" class="flex items-center gap-2.5 serif text-lg font-semibold" style="text-decoration:none">
+        <span class="grid place-items-center rounded-xl text-white" style="width:34px;height:34px;background:var(--sage2)"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 5v14M8 5v14M12 6l4 13M17 5l3 1-1 13"/></svg></span>
         LLM Wiki
       </a>
-      <nav class="ml-auto hidden items-center gap-5 text-sm lg:flex" :aria-label="c.nav.label">
-        <a v-for="n in c.nav.items" :key="n[0]" :href="'#' + n[0]" class="text-muted no-underline hover:text-ink dark:text-night-muted dark:hover:text-night-ink">{{ n[1] }}</a>
+      <nav class="ml-auto hidden xl:flex items-center gap-5" :aria-label="t.nav.label">
+        <a v-for="n in t.nav.items" :key="n[0]" :href="'#' + n[0]" class="nl" :class="{ on: activeSec === n[0] }">{{ n[1] }}</a>
       </nav>
-      <button class="ml-auto rounded-full border border-line px-3 py-1 text-sm hover:bg-black/5 lg:ml-0 dark:border-night-line dark:hover:bg-white/5" :aria-label="c.nav.switch" @click="toggleLang">{{ lang === 'bg' ? 'EN' : 'БГ' }}</button>
+      <div class="ml-auto xl:ml-0 flex items-center gap-2">
+        <button class="iconbtn mono" style="font-size:.72rem;font-weight:700;width:auto;padding:0 .6rem" @click="switchLang" :aria-label="t.nav.langLabel" :title="t.nav.langLabel">{{ t.nav.lang }}</button>
+        <button class="iconbtn" @click="openSearch" :aria-label="t.nav.search" :title="t.nav.search">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+        </button>
+        <button class="iconbtn" @click="toggleTheme" :aria-label="theme === 'dark' ? t.nav.light : t.nav.dark" :title="theme === 'dark' ? t.nav.light : t.nav.dark">
+          <svg v-if="theme === 'dark'" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
+          <svg v-else width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>
+        </button>
+        <a href="https://github.com/cecosd/llm-wiki" class="btn btn-primary btn-sm hidden sm:inline-flex" style="text-decoration:none">GitHub</a>
+        <button class="iconbtn xl:hidden" @click="menu = !menu" :aria-expanded="menu" :aria-label="t.nav.menu">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path v-if="!menu" d="M4 7h16M4 12h16M4 17h16"/><path v-else d="M6 6l12 12M18 6 6 18"/></svg>
+        </button>
+      </div>
+    </div>
+    <div v-if="menu" class="xl:hidden wrap pb-4 grid grid-cols-2 sm:grid-cols-3 gap-1">
+      <a v-for="n in t.nav.items" :key="n[0]" :href="'#' + n[0]" @click="menu = false" class="rounded-lg px-3 py-2 text-sm" style="text-decoration:none;background:var(--panel2)">{{ n[1] }}</a>
     </div>
   </header>
 
   <main id="top">
-    <!-- Начало -->
-    <section class="mx-auto grid max-w-5xl gap-10 px-4 pb-14 pt-12 sm:px-8 sm:pt-20 lg:grid-cols-[1.15fr_1fr] lg:items-center">
-      <div>
-        <p class="text-sm font-medium text-sage-700 dark:text-sage-200">{{ c.hero.eyebrow }}<template v-if="report"> · {{ c.hero.version }} {{ report.version }}</template></p>
-        <h1 class="mt-3 font-serif text-4xl font-semibold leading-[1.12] tracking-tight sm:text-5xl">{{ c.hero.title }}</h1>
-        <p class="lede">{{ c.hero.sub }}</p>
-        <div class="mt-7 flex flex-wrap gap-3">
-          <a :href="repo" class="btnx bg-sage-600 text-white hover:bg-sage-700">{{ c.hero.cta }}</a>
-          <a href="#tests" class="btnx border border-line hover:bg-black/5 dark:border-night-line dark:hover:bg-white/5">{{ c.hero.cta2 }}</a>
-          <a v-if="local" href="/" class="btnx border border-line hover:bg-black/5 dark:border-night-line dark:hover:bg-white/5">{{ c.hero.open }}</a>
+    <section class="hero grid-bg">
+      <hero-canvas></hero-canvas>
+      <div class="wrap relative z-10 w-full grid gap-12 lg:grid-cols-[1.25fr_1fr] items-center">
+        <div>
+          <span class="pill reveal"><b>{{ t.hero.badge }}</b> {{ t.hero.pill }}</span>
+          <h1 class="hero-title reveal d1">{{ t.hero.t1 }}<br><span class="grad">{{ t.hero.t2 }}</span></h1>
+          <p class="lede reveal d2" style="font-size:1.2rem;max-width:40rem">{{ t.hero.sub }}</p>
+          <div class="mt-8 flex flex-wrap gap-3 reveal d3">
+            <a href="#demo" class="btn btn-primary" style="text-decoration:none">{{ t.hero.cta1 }}
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12l7 7 7-7"/></svg></a>
+            <a href="https://github.com/cecosd/llm-wiki" class="btn btn-ghost" style="text-decoration:none">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 .5a11.5 11.5 0 0 0-3.6 22.4c.6.1.8-.3.8-.6v-2c-3.2.7-3.9-1.5-3.9-1.5-.5-1.3-1.3-1.7-1.3-1.7-1-.7.1-.7.1-.7 1.2.1 1.8 1.2 1.8 1.2 1 1.8 2.8 1.3 3.5 1 .1-.8.4-1.3.7-1.6-2.6-.3-5.3-1.3-5.3-5.7 0-1.3.5-2.3 1.2-3.1-.1-.3-.5-1.5.1-3.1 0 0 1-.3 3.2 1.2a11 11 0 0 1 5.8 0c2.2-1.5 3.2-1.2 3.2-1.2.6 1.6.2 2.8.1 3.1.8.8 1.2 1.9 1.2 3.1 0 4.4-2.7 5.4-5.3 5.7.4.4.8 1.1.8 2.2v3.2c0 .3.2.7.8.6A11.5 11.5 0 0 0 12 .5z"/></svg>
+              {{ t.hero.cta2 }}</a>
+          </div>
+          <div class="mt-6 flex flex-wrap items-center gap-x-5 gap-y-2 text-sm muted reveal d4">
+            <span class="hidden sm:flex items-center gap-2"><span class="kbd">{{ isMac ? '⌘' : 'Ctrl' }}</span><span class="kbd">K</span> {{ t.hero.hint }}</span>
+            <span class="hidden sm:inline">·</span><span>{{ t.hero.free }}</span>
+          </div>
         </div>
-        <p class="mt-5 text-sm text-muted dark:text-night-muted">{{ c.hero.note }}</p>
+        <hero-feed class="reveal d2"></hero-feed>
       </div>
-
-      <figure class="cardx" :aria-label="c.flow.label">
-        <p class="text-xs font-medium uppercase tracking-wider text-muted dark:text-night-muted">{{ c.flow.in }}</p>
-        <div class="mt-2 flex flex-wrap gap-1.5">
-          <span v-for="f in ['PDF','EPUB','DOCX','XLSX','CSV','HTML','TXT','DOI']" :key="f" class="rounded-md bg-black/5 px-2 py-0.5 font-mono text-xs dark:bg-white/10">{{ f }}</span>
-        </div>
-        <div class="my-3 flex items-center gap-3 text-xs text-muted dark:text-night-muted">
-          <svg viewBox="0 0 12 28" class="h-7 w-3 shrink-0 text-sage-600" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M6 0v26M1.5 21.5 6 26l4.5-4.5"/></svg>
-          {{ c.flow.step }}
-        </div>
-        <p class="text-xs font-medium uppercase tracking-wider text-muted dark:text-night-muted">{{ c.flow.out }}</p>
-        <svg viewBox="0 0 320 130" class="mt-2 w-full" role="img" :aria-label="c.flow.graph">
-          <g class="stroke-sage-400" stroke-width="1.25"><path d="M50 32 160 65M50 98 160 65M160 65 270 30M160 65 270 100M50 32 50 98M270 30 270 100"/></g>
-          <g class="fill-sage-600"><circle cx="160" cy="65" r="9"/></g>
-          <g class="fill-panel stroke-sage-600 dark:fill-night-panel" stroke-width="1.5"><circle cx="50" cy="32" r="6"/><circle cx="50" cy="98" r="6"/><circle cx="270" cy="30" r="6"/><circle cx="270" cy="100" r="6"/></g>
-          <g class="fill-ink dark:fill-night-ink" font-size="11" font-family="Inter Variable, sans-serif">
-            <text x="62" y="20">{{ c.flow.n[0] }}</text><text x="62" y="118">{{ c.flow.n[1] }}</text><text x="160" y="42" text-anchor="middle" font-weight="600">{{ c.flow.n[2] }}</text>
-            <text x="258" y="16" text-anchor="end">{{ c.flow.n[3] }}</text><text x="258" y="120" text-anchor="end">{{ c.flow.n[4] }}</text>
-          </g>
-        </svg>
-        <figcaption class="mt-2 text-xs text-muted dark:text-night-muted">{{ c.flow.cap }}</figcaption>
-      </figure>
+      <a href="#why" class="absolute left-1/2 -translate-x-1/2 bottom-8 z-10 hidden md:block" :aria-label="t.hero.down"><span class="scroll-cue block"></span></a>
     </section>
 
-    <!-- Проблем -->
-    <section id="why" class="rule"><div class="sec">
-      <h2 class="h2x">{{ c.why.title }}</h2>
-      <p class="lede">{{ c.why.lede }}</p>
-      <div class="mt-10 grid gap-8 md:grid-cols-3">
-        <div v-for="p in c.why.points" :key="p[0]"><h3 class="h3x">{{ p[0] }}</h3><p class="mt-2 text-muted dark:text-night-muted">{{ p[1] }}</p></div>
-      </div>
-      <div class="mt-12 grid gap-8 md:grid-cols-2">
-        <div><h3 class="h3x">{{ c.why.reasonT }}</h3><p class="mt-2">{{ c.why.reason }}</p><p class="mt-3 text-sm text-muted dark:text-night-muted">{{ c.why.origin }}</p></div>
-        <div><h3 class="h3x">{{ c.why.whoT }}</h3><ul class="mt-2 space-y-1.5"><li v-for="w in c.why.who" :key="w">{{ w }}</li></ul></div>
-      </div>
-    </div></section>
-
-    <!-- Какво прави -->
-    <section id="features" class="rule bg-panel dark:bg-night-panel"><div class="sec">
-      <h2 class="h2x">{{ c.features.title }}</h2>
-      <dl class="mt-10 grid gap-x-10 gap-y-7 sm:grid-cols-2">
-        <div v-for="f in c.features.items" :key="f[0]"><dt class="font-semibold">{{ f[0] }}</dt><dd class="mt-1 text-muted dark:text-night-muted">{{ f[1] }}</dd></div>
-      </dl>
-    </div></section>
-
-    <!-- Изисквания и умения -->
-    <section id="start" class="rule"><div class="sec">
-      <h2 class="h2x">{{ c.start.title }}</h2>
-      <p class="lede">{{ c.start.lede }}</p>
-      <div class="mt-10 grid grid-cols-1 gap-10 lg:grid-cols-2">
-        <div>
-          <h3 class="h3x">{{ c.start.reqT }}</h3>
-          <div class="mt-3 overflow-x-auto">
-            <table class="w-full text-left text-sm">
-              <tbody>
-                <tr v-for="r in c.start.req" :key="r[0]" class="border-t border-line dark:border-night-line">
-                  <th scope="row" class="py-2.5 pr-4 align-top font-medium">{{ r[0] }}</th><td class="py-2.5 text-muted dark:text-night-muted">{{ r[1] }}</td>
-                </tr>
-              </tbody>
-            </table>
+    <section class="relative" style="margin-top:-40px">
+      <div class="wrap">
+        <div class="card grid grid-cols-2 md:grid-cols-4 overflow-hidden reveal" style="border-radius:22px">
+          <div v-for="(s, i) in t.stats" :key="s.l" class="p-6 text-center stat-cell">
+            <count-up class="stat-n" :to="s.n" :from="s.from || 0" :suffix="s.suf"></count-up>
+            <div class="mt-2 text-sm muted">{{ s.l }}</div>
           </div>
         </div>
+      </div>
+    </section>
+
+    <section id="why" class="sec">
+      <div class="wrap grid gap-12 lg:grid-cols-[1fr_1.1fr] items-center">
         <div>
-          <h3 class="h3x">{{ c.start.skillT }}</h3>
-          <ul class="mt-3 list-disc space-y-2 pl-5"><li v-for="s in c.start.skills" :key="s">{{ s }}</li></ul>
-          <h3 class="h3x mt-7">{{ c.start.noT }}</h3>
-          <p class="mt-2 text-muted dark:text-night-muted">{{ c.start.no }}</p>
-        </div>
-      </div>
-      <h3 class="h3x mt-12">{{ c.start.installT }}</h3>
-      <div class="mt-4 grid grid-cols-1 gap-5 lg:grid-cols-2">
-        <div><p class="mb-2 text-sm font-medium">{{ c.start.autoT }}</p><pre class="shell">git clone {{ repo }}.git
-cd llm-wiki
-./install.sh        # macOS, Linux, WSL
-install.cmd         # Windows</pre></div>
-        <div><p class="mb-2 text-sm font-medium">{{ c.start.handT }}</p><pre class="shell">npm install
-claude              # {{ c.start.signin }}
-npm run serve       # http://localhost:4321
-npm test            # {{ c.start.check }}</pre></div>
-      </div>
-    </div></section>
-
-    <!-- Данни -->
-    <section id="data" class="rule bg-panel dark:bg-night-panel"><div class="sec">
-      <h2 class="h2x">{{ c.data.title }}</h2>
-      <p class="lede">{{ c.data.lede }}</p>
-      <div class="mt-10 grid gap-5 md:grid-cols-3">
-        <div v-for="d in c.data.flows" :key="d[0]" class="rounded-2xl border border-line p-5 dark:border-night-line"><h3 class="font-semibold">{{ d[0] }}</h3><p class="mt-2 text-sm text-muted dark:text-night-muted">{{ d[1] }}</p></div>
-      </div>
-
-      <h3 class="h3x mt-12">{{ c.data.tableT }}</h3>
-      <div class="mt-3 overflow-x-auto">
-        <table class="w-full min-w-[34rem] text-left text-sm">
-          <thead class="text-muted dark:text-night-muted"><tr><th v-for="h in c.data.head" :key="h" scope="col" class="py-2 pr-4 font-medium">{{ h }}</th></tr></thead>
-          <tbody><tr v-for="r in c.data.rows" :key="r[0]" class="border-t border-line dark:border-night-line"><td v-for="(x, i) in r" :key="i" :class="['py-2.5 pr-4 align-top', i === 0 && 'font-medium']">{{ x }}</td></tr></tbody>
-        </table>
-      </div>
-
-      <h3 class="h3x mt-12">{{ c.data.howT }}</h3>
-      <ol class="mt-3 max-w-3xl list-decimal space-y-3 pl-5">
-        <li><b>{{ c.data.how[0][0] }}</b> {{ c.data.how[0][1] }} <a href="https://claude.ai/settings/data-privacy-controls">claude.ai/settings/data-privacy-controls</a></li>
-        <li v-for="h in c.data.how.slice(1)" :key="h[0]"><b>{{ h[0] }}</b> {{ h[1] }}</li>
-      </ol>
-      <pre class="shell mt-4 max-w-3xl"># {{ c.data.envNote }}
-export CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1</pre>
-      <p class="mt-6 max-w-3xl rounded-xl bg-clay-100 p-4 text-sm text-ink dark:bg-clay-600/20 dark:text-night-ink"><b>{{ c.data.limitT }}</b> {{ c.data.limit }}</p>
-    </div></section>
-
-    <!-- Сигурност -->
-    <section id="security" class="rule"><div class="sec">
-      <h2 class="h2x">{{ c.sec.title }}</h2>
-      <p class="lede">{{ c.sec.lede }}</p>
-      <div class="mt-10 grid gap-10 md:grid-cols-2">
-        <div><h3 class="h3x">{{ c.sec.okT }}</h3><ul class="mt-3 list-disc space-y-2 pl-5"><li v-for="s in c.sec.ok" :key="s">{{ s }}</li></ul></div>
-        <div><h3 class="h3x">{{ c.sec.badT }}</h3><ul class="mt-3 list-disc space-y-2 pl-5"><li v-for="s in c.sec.bad" :key="s">{{ s }}</li></ul></div>
-      </div>
-      <h3 class="h3x mt-12">{{ c.sec.adviceT }}</h3>
-      <ul class="mt-3 max-w-3xl list-disc space-y-2 pl-5"><li v-for="s in c.sec.advice" :key="s">{{ s }}</li></ul>
-    </div></section>
-
-    <!-- Тестове -->
-    <section id="tests" class="rule bg-panel dark:bg-night-panel"><div class="sec">
-      <h2 class="h2x">{{ c.tests.title }}</h2>
-      <p class="lede">{{ c.tests.lede }}</p>
-      <p v-if="!report" class="mt-8 rounded-xl border border-line p-4 text-sm dark:border-night-line">{{ c.tests.none }}</p>
-      <template v-else>
-        <p class="mt-6 text-sm text-muted dark:text-night-muted">{{ c.tests.meta }} {{ report.date.slice(0, 10) }} · {{ c.hero.version }} {{ report.version }} · {{ report.environment.platform }} · Node.js {{ report.environment.node }}</p>
-        <div class="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
-          <div v-for="s in stats" :key="s.label" class="rounded-2xl border border-line p-4 dark:border-night-line">
-            <p :class="['font-serif text-3xl font-semibold', s.tone]">{{ s.value }}</p><p class="mt-1 text-sm text-muted dark:text-night-muted">{{ s.label }}</p>
+          <span class="eyebrow reveal">{{ t.why.eye }}</span>
+          <h2 class="h2 reveal d1">{{ t.why.title }}</h2>
+          <p class="lede reveal d2">{{ t.why.p1 }}</p>
+          <p class="mt-4 reveal d3" style="max-width:44rem">{{ t.why.p2 }}</p>
+          <div class="mt-7 reveal d3">
+            <div class="seg" role="tablist">
+              <button role="tab" :aria-selected="ba === 'before'" :class="{ on: ba === 'before' }" @click="ba = 'before'; baTouched = true">{{ t.why.before }}</button>
+              <button role="tab" :aria-selected="ba === 'after'" :class="{ on: ba === 'after' }" @click="ba = 'after'; baTouched = true">{{ t.why.after }}</button>
+            </div>
           </div>
         </div>
-        <div class="mt-8 space-y-3">
-          <details v-for="g in groups" :key="g.key" class="rounded-xl border border-line dark:border-night-line" :open="g.bad > 0">
-            <summary class="cursor-pointer px-4 py-3 font-medium">{{ g.title }} <span class="font-normal text-muted dark:text-night-muted">({{ g.pass }}/{{ g.items.length }})</span></summary>
-            <ul class="space-y-2 px-4 pb-4 text-sm">
-              <li v-for="t in g.items" :key="t.en" class="flex gap-2.5">
-                <span :class="['mt-0.5 w-4 shrink-0 text-center font-semibold', mark(t).tone]" :title="mark(t).label" aria-hidden="true">{{ mark(t).sym }}</span>
-                <span><span class="sr-only">{{ mark(t).label }}: </span>{{ pick(t) }}<span v-if="t.note" class="mt-0.5 block text-muted dark:text-night-muted">{{ pick(t.note) }}</span><span v-if="t.error" class="mt-0.5 block break-words text-clay-600">{{ t.error }}</span></span>
-              </li>
-            </ul>
+        <div class="card p-4 sm:p-6 reveal d2" ref="chaosCard">
+          <div class="chaos">
+            <svg viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+              <path v-for="(l, i) in chaosLinks" :key="i" :d="chaosPath(l)" fill="none" stroke="var(--sage)" vector-effect="non-scaling-stroke" stroke-width="1.5" :style="{ opacity: ba === 'after' ? .6 : 0, transition: 'opacity .8s ease ' + (ba === 'after' ? '.7s' : '0s') }"></path>
+            </svg>
+            <div v-for="(f, i) in chaosItems" :key="i" class="f" :style="chaosStyle(f, i)">
+              <span class="dot mr-1.5" :style="{ '--c': f.c }"></span>{{ ba === 'after' ? t.why.chaos[i][1] : t.why.chaos[i][0] }}
+            </div>
+          </div>
+          <p class="text-sm muted mt-2 text-center">{{ ba === 'after' ? t.why.capAfter : t.why.capBefore }}</p>
+        </div>
+      </div>
+    </section>
+
+    <section id="how" class="sec divider" style="background:var(--bg2)">
+      <div class="wrap">
+        <span class="eyebrow reveal">{{ t.how.eye }}</span>
+        <h2 class="h2 reveal d1">{{ t.how.t1 }} <span class="grad">{{ t.how.t2 }}</span></h2>
+        <p class="lede reveal d2">{{ t.how.lede }}</p>
+        <div class="mt-10 pipe">
+          <button v-for="(p, i) in pipe" :key="p.k" class="pipe-step reveal" :class="['d' + Math.min(i, 4), { on: pipeOn === i }]" @click="pipeOn = i" @mouseenter="pipeOn = i" :style="{ '--c': p.c }">
+            <div class="pipe-ico"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" v-html="p.icon"></svg></div>
+            <div class="mono text-xs mt-3 faint">{{ i + 1 }} / {{ pipe.length }}</div>
+            <div class="font-bold mt-1">{{ t.how.pipe[i].t }}</div>
+            <div class="text-sm" :style="{ color: p.c }">{{ t.how.pipe[i].s }}</div>
+          </button>
+        </div>
+        <div class="mt-4 hidden lg:block flowline"></div>
+        <div class="mt-6 card p-6 grid gap-6 md:grid-cols-[1.2fr_1fr] items-start" :key="pipeOn + L" style="animation:slidein .4s ease both">
+          <div>
+            <div class="font-bold text-lg">{{ t.how.pipe[pipeOn].t }}: {{ t.how.pipe[pipeOn].s }}</div>
+            <p class="mt-2 muted">{{ t.how.pipe[pipeOn].d }}</p>
+          </div>
+          <pre class="shell" style="margin:0">{{ t.how.pipe[pipeOn].code }}</pre>
+        </div>
+        <div class="mt-10 grid gap-4 md:grid-cols-3">
+          <div v-for="(o, i) in t.how.ops" :key="o[0]" class="feat glow-card reveal" :class="'d' + i" @mousemove="glow">
+            <span class="chip mono">{{ o[0] }}</span>
+            <h3>{{ o[1] }}</h3>
+            <p>{{ o[2] }}</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="demo" class="sec">
+      <div class="wrap">
+        <span class="eyebrow reveal">{{ t.demo.eye }}</span>
+        <h2 class="h2 reveal d1">{{ t.demo.t1 }} <span class="grad">{{ t.demo.t2 }}</span></h2>
+        <p class="lede reveal d2">{{ t.demo.lede }}</p>
+        <ingest-sim class="mt-10 reveal d2"></ingest-sim>
+      </div>
+    </section>
+
+    <section id="library" class="sec divider" style="background:var(--bg2)">
+      <div class="wrap">
+        <span class="eyebrow reveal">{{ t.lib.eye }}</span>
+        <h2 class="h2 reveal d1">{{ t.lib.t1 }} <span class="grad">{{ t.lib.t2 }}</span></h2>
+        <p class="lede reveal d2" v-html="t.lib.lede"></p>
+        <wiki-explorer class="mt-10 reveal d2"></wiki-explorer>
+      </div>
+    </section>
+
+    <section id="page" class="sec">
+      <div class="wrap">
+        <span class="eyebrow reveal">{{ t.pt.eye }}</span>
+        <h2 class="h2 reveal d1">{{ t.pt.t1 }} <span class="grad">{{ t.pt.t2 }}</span></h2>
+        <p class="lede reveal d2">{{ t.pt.lede }}</p>
+        <page-tools class="mt-10 reveal d2"></page-tools>
+      </div>
+    </section>
+
+    <section id="graph" class="sec divider" style="background:var(--bg2)">
+      <div class="wrap">
+        <span class="eyebrow reveal">{{ t.graph.eye }}</span>
+        <h2 class="h2 reveal d1">{{ t.graph.t1 }} <span class="grad">{{ t.graph.t2 }}</span></h2>
+        <p class="lede reveal d2">{{ t.graph.lede }}</p>
+        <graph-section class="mt-10 reveal d2"></graph-section>
+      </div>
+    </section>
+
+    <section id="learn" class="sec">
+      <div class="wrap">
+        <span class="eyebrow reveal">{{ t.learn.eye }}</span>
+        <h2 class="h2 reveal d1">{{ t.learn.t1 }} <span class="grad">{{ t.learn.t2 }}</span></h2>
+        <p class="lede reveal d2">{{ t.learn.lede }}</p>
+        <learn-demo class="mt-10 reveal d2"></learn-demo>
+      </div>
+    </section>
+
+    <section id="write" class="sec divider" style="background:var(--bg2)">
+      <div class="wrap">
+        <span class="eyebrow reveal">{{ t.write.eye }}</span>
+        <h2 class="h2 reveal d1">{{ t.write.t1 }} <span class="grad">{{ t.write.t2 }}</span></h2>
+        <p class="lede reveal d2">{{ t.write.lede }}</p>
+        <write-demo class="mt-10 reveal d2"></write-demo>
+      </div>
+    </section>
+
+    <section id="modes" class="sec">
+      <div class="wrap">
+        <span class="eyebrow reveal">{{ t.modes.eye }}</span>
+        <h2 class="h2 reveal d1">{{ t.modes.title }}</h2>
+        <p class="lede reveal d2">{{ t.modes.lede }}</p>
+        <div class="mt-10 grid gap-4 md:grid-cols-3">
+          <div v-for="(m, i) in t.modes.cards" :key="i" class="feat glow-card reveal" :class="'d' + i" @mousemove="glow" :style="i === 0 ? 'border-color:var(--sage)' : ''">
+            <div class="flex items-center justify-between">
+              <span class="chip" :style="i === 0 ? 'color:var(--sage);border-color:var(--sage)' : ''">{{ m.tag }}</span>
+              <span class="mono font-bold" style="color:var(--gold)">{{ ['$', '$$', '$$$'][i] }}</span>
+            </div>
+            <h3 class="serif" style="font-size:1.5rem">{{ m.n }}</h3>
+            <div class="mt-3 grid gap-2 text-sm">
+              <div class="flex justify-between gap-3"><span class="muted">{{ t.modes.reads }}</span><b>{{ MODELS[i][0] }}</b></div>
+              <div class="flex justify-between gap-3"><span class="muted">{{ t.modes.writes }}</span><b>{{ MODELS[i][1] }}</b></div>
+            </div>
+            <p class="mt-4">{{ m.d }}</p>
+          </div>
+        </div>
+        <div class="mt-6 grid gap-4 md:grid-cols-3 text-sm">
+          <div v-for="(x, i) in t.modes.notes" :key="i" class="card-soft p-5 reveal" :class="'d' + i"><b>{{ x[0] }}</b> <span class="muted">{{ x[1] }}</span></div>
+        </div>
+      </div>
+    </section>
+
+    <section id="compare" class="sec divider" style="background:var(--bg2)">
+      <div class="wrap">
+        <span class="eyebrow reveal">{{ t.cmp.eye }}</span>
+        <h2 class="h2 reveal d1">{{ t.cmp.t1 }} <span class="grad">{{ t.cmp.t2 }}</span></h2>
+        <p class="lede reveal d2">{{ t.cmp.lede }}</p>
+        <div class="mt-10 card scrollx reveal d2" style="border-radius:22px">
+          <table class="cmp" style="min-width:640px">
+            <thead><tr><th></th><th v-for="(c, j) in t.cmp.cols" :key="c" :class="{ us: j === 2 }">{{ c }}</th></tr></thead>
+            <tbody>
+              <tr v-for="r in t.cmp.rows" :key="r[0]">
+                <th scope="row" style="font-weight:600">{{ r[0] }}</th>
+                <td v-for="(c, j) in r.slice(1)" :key="j" :class="{ us: j === 2 }"><span :class="cls(c)" :aria-label="t.cmp.marks[c[0]]">{{ sym(c) }}</span> <span class="muted">{{ c.slice(2) }}</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <section id="features" class="sec">
+      <div class="wrap">
+        <span class="eyebrow reveal">{{ t.feat.eye }}</span>
+        <h2 class="h2 reveal d1">{{ t.feat.t1 }} <span class="grad">{{ t.feat.t2 }}</span></h2>
+        <div class="mt-10 bento">
+          <div class="feat glow-card w4 wfull reveal" @mousemove="glow"><dupes-demo></dupes-demo></div>
+          <div class="feat glow-card reveal d1" @mousemove="glow">
+            <div class="scanbox"><div class="p-3 text-[10px] leading-4" style="color:#5d564b;font-family:Literata,serif">Über das Gedächtnis. Untersuchungen zur experimentellen Psychologie. Von Dr. Hermann Ebbinghaus …</div><div class="line"></div></div>
+            <h3>{{ t.feat.ocr[0] }}</h3><p>{{ t.feat.ocr[1] }}</p>
+          </div>
+          <div class="feat glow-card reveal" @mousemove="glow"><undo-demo></undo-demo></div>
+          <div class="feat glow-card reveal d1" @mousemove="glow">
+            <div class="flex items-center gap-2 rounded-xl p-2" style="background:var(--panel2);border:1px solid var(--line)">
+              <span class="mono text-xs muted truncate flex-1">{{ doiText }}<span class="caret"></span></span>
+              <span class="chip" style="color:var(--sage)">{{ t.feat.doi.states[doiState] }}</span>
+            </div>
+            <h3>{{ t.feat.doi.title }}</h3><p>{{ t.feat.doi.text }}</p>
+          </div>
+          <div class="feat glow-card reveal d2" @mousemove="glow">
+            <div class="flex flex-wrap gap-2">
+              <span class="chip"><span class="dot" style="--c:var(--violet)"></span>{{ t.areas.mem }} · 2</span>
+              <span class="chip"><span class="dot"></span>{{ t.areas.km }} · 4</span>
+            </div>
+            <h3>{{ t.feat.areas[0] }}</h3><p>{{ t.feat.areas[1] }}</p>
+          </div>
+          <div class="feat glow-card w3 reveal" @mousemove="glow">
+            <pre class="shell" style="margin:0;font-size:.72rem">{ "_meta": { "code": "de", "name": "Deutsch" },
+  "messages": { "Search": "Suche" } }</pre>
+            <h3>{{ t.feat.langs[0] }}</h3><p>{{ t.feat.langs[1] }}</p>
+          </div>
+          <div class="feat glow-card w3 reveal d1" @mousemove="glow">
+            <div class="flex items-center gap-3">
+              <div class="grid place-items-center rounded-xl" style="width:48px;height:48px;background:color-mix(in srgb,var(--gold) 16%,transparent);color:var(--gold)"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8v13H3V8M1 3h22v5H1zM10 12h4"/></svg></div>
+              <div class="mono text-xs muted">{{ t.feat.zip }}<br>index.html · wiki/**/*.md</div>
+            </div>
+            <h3>{{ t.feat.archive[0] }}</h3><p>{{ t.feat.archive[1] }}</p>
+          </div>
+          <div class="feat glow-card reveal" @mousemove="glow">
+            <div class="flex flex-wrap gap-1.5"><span class="chip mono">/wiki-ingest</span><span class="chip mono">/wiki-query</span><span class="chip mono">/wiki-lint</span></div>
+            <h3>{{ t.feat.skills[0] }}</h3><p>{{ t.feat.skills[1] }}</p>
+          </div>
+          <div class="feat glow-card reveal d1" @mousemove="glow">
+            <div class="flex flex-wrap gap-1.5"><span class="chip">Markdown</span><span class="chip">[[wikilinks]]</span><span class="chip">YAML</span></div>
+            <h3>{{ t.feat.obsidian[0] }}</h3><p>{{ t.feat.obsidian[1] }}</p>
+          </div>
+          <div class="feat glow-card reveal d2" @mousemove="glow">
+            <div class="flex flex-wrap gap-1.5"><span class="chip" style="color:var(--sage)">127.0.0.1</span><span class="chip">CSP</span><span class="chip">{{ t.feat.pwd }}</span></div>
+            <h3>{{ t.feat.local[0] }}</h3><p>{{ t.feat.local[1] }}</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="privacy" class="sec divider" style="background:var(--bg2)">
+      <div class="wrap">
+        <span class="eyebrow reveal">{{ t.priv.eye }}</span>
+        <h2 class="h2 reveal d1">{{ t.priv.t1 }} <span class="grad">{{ t.priv.t2 }}</span></h2>
+        <p class="lede reveal d2">{{ t.priv.lede }}</p>
+        <privacy-flow class="mt-10 reveal d2"></privacy-flow>
+      </div>
+    </section>
+
+    <section id="settings" class="sec">
+      <div class="wrap">
+        <span class="eyebrow reveal">{{ t.set.eye }}</span>
+        <h2 class="h2 reveal d1">{{ t.set.t1 }} <span class="grad">{{ t.set.t2 }}</span></h2>
+        <p class="lede reveal d2">{{ t.set.lede }}</p>
+        <settings-demo class="mt-10 reveal d2"></settings-demo>
+      </div>
+    </section>
+
+    <section id="terminal" class="sec divider" style="background:var(--bg2)">
+      <div class="wrap grid gap-10 lg:grid-cols-[1fr_1.2fr] items-center">
+        <div>
+          <span class="eyebrow reveal">{{ t.term.eye }}</span>
+          <h2 class="h2 reveal d1">{{ t.term.title }}</h2>
+          <p class="lede reveal d2">{{ t.term.lede }}</p>
+          <ul class="mt-6 grid gap-2 text-sm reveal d3">
+            <li v-for="b in t.term.bullets" :key="b" class="flex gap-2"><span style="color:var(--sage)">✓</span> {{ b }}</li>
+          </ul>
+        </div>
+        <terminal-demo class="reveal d2"></terminal-demo>
+      </div>
+    </section>
+
+    <section id="who" class="sec">
+      <div class="wrap">
+        <span class="eyebrow reveal">{{ t.who.eye }}</span>
+        <h2 class="h2 reveal d1">{{ t.who.t1 }} <span class="grad">{{ t.who.t2 }}</span></h2>
+        <p class="lede reveal d2">{{ t.who.lede }}</p>
+        <div class="mt-8 flex flex-wrap gap-2 reveal d2" role="tablist">
+          <button v-for="(p, i) in t.who.personas" :key="i" class="qchip" role="tab" :aria-selected="persona === i" :style="persona === i ? 'border-color:var(--sage);background:color-mix(in srgb,var(--sage) 14%,var(--panel2))' : ''" @click="persona = i">{{ p.e }} {{ p.n }}</button>
+        </div>
+        <div class="mt-6 grid gap-4 md:grid-cols-3" :key="persona + L" style="animation:slidein .4s ease both">
+          <div class="card-soft p-6"><div class="text-xs font-semibold uppercase tracking-wider faint">{{ t.who.upload }}</div><ul class="mt-3 grid gap-2 text-sm"><li v-for="x in t.who.personas[persona].in" :key="x" class="flex gap-2"><span class="dot mt-2" style="--c:var(--clay)"></span>{{ x }}</li></ul></div>
+          <div class="card-soft p-6"><div class="text-xs font-semibold uppercase tracking-wider faint">{{ t.who.get }}</div><ul class="mt-3 grid gap-2 text-sm"><li v-for="x in t.who.personas[persona].out" :key="x" class="flex gap-2"><span class="dot mt-2"></span>{{ x }}</li></ul></div>
+          <div class="card-soft p-6" style="background:color-mix(in srgb,var(--sage) 8%,var(--panel))"><div class="text-xs font-semibold uppercase tracking-wider faint">{{ t.who.ask }}</div><p class="mt-3 serif text-lg" style="line-height:1.5">{{ t.q[0] }}{{ t.who.personas[persona].q }}{{ t.q[1] }}</p></div>
+        </div>
+      </div>
+    </section>
+
+    <section id="start" class="sec divider" style="background:var(--bg2)">
+      <div class="wrap">
+        <span class="eyebrow reveal">{{ t.start.eye }}</span>
+        <h2 class="h2 reveal d1">{{ t.start.t1 }} <span class="grad">{{ t.start.t2 }}</span></h2>
+        <p class="lede reveal d2">{{ t.start.lede }}</p>
+        <div class="mt-10 grid gap-4 lg:grid-cols-3">
+          <div v-for="(s, i) in t.start.steps" :key="i" class="card-soft p-6 reveal" :class="'d' + i">
+            <div class="flex items-center gap-3"><span class="grid place-items-center rounded-full font-bold" style="width:34px;height:34px;background:var(--sage2);color:#fff">{{ i + 1 }}</span><b class="text-lg">{{ s.t }}</b></div>
+            <p class="mt-3 text-sm muted">{{ s.d }}</p>
+            <pre class="shell mt-4" style="margin-bottom:0;padding-top:2.4rem">{{ s.code }}<button class="copy" @click="copy(s.code)">{{ t.start.copy }}</button></pre>
+          </div>
+        </div>
+        <div class="mt-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-4 text-sm">
+          <div v-for="r in t.start.reqs" :key="r[0]" class="card-soft p-4 reveal"><b>{{ r[0] }}</b><div class="muted mt-1">{{ r[1] }}</div></div>
+        </div>
+      </div>
+    </section>
+
+    <section id="faq" class="sec">
+      <div class="wrap grid gap-10 lg:grid-cols-[1fr_2fr]">
+        <div>
+          <span class="eyebrow reveal">{{ t.faq.eye }}</span>
+          <h2 class="h2 reveal d1">{{ t.faq.title }}</h2>
+          <p class="lede reveal d2">{{ t.faq.lede }}</p>
+          <a href="#settings" class="btn btn-ghost mt-6 reveal d3" style="text-decoration:none" @click="store.setTab = 'tests'">{{ t.faq.link }}</a>
+        </div>
+        <div class="reveal d1">
+          <details v-for="(f, i) in t.faq.items" :key="i" class="faq" :open="i === 0">
+            <summary>{{ f[0] }}<span class="pl">+</span></summary>
+            <div class="ans">{{ f[1] }}</div>
           </details>
-          <details class="rounded-xl border border-line dark:border-night-line" open>
-            <summary class="cursor-pointer px-4 py-3 font-medium">{{ c.tests.nc }} <span class="font-normal text-muted dark:text-night-muted">({{ report.notCovered.length }})</span></summary>
-            <ul class="space-y-2 px-4 pb-4 text-sm">
-              <li v-for="t in report.notCovered" :key="t.en" class="flex gap-2.5"><span class="mt-0.5 w-4 shrink-0 text-center font-semibold text-muted" aria-hidden="true">?</span><span>{{ pick(t) }}<span class="mt-0.5 block text-muted dark:text-night-muted">{{ pick(t.why) }}</span></span></li>
-            </ul>
-          </details>
+        </div>
+      </div>
+    </section>
+
+    <section class="sec" style="padding-top:20px">
+      <div class="wrap">
+        <div class="card relative overflow-hidden p-8 sm:p-14 text-center grid-bg reveal" style="border-radius:28px;background:radial-gradient(ellipse at 50% 0%,color-mix(in srgb,var(--sage) 22%,var(--panel)),var(--panel) 70%)">
+          <h2 class="h2" style="max-width:44rem;margin-left:auto;margin-right:auto">{{ t.cta.t1 }} <span class="grad">{{ t.cta.t2 }}</span></h2>
+          <p class="lede" style="margin-left:auto;margin-right:auto">{{ t.cta.lede }}</p>
+          <div class="mt-8 flex flex-wrap justify-center gap-3">
+            <a href="https://github.com/cecosd/llm-wiki" class="btn btn-primary" style="text-decoration:none">{{ t.cta.gh }}</a>
+            <a :href="L === 'bg' ? 'https://github.com/cecosd/llm-wiki/blob/main/README.bg.md' : 'https://github.com/cecosd/llm-wiki#readme'" class="btn btn-ghost" style="text-decoration:none">{{ t.cta.product }}</a>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="divider" style="background:var(--bg2)">
+    <div class="wrap py-12 grid gap-10 md:grid-cols-[1.2fr_2fr] text-sm">
+      <div>
+        <div class="serif text-lg font-semibold">LLM Wiki</div>
+        <p class="mt-2 muted">{{ t.foot.aboutPre }}<a href="https://sdevelopers.eu" style="color:var(--sage)">{{ t.foot.company }}</a>{{ t.foot.aboutPost }}</p>
+        <p class="mt-3 muted">{{ t.foot.license }} <a href="https://github.com/cecosd/llm-wiki/blob/main/LICENSE" style="color:var(--sage)">{{ t.foot.licenseLink }}</a></p>
+        <p class="mt-3 muted">{{ t.foot.demo }}</p>
+      </div>
+      <div>
+        <div class="font-semibold">{{ t.foot.refs }}</div>
+        <ul class="mt-3 grid gap-2 muted">
+          <li v-for="r in refs" :key="r" style="padding-left:2em;text-indent:-2em" v-html="r"></li>
+        </ul>
+      </div>
+    </div>
+  </footer>
+
+  <reader-drawer></reader-drawer>
+  <search-palette></search-palette>
+  <tour-widget></tour-widget>
+  <div v-if="store.toast" class="toast" role="status" :key="store.toast.id">{{ store.toast.text }}</div>
+</div>
+<noscript><p style="padding:2rem;font-family:sans-serif;color:#ece7dd;background:#0c0d0b">Тази страница изисква JavaScript. This page needs JavaScript.</p></noscript>
+
+<script type="text/x-template" id="tpl-feed">
+  <div class="card feed p-5" style="border-radius:22px">
+    <div class="flex items-center justify-between gap-3">
+      <div class="flex items-center gap-2 text-sm font-semibold"><span class="live"></span> {{ t.feed.working }}</div>
+      <span class="chip mono">{{ t.modes.cards[0].n }}</span>
+    </div>
+    <div class="mt-3 text-xs muted mono truncate">raw/books/ebbinghaus-1885-memory.pdf</div>
+    <div class="mt-2 h-1.5 rounded-full overflow-hidden" style="background:var(--line)"><div class="h-full rounded-full" style="background:linear-gradient(90deg,var(--sage),var(--gold));transition:width .8s ease" :style="{ width: pct + '%' }"></div></div>
+    <div class="mt-4" style="min-height:228px">
+      <div v-for="l in shown" :key="l.id" class="feed-line">
+        <span class="mt-0.5 grid place-items-center rounded-md flex-none" style="width:22px;height:22px;font-size:.7rem" :style="{ background: 'color-mix(in srgb,' + l.c + ' 18%,transparent)', color: l.c }">{{ l.i }}</span>
+        <span><span class="muted">{{ l.a }}</span> <b :style="{ color: l.c }">{{ l.b }}</b></span>
+      </div>
+    </div>
+    <div class="mt-3 pt-3 flex justify-between text-xs muted" style="border-top:1px solid var(--line)">
+      <span>{{ t.sim.made }}: <b style="color:var(--ink)">{{ made }}</b> · {{ t.sim.upd }}: <b style="color:var(--ink)">{{ upd }}</b></span>
+      <span>{{ t.sim.contra }}: <b style="color:var(--rose)">{{ contra }}</b></span>
+    </div>
+  </div>
+</script>
+
+<script type="text/x-template" id="tpl-sim">
+  <div class="card overflow-hidden" style="border-radius:24px">
+    <div class="grid lg:grid-cols-[340px_minmax(0,1.05fr)_minmax(0,1fr)]">
+      <div class="p-5" style="border-bottom:1px solid var(--line)" :style="wide ? 'border-right:1px solid var(--line);border-bottom:0' : ''">
+        <div class="flex items-center justify-between gap-2">
+          <div><div class="font-bold">{{ t.sim.inbox }}</div><div class="mono text-xs faint">raw/inbox/ · {{ t.sim.files(waiting.length) }}</div></div>
+          <button class="btn btn-ghost btn-sm" :disabled="!waiting.length || busy" @click="runAll" :title="t.sim.allTitle">▶ {{ t.sim.all }}</button>
+        </div>
+        <div class="mt-4 grid gap-2">
+          <button v-for="f in files" :key="f.id" class="filecard" :class="{ done: isDone(f), busy: cur && cur.id === f.id }" :draggable="!isDone(f) && !busy" @dragstart="dragStart($event, f)" @click="!isDone(f) && !busy && start(f)" :aria-label="t.sim.process + ': ' + fx(f).title" :disabled="isDone(f)">
+            <span class="fext" :style="{ '--c': f.color }">{{ f.ext }}</span>
+            <span class="min-w-0 flex-1">
+              <span class="block text-sm font-semibold truncate">{{ fx(f).title }}</span>
+              <span class="block mono text-[11px] faint truncate">{{ f.name }}</span>
+              <span class="block text-[11px] muted">{{ fx(f).meta }}</span>
+            </span>
+            <span v-if="isDone(f)" style="color:var(--sage)" :aria-label="t.sim.done">✓</span>
+            <span v-else-if="cur && cur.id === f.id" class="live"></span>
+            <span v-else class="chip" style="font-size:.7rem;color:var(--sage)">▶</span>
+          </button>
+        </div>
+        <p class="mt-4 text-xs faint">{{ t.sim.formats }}</p>
+      </div>
+
+      <div class="p-5 flex flex-col min-w-0" style="border-bottom:1px solid var(--line)" :style="wide ? 'border-right:1px solid var(--line);border-bottom:0' : ''" @dragover.prevent="over = true" @dragleave.self="over = false" @drop.prevent="drop">
+        <div v-if="!cur && !last && !log.length" class="drop flex-1 grid place-items-center p-8 text-center" :class="{ over: over }" style="min-height:300px">
+          <div>
+            <div class="mx-auto grid place-items-center rounded-2xl" style="width:64px;height:64px;background:color-mix(in srgb,var(--sage) 14%,transparent);color:var(--sage)">
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 16V4M7 9l5-5 5 5M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3"/></svg>
+            </div>
+            <div class="mt-4 font-bold text-lg">{{ t.sim.dropTitle }}</div>
+            <p class="mt-1 text-sm muted">{{ t.sim.dropHint }}</p>
+          </div>
+        </div>
+        <template v-else>
+          <div class="flex items-center justify-between gap-3">
+            <div class="min-w-0">
+              <div class="text-xs faint">{{ cur ? t.sim.busyLbl : (last ? t.sim.lastLbl : t.sim.lastOp) }}</div>
+              <div class="font-bold truncate">{{ cur ? fx(cur).title : (last ? fx(last.file).title : (t.sim.ops[opKey] || '')) }}</div>
+            </div>
+            <span class="chip" :style="{ color: stageColor }">{{ cur ? t.sim.stages[stageIdx] : (opKey && !last ? t.sim.ops[opKey] : t.sim.ready) }}</span>
+          </div>
+          <template v-if="cur || last">
+            <div class="stepper mt-4">
+              <div v-for="(s, i) in t.sim.stages" :key="s" :class="{ on: stageIdx > i || (!cur && last), cur: cur && stageIdx === i }" :title="s"></div>
+            </div>
+            <div class="mt-1.5 grid text-[10.5px] faint" style="grid-template-columns:repeat(5,1fr)">
+              <span v-for="s in t.sim.stages" :key="s" class="truncate">{{ s }}</span>
+            </div>
+          </template>
+          <div class="term mt-4 flex-1 flex flex-col" style="min-height:260px">
+            <div class="term-bar"><i></i><i></i><i></i><span class="ml-2 text-[11px]" style="color:#7b766d">{{ cur ? 'claude -p · ' + t.modes.cards[modeIdx].n : t.sim.logTitle }}</span></div>
+            <div ref="log" class="p-3 overflow-y-auto" style="max-height:290px;min-height:230px">
+              <div v-for="l in log" :key="l.id" class="logline" :class="l.k"><span class="dim">{{ l.t }}</span> {{ l.x }}</div>
+              <div v-if="cur" class="caret"></div>
+            </div>
+          </div>
+          <div v-if="!cur && last" class="mt-4 rounded-2xl p-4" style="background:color-mix(in srgb,var(--sage) 9%,var(--panel2));border:1px solid color-mix(in srgb,var(--sage) 35%,var(--line));animation:pop .35s ease">
+            <div class="flex flex-wrap gap-x-5 gap-y-1 text-sm">
+              <span>{{ t.sim.made }}: <b>{{ last.made }}</b></span><span>{{ t.sim.upd }}: <b>{{ last.upd }}</b></span><span>{{ t.sim.contra }}: <b :style="last.contra ? 'color:var(--rose)' : ''">{{ last.contra }}</b></span>
+            </div>
+            <div class="mt-3 flex flex-wrap gap-2">
+              <button class="btn btn-primary btn-sm" @click="openPage(last.file.source)">{{ t.sim.open }}</button>
+              <button class="btn btn-ghost btn-sm" @click="undo">↶ {{ t.sim.undo }}</button>
+            </div>
+          </div>
+        </template>
+        <div class="mt-4 flex flex-wrap gap-2">
+          <button class="btn btn-ghost btn-sm" :disabled="busy || doneCount < 2 || synthDone" @click="synth" :title="doneCount < 2 ? t.sim.synthNeed : ''">✦ {{ t.sim.synth }}</button>
+          <button class="btn btn-ghost btn-sm" :disabled="busy || !doneCount" @click="lint">{{ t.sim.lint }}</button>
+          <button class="btn btn-ghost btn-sm" :disabled="busy || !history.length" @click="undo">↶ {{ t.sim.undo }}</button>
+          <button class="btn btn-ghost btn-sm ml-auto" :disabled="busy || !doneCount" @click="reset">{{ t.sim.reset }}</button>
+        </div>
+      </div>
+
+      <div class="p-5 min-w-0 flex flex-col">
+        <div class="flex items-center justify-between gap-2">
+          <div><div class="font-bold">{{ t.sim.wiki }}</div><div class="mono text-xs faint">wiki/ · <span :key="present.length" class="inline-block bump">{{ present.length }}</span> {{ t.sim.pages }} · {{ linkCount }} {{ t.sim.links }}</div></div>
+          <span v-if="present.length" class="chip"><span class="live" style="width:6px;height:6px;margin-right:4px"></span>{{ t.sim.live }}</span>
+        </div>
+        <div class="mt-4 relative">
+          <kg-graph :slugs="present" :height="330" :pulses="pulses" mini @pick="openPage"></kg-graph>
+          <div v-if="!present.length" class="absolute inset-0 grid place-items-center text-center p-6 pointer-events-none">
+            <div><div class="serif text-xl">{{ t.sim.empty }}</div><p class="text-sm muted mt-1">{{ t.sim.emptyHint }}</p></div>
+          </div>
+        </div>
+        <div class="tree mt-4 card-soft p-3 grid grid-cols-2 gap-x-6">
+          <div v-for="r in tree" :key="r[0]" class="row"><span class="muted">{{ r[0] }}</span><b :key="r[1]" class="inline-block bump" :style="{ color: r[2] }">{{ r[1] }}</b></div>
+        </div>
+      </div>
+    </div>
+
+    <div v-if="ask" class="modal-back" @click.self="cancel" role="dialog" aria-modal="true" :aria-label="t.sim.est.title">
+      <div class="modal card p-6">
+        <div class="flex items-start gap-3">
+          <span class="fext" :style="{ '--c': ask.color }">{{ ask.ext }}</span>
+          <div class="min-w-0"><div class="text-xs faint">{{ t.sim.est.title }}</div><div class="font-bold text-lg leading-tight">{{ ask.all ? t.sim.est.allTitle(ask.count) : fx(ask).title }}</div><div class="mono text-xs muted truncate">{{ ask.folder }}{{ ask.name }}</div></div>
+        </div>
+        <div class="mt-5 grid grid-cols-3 gap-2 text-center">
+          <div class="card-soft p-3"><div class="serif text-xl font-bold">{{ ask.units }}</div><div class="text-[11px] muted">{{ ask.all ? t.sim.est.unitsAll : fx(ask).unit }}</div></div>
+          <div class="card-soft p-3"><div class="serif text-xl font-bold">≈ {{ fmt(ask.tin) }}</div><div class="text-[11px] muted">{{ t.sim.est.tin }}</div></div>
+          <div class="card-soft p-3"><div class="serif text-xl font-bold">≈ {{ fmt(ask.tout) }}</div><div class="text-[11px] muted">{{ t.sim.est.tout }}</div></div>
+        </div>
+        <div class="mt-5 text-sm font-semibold">{{ t.sim.est.mode }}</div>
+        <div class="mt-2 grid gap-2">
+          <button v-for="(m, i) in t.modes.cards" :key="i" class="mode" :class="{ on: modeIdx === i }" @click="modeIdx = i">
+            <div class="flex justify-between gap-3"><b>{{ m.n }}</b><span class="mono" style="color:var(--gold)">{{ ['$', '$$', '$$$'][i] }}</span></div>
+            <div class="text-xs muted">{{ m.d }}</div>
+          </button>
+        </div>
+        <div class="mt-4 text-sm font-semibold">{{ t.sim.est.lang }}</div>
+        <select v-model="idxLang" class="inp mt-2" style="padding:.6rem .8rem">
+          <option v-for="(o, i) in t.sim.est.langOpts" :key="i" :value="i">{{ o }}</option>
+        </select>
+        <p class="mt-4 text-xs faint">{{ t.sim.est.note }}</p>
+        <div class="mt-5 flex justify-end gap-2">
+          <button class="btn btn-ghost btn-sm" @click="cancel">{{ t.common.cancel }}</button>
+          <button class="btn btn-primary btn-sm" @click="confirm" ref="ok">{{ t.sim.est.ok }}</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</script>
+
+<script type="text/x-template" id="tpl-kg">
+  <div class="graph-wrap" ref="wrap" :style="{ height: height + 'px' }">
+    <svg :data-t="tick" :viewBox="'0 0 ' + w + ' ' + h" :style="{ height: height + 'px' }" @pointermove="move" @pointerup="up" @pointercancel="up" role="img" :aria-label="t.graph.aria(nodes.length)">
+      <g>
+        <line v-for="l in links" :key="l.k" class="glink" :class="{ hl: lit(l), 'dim-out': focusSlug && !lit(l) }" :x1="l.s.x" :y1="l.s.y" :x2="l.t.x" :y2="l.t.y" :stroke-width="lit(l) ? 1.8 : 1.1"></line>
+      </g>
+      <g v-for="n in nodes" :key="n.slug" class="gnode" :class="{ 'dim-out': focusSlug && !near(n) }" :transform="'translate(' + n.x.toFixed(1) + ',' + n.y.toFixed(1) + ')'" @pointerdown="down($event, n)" @pointerenter="hover = n.slug" @pointerleave="hover = null">
+        <circle v-if="n.pulse" :key="'p' + n.pulse" class="ring" :r="n.r" :style="{ stroke: n.c }"></circle>
+        <g class="pop">
+          <circle :r="n.r + 5" :fill="n.c" opacity=".14"></circle>
+          <circle :r="n.r" :fill="n.c" :stroke="selected === n.slug ? 'var(--ink)' : 'var(--panel)'" :stroke-width="selected === n.slug ? 3 : 2"></circle>
+        </g>
+        <text v-if="label(n)" :y="n.r + 14" text-anchor="middle" :style="{ fontWeight: n.type === 'topic' ? 700 : 500 }">{{ n.label }}</text>
+      </g>
+    </svg>
+    <slot></slot>
+  </div>
+</script>
+
+<script type="text/x-template" id="tpl-graph-section">
+  <div>
+    <div class="flex flex-wrap gap-2 mb-4">
+      <button v-for="k in typeKeys" :key="k" class="chip chip-type" :style="{ '--c': typeColor(k), opacity: off[k] ? .4 : 1, cursor: 'pointer' }" @click="toggle(k)" :aria-pressed="!off[k]">
+        <span class="dot" :style="{ '--c': typeColor(k) }"></span>{{ t.types[k][1] }} · {{ count(k) }}
+      </button>
+    </div>
+    <kg-graph :slugs="slugs" :height="big ? 600 : 460" :selected="sel" @pick="pick">
+      <div v-if="page" class="gpreview card p-5" :key="page.slug + L">
+        <div class="flex items-center justify-between gap-2">
+          <span class="chip chip-type" :style="{ '--c': typeColor(page.type) }">{{ t.types[page.type][0] }}</span>
+          <button class="iconbtn" style="width:28px;height:28px" @click="sel = null" :aria-label="t.common.close">✕</button>
+        </div>
+        <div class="serif text-xl font-semibold mt-3 leading-tight">{{ page.title }}</div>
+        <p class="text-sm muted mt-2">{{ summary(page) }}</p>
+        <div class="mt-3 text-xs faint">{{ t.graph.stats(degree(page.slug), back(page.slug)) }}</div>
+        <button class="btn btn-primary btn-sm mt-4" @click="open(page.slug)">{{ t.graph.read }}</button>
+      </div>
+    </kg-graph>
+    <p class="mt-3 text-xs faint text-center">{{ t.graph.legend }}</p>
+  </div>
+</script>
+
+<script type="text/x-template" id="tpl-explorer">
+  <div class="card overflow-hidden" style="border-radius:24px" ref="box">
+    <div class="flex items-center gap-2 px-3 sm:px-4 py-3" style="border-bottom:1px solid var(--line);background:var(--panel2)">
+      <button class="iconbtn" style="width:32px;height:32px" :disabled="!store.history.length" @click="back" :aria-label="t.exp.back" :title="t.exp.back">←</button>
+      <div class="mono text-xs muted truncate min-w-0 flex-1">wiki/{{ folder }}{{ page.slug }}.md</div>
+      <button v-if="edited" class="btn btn-ghost btn-sm" @click="resetEdits">↶ {{ t.exp.revert }}</button>
+      <button class="btn btn-ghost btn-sm hidden sm:inline-flex" @click="openSearch">{{ t.exp.search }} <span class="kbd">{{ isMac ? '⌘K' : 'Ctrl K' }}</span></button>
+      <button class="btn btn-ghost btn-sm" :style="raw ? 'border-color:var(--sage);color:var(--sage)' : ''" @click="raw = !raw" :aria-pressed="raw">Markdown</button>
+      <button class="btn btn-ghost btn-sm hidden md:inline-flex" :style="focus ? 'border-color:var(--sage);color:var(--sage)' : ''" @click="focus = !focus" :aria-pressed="focus" :title="t.exp.focusTip">{{ t.exp.focus }}</button>
+    </div>
+    <div class="lib" :class="{ focus: focus }">
+      <aside v-if="!focus" class="aside-l p-3 min-w-0" style="border-right:1px solid var(--line)">
+        <div class="flex lg:block gap-1 scrollx pb-1">
+          <button v-for="k in typeKeys" :key="k" class="coll" :class="{ on: coll === k }" :style="{ '--c': typeColor(k) }" @click="coll = k">
+            <span class="dot" :style="{ '--c': typeColor(k) }"></span><span class="flex-1 whitespace-nowrap">{{ t.types[k][1] }}</span><span class="text-xs faint ml-2">{{ count(k) }}</span>
+          </button>
+        </div>
+        <div class="plist mt-3 pt-3 grid gap-0.5" style="border-top:1px solid var(--line);max-height:330px;overflow:auto">
+          <button v-for="p in collPages" :key="p.slug" :class="{ on: p.slug === page.slug }" @click="go(p.slug)" :title="p.title">{{ p.title }}</button>
+        </div>
+      </aside>
+
+      <article ref="art" class="relative min-w-0 p-5 sm:p-10" @mouseup="onSelect" @touchend="onSelect">
+        <div :class="focus ? 'mx-auto' : ''" :style="focus ? 'max-width:46rem' : ''" :key="page.slug + L" style="animation:slidein .35s ease both">
+          <div class="flex flex-wrap items-center gap-2">
+            <span class="chip chip-type" :style="{ '--c': typeColor(page.type) }">{{ t.types[page.type][0] }}</span>
+            <span v-if="area" class="chip">{{ area }}</span>
+            <span class="chip" :title="t.exp.confTip"><span class="dot" :style="{ '--c': page.confidence === 'high' ? 'var(--sage)' : page.confidence === 'medium' ? 'var(--gold)' : 'var(--rose)' }"></span>{{ t.exp.conf[page.confidence] }}</span>
+            <span v-if="page.lang" class="chip mono" :title="t.exp.langTip">{{ page.lang }}</span>
+          </div>
+          <h3 class="serif mt-4" style="font-size:clamp(1.7rem,3.4vw,2.4rem);font-weight:650;line-height:1.15;letter-spacing:-.015em">{{ page.title }}</h3>
+          <div v-if="page.aliases && page.aliases.length" class="mt-2 text-sm muted">{{ t.exp.also }} {{ page.aliases.join(', ') }}</div>
+          <div v-if="page.original_title" class="mt-1 text-sm muted">{{ t.exp.orig }} <i>{{ page.original_title }}</i></div>
+
+          <template v-if="!raw">
+            <div v-if="page.type === 'chapter'" class="mt-4 text-sm muted">{{ t.exp.chapterOf(page.chapter) }} <a class="wl" :style="{ '--c': typeColor('source') }" @click="go(page.book)">{{ title(page.book) }}</a> · {{ t.exp.pdfPages }} {{ page.pages }}</div>
+            <div v-if="page.type === 'source'" class="mt-6 grid gap-4">
+              <div class="callout" style="--c:var(--gold)"><div class="text-xs font-semibold uppercase tracking-wider faint">{{ t.exp.emphasis }}</div><div class="mt-1">{{ page.emphasis }}</div></div>
+              <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 text-sm">
+                <div class="card-soft p-3"><div class="text-[11px] faint">{{ t.exp.format }}</div><b>{{ t.exp.formats[page.format] }}</b></div>
+                <div class="card-soft p-3"><div class="text-[11px] faint">{{ t.exp.year }}</div><b>{{ page.year }}</b></div>
+                <div class="card-soft p-3"><div class="text-[11px] faint">{{ t.exp.depth }}</div><b>{{ t.exp.depthVal }}</b></div>
+                <div class="card-soft p-3"><div class="text-[11px] faint">{{ page.page_offset !== undefined ? t.exp.offset : t.exp.status }}</div><b>{{ page.page_offset !== undefined ? page.page_offset : t.exp.statusRead }}</b></div>
+              </div>
+              <div class="text-sm" style="padding-left:2em;text-indent:-2em"><span class="faint">APA 7: </span><span v-html="apa(page.apa)"></span></div>
+              <div class="mono text-xs faint truncate">raw_path: {{ page.raw }}</div>
+            </div>
+            <div class="md mt-4" v-html="html" @click="onClick"></div>
+            <div v-if="page.chapters" class="mt-2">
+              <div class="md"><h3>{{ t.exp.chaptersH }}</h3></div>
+              <div class="grid gap-2 sm:grid-cols-2">
+                <button v-for="c in page.chapters" :key="c" class="card-soft p-3 text-left" style="cursor:pointer;font:inherit;color:inherit" @click="go(c)">
+                  <div class="text-[11px] faint">{{ t.exp.chapterN(get(c).chapter) }} · {{ t.exp.pp }} {{ get(c).pages }}</div><div class="font-semibold text-sm">{{ get(c).title }}</div>
+                </button>
+              </div>
+              <p class="text-xs faint mt-2">{{ t.exp.chaptersShown(page.chapters.length, page.chapterTotal) }}</p>
+            </div>
+          </template>
+          <pre v-else class="yaml card-soft p-4 mt-6" v-html="rawHtml"></pre>
+
+          <div class="mt-10 pt-5 flex justify-between gap-3 text-sm" style="border-top:1px solid var(--line)">
+            <button class="btn btn-ghost btn-sm" style="white-space:normal;text-align:left" @click="step(-1)">← {{ neighbour(-1).title }}</button>
+            <button class="btn btn-ghost btn-sm" style="white-space:normal;text-align:right" @click="step(1)">{{ neighbour(1).title }} →</button>
+          </div>
+        </div>
+
+        <div v-if="bubble" class="bubble" :style="{ left: bubble.x + 'px', top: bubble.y + 'px' }" @mousedown.prevent @mouseup.stop @touchend.stop>
+          <button @click="act('ask')">{{ t.exp.bubble[0] }}</button>
+          <button @click="act('link')">{{ t.exp.bubble[1] }}</button>
+          <button @click="act('del')">{{ t.exp.bubble[2] }}</button>
+        </div>
+        <div v-if="panel" class="absolute z-40 card p-5" style="left:16px;right:16px;bottom:16px;max-width:520px;margin:0 auto;animation:pop .25s ease" @mouseup.stop @touchend.stop>
+          <div class="flex items-start justify-between gap-3">
+            <b>{{ t.exp.panel[panel.kind] }}</b>
+            <button class="iconbtn" style="width:28px;height:28px" @click="panel = null" :aria-label="t.common.close">✕</button>
+          </div>
+          <div class="mt-1 text-xs muted">{{ t.exp.selected }} {{ t.q[0] }}{{ short(panel.text) }}{{ t.q[1] }}</div>
+          <template v-if="panel.kind === 'ask'">
+            <p class="mt-3 text-sm">{{ t.exp.askText }}</p>
+            <div class="mt-3 callout text-sm">{{ t.exp.askExample(related.slice(0, 2).map(title)) }}</div>
+          </template>
+          <template v-else-if="panel.kind === 'link'">
+            <input class="inp mt-3" v-model="linkQ" :placeholder="t.exp.linkPh" ref="linkInp">
+            <div class="mt-2 grid gap-1" style="max-height:200px;overflow:auto">
+              <button v-for="p in linkHits" :key="p.slug" class="res" style="border-radius:10px;width:100%;text-align:left;background:none;border:0;font:inherit;color:inherit" @click="applyLink(p.slug)">
+                <span class="dot mt-2" :style="{ '--c': typeColor(p.type) }"></span><span><b class="text-sm">{{ p.title }}</b><span class="block text-xs faint">{{ t.types[p.type][0] }}</span></span>
+              </button>
+            </div>
+          </template>
+          <template v-else-if="panel.kind === 'del'">
+            <p class="mt-3 text-sm">{{ t.exp.delText }}</p>
+            <div v-if="panel.links.length" class="mt-2 text-xs muted">{{ t.exp.delLinks }} {{ panel.links.map(title).join(', ') }}</div>
+            <div class="mt-4 flex justify-end gap-2"><button class="btn btn-ghost btn-sm" @click="panel = null">{{ t.common.cancel }}</button><button class="btn btn-primary btn-sm" style="background:var(--rose)" :disabled="!!panel.err" @click="applyDelete">{{ t.exp.delBtn }}</button></div>
+          </template>
+          <p v-if="panel.err" class="mt-3 text-sm" style="color:var(--rose)">{{ panel.err }}</p>
+        </div>
+      </article>
+
+      <aside v-if="!focus" class="aside-r p-5 min-w-0" style="border-left:1px solid var(--line)">
+        <div class="text-xs font-semibold uppercase tracking-wider faint">{{ t.exp.backlinks }} · {{ backlinks.length }}</div>
+        <div class="mt-2 grid gap-1">
+          <a v-for="b in backlinks" :key="b" class="wl text-sm" :style="{ '--c': typeColor(get(b).type) }" @click="go(b)">{{ title(b) }}</a>
+          <span v-if="!backlinks.length" class="text-sm faint">{{ t.exp.none }}</span>
+        </div>
+        <div class="mt-6 text-xs font-semibold uppercase tracking-wider faint">{{ t.exp.outlinks }} · {{ related.length }}</div>
+        <div class="mt-2 flex flex-wrap gap-1.5">
+          <button v-for="r in related" :key="r" class="chip chip-type" style="cursor:pointer" :style="{ '--c': typeColor(get(r).type) }" @click="go(r)">{{ title(r) }}</button>
+        </div>
+        <div class="mt-6 text-xs font-semibold uppercase tracking-wider faint">{{ t.exp.tags }}</div>
+        <div class="mt-2 flex flex-wrap gap-1.5"><span v-for="g in page.tags" :key="g" class="chip">#{{ g }}</span></div>
+        <div class="mt-6 text-xs faint">{{ t.exp.demoNote }}</div>
+      </aside>
+    </div>
+  </div>
+</script>
+
+<script type="text/x-template" id="tpl-reader">
+  <div v-if="r">
+    <div class="modal-back" style="background:rgba(5,6,5,.45);place-items:stretch" @click="close"></div>
+    <aside class="drawer" role="dialog" aria-modal="true" :aria-label="t.reader.title">
+      <div class="flex items-center gap-3 px-5 py-4" style="border-bottom:1px solid var(--line)">
+        <div class="min-w-0 flex-1">
+          <div class="text-xs faint">{{ t.reader.title }} · {{ t.exp.formats[src.format] }}{{ rd.scan ? ' · ' + t.reader.ocr : '' }}</div>
+          <div class="font-bold truncate">{{ src.title }}</div>
+        </div>
+        <button class="iconbtn" @click="close" :aria-label="t.common.close">✕</button>
+      </div>
+      <div class="flex items-center justify-between gap-2 px-5 py-3 text-sm" style="border-bottom:1px solid var(--line)">
+        <button class="btn btn-ghost btn-sm" :disabled="!prev" @click="r.page = prev" :aria-label="t.reader.prev">←</button>
+        <div class="text-center">
+          <b>{{ rd.kind === 'epub' ? t.reader.section + ' ' + r.page : t.reader.pdf + ' ' + r.page }}</b>
+          <div v-if="rd.kind !== 'epub' && src.page_offset !== undefined" class="text-xs faint">{{ t.reader.printed }} {{ r.page - src.page_offset }} · page_offset: {{ src.page_offset }}</div>
+        </div>
+        <button class="btn btn-ghost btn-sm" :disabled="!next" @click="r.page = next" :aria-label="t.reader.next">→</button>
+      </div>
+      <div class="flex-1 overflow-y-auto p-5 sm:p-7" style="background:var(--bg2)">
+        <div class="paper" :class="{ scan: rd.scan }" :key="r.page + L">
+          <div class="text-[11px] mb-4" style="color:#9a907f;font-family:Inter,sans-serif;letter-spacing:.05em;text-transform:uppercase">{{ rd.head }}</div>
+          <p v-for="(x, i) in text" :key="i" style="margin:.7em 0"><span :class="{ hl: i === hlIndex }">{{ x }}</span></p>
+          <div class="mt-6 text-center text-xs" style="color:#9a907f">{{ rd.kind === 'epub' ? '§ ' + r.page : (src.page_offset !== undefined ? r.page - src.page_offset : r.page) }}</div>
+        </div>
+        <p class="mt-4 text-xs faint text-center">{{ t.reader.note }}</p>
+      </div>
+      <div class="px-5 py-3 flex gap-2" style="border-top:1px solid var(--line)">
+        <button class="btn btn-ghost btn-sm" @click="toSource">{{ t.reader.toSource }}</button>
+      </div>
+    </aside>
+  </div>
+</script>
+
+<script type="text/x-template" id="tpl-search">
+  <div v-if="store.search" class="palette" @click.self="close" role="dialog" aria-modal="true" :aria-label="t.search.label">
+    <div class="box card">
+      <div class="flex items-center gap-2 pl-4" style="border-bottom:1px solid var(--line)">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+        <input ref="inp" v-model="q" :placeholder="t.search.ph" @keydown.down.prevent="move(1)" @keydown.up.prevent="move(-1)" @keydown.enter.prevent="pick(hits[idx])" @keydown.esc="close" :aria-label="t.search.label">
+        <span class="kbd mr-3">Esc</span>
+      </div>
+      <div style="max-height:52vh;overflow:auto" class="py-2">
+        <div v-for="(h, i) in hits" :key="h.p.slug" class="res" :class="{ on: i === idx }" @mousemove="idx = i" @click="pick(h)">
+          <span class="dot mt-2" :style="{ '--c': typeColor(h.p.type) }"></span>
+          <div class="min-w-0">
+            <div class="font-semibold" v-html="mark(h.p.title)"></div>
+            <div class="text-xs muted truncate" v-html="h.snip"></div>
+          </div>
+          <span class="chip ml-auto" style="font-size:.68rem">{{ t.types[h.p.type][0] }}</span>
+        </div>
+        <div v-if="!hits.length" class="px-5 py-8 text-center muted text-sm">{{ t.search.none }}</div>
+      </div>
+      <div class="px-4 py-2 flex flex-wrap gap-x-4 gap-y-1 text-[11px] faint" style="border-top:1px solid var(--line)">
+        <span><span class="kbd">↑</span> <span class="kbd">↓</span> {{ t.search.choose }}</span><span><span class="kbd">Enter</span> {{ t.search.open }}</span><span class="ml-auto">{{ t.search.aliases }}</span>
+      </div>
+    </div>
+  </div>
+</script>
+
+<script type="text/x-template" id="tpl-learn">
+  <div class="grid gap-6 lg:grid-cols-[1fr_1.15fr]">
+    <div class="card p-6" style="border-radius:22px">
+      <label class="font-bold" for="lq">{{ t.learnUI.label }}</label>
+      <form class="mt-3 flex gap-2" @submit.prevent="ask(q)">
+        <input id="lq" class="inp" v-model="q" :placeholder="t.learnUI.ph">
+        <button class="btn btn-primary" :disabled="!q.trim() || busy">{{ t.learnUI.go }}</button>
+      </form>
+      <div class="mt-4 flex flex-wrap gap-2">
+        <button v-for="(p, i) in presets" :key="i" class="qchip" @click="q = p.q; ask(p.q)">{{ p.q }}</button>
+      </div>
+      <div class="mt-6 font-bold text-sm">{{ t.learnUI.level }}</div>
+      <div class="mt-2 grid grid-cols-2 sm:grid-cols-4 gap-2">
+        <button v-for="(l, i) in t.learnUI.levels" :key="i" class="mode text-center" :class="{ on: level === i }" @click="level = i">
+          <b class="text-sm">{{ l[0] }}</b><div class="text-[11px] muted">{{ l[1] }}</div>
+        </button>
+      </div>
+      <p class="mt-4 text-xs faint">{{ t.learnUI.levels[level][2] }}</p>
+      <div v-if="steps.length" class="mt-6">
+        <div class="flex justify-between text-sm"><span class="font-semibold">{{ t.learnUI.read }}</span><span class="muted">{{ t.learnUI.of(doneN, steps.length) }}</span></div>
+        <div class="mt-2 h-2 rounded-full overflow-hidden" style="background:var(--line)"><div class="h-full rounded-full" style="background:linear-gradient(90deg,var(--sage),var(--gold));transition:width .5s" :style="{ width: (steps.length ? doneN / steps.length * 100 : 0) + '%' }"></div></div>
+        <p v-if="doneN === steps.length" class="mt-3 text-sm" style="color:var(--sage);animation:pop .3s ease">{{ t.learnUI.finished }}</p>
+      </div>
+    </div>
+    <div class="card p-6 min-w-0" style="border-radius:22px;min-height:420px">
+      <div v-if="!steps.length && !busy" class="h-full grid place-items-center text-center muted">
+        <div><div class="serif text-2xl" style="color:var(--ink)">{{ t.learnUI.emptyT }}</div><p class="mt-2 text-sm">{{ t.learnUI.emptyP }}</p></div>
+      </div>
+      <div v-if="busy" class="grid gap-3">
+        <div class="text-sm muted flex items-center gap-2"><span class="live"></span>{{ level === 0 ? t.learnUI.busyLocal : t.learnUI.busyClaude(t.learnUI.levels[level][1]) }}</div>
+        <div v-for="i in 4" :key="i" class="h-14 rounded-xl" style="background:linear-gradient(90deg,var(--panel2),var(--line),var(--panel2));background-size:200% 100%;animation:shimmer2 1.2s linear infinite"></div>
+      </div>
+      <template v-if="steps.length && !busy">
+        <div v-if="answer" class="callout mb-6" style="--c:var(--sage)">
+          <div class="text-xs font-semibold uppercase tracking-wider faint">{{ t.learnUI.answer }} · {{ t.learnUI.levels[level][0] }} · {{ t.learnUI.levels[level][1] }}</div>
+          <div class="md mt-1" style="font-size:.95rem" v-html="answerShown" @click="onClick"></div>
+        </div>
+        <div class="text-xs font-semibold uppercase tracking-wider faint mb-4">{{ t.learnUI.pathH(steps.length, minutes) }}</div>
+        <div class="grid gap-3.5">
+          <div v-for="(s, i) in steps" :key="s.slug + i" class="pathstep" :style="{ animationDelay: (i * .08) + 's', '--c': typeColor(get(s.slug).type) }">
+            <button class="pnum" :class="{ done: done[i] }" @click="done[i] = !done[i]" :aria-label="t.learnUI.mark(i + 1)">{{ done[i] ? '✓' : i + 1 }}</button>
+            <div class="card-soft p-3.5 min-w-0">
+              <div class="flex items-center gap-2 flex-wrap"><span class="chip chip-type" :style="{ '--c': typeColor(get(s.slug).type) }">{{ t.types[get(s.slug).type][0] }}</span><span class="text-xs faint">≈ {{ s.min }} {{ t.learnUI.min }}</span></div>
+              <a class="wl font-semibold mt-1.5 inline-block" :style="{ '--c': typeColor(get(s.slug).type) }" @click="open(s.slug)">{{ get(s.slug).title }}</a>
+              <div class="text-sm muted mt-0.5">{{ s.why }}</div>
+            </div>
+          </div>
         </div>
       </template>
-      <p class="mt-6 max-w-3xl text-sm text-muted dark:text-night-muted">{{ c.tests.own }}</p>
-    </div></section>
+    </div>
+  </div>
+</script>
 
-    <!-- Поддръжка -->
-    <section id="maintenance" class="rule"><div class="sec">
-      <h2 class="h2x">{{ c.maint.title }}</h2>
-      <p class="lede">{{ c.maint.lede }}</p>
-      <div class="mt-10 grid grid-cols-1 gap-10 lg:grid-cols-2">
-        <div>
-          <h3 class="h3x">{{ c.maint.depsT }}</h3>
-          <p class="mt-2 text-sm text-muted dark:text-night-muted">{{ c.maint.depsNote }}</p>
-          <table class="mt-3 w-full text-left text-sm"><tbody>
-            <tr v-for="d in c.maint.deps" :key="d[0]" class="border-t border-line dark:border-night-line"><th scope="row" class="py-2 pr-4 align-top font-mono text-xs font-normal">{{ d[0] }}</th><td class="py-2 text-muted dark:text-night-muted">{{ d[1] }}</td></tr>
-          </tbody></table>
+<script type="text/x-template" id="tpl-write">
+  <div class="grid gap-6 lg:grid-cols-[340px_minmax(0,1fr)]">
+    <div class="card p-6 self-start" style="border-radius:22px">
+      <div class="font-bold">{{ t.writeUI.topic }}</div>
+      <div class="mt-3 grid gap-2">
+        <button v-for="(tp, i) in topics" :key="i" class="mode" :class="{ on: topic === i }" @click="topic = i">
+          <b class="text-sm">{{ tp.title }}</b><div class="text-xs muted">{{ tp.sub }}</div>
+        </button>
+      </div>
+      <div class="mt-5 font-bold">{{ t.writeUI.level }}</div>
+      <div class="mt-2 grid grid-cols-2 gap-2">
+        <button v-for="(l, i) in t.writeUI.levels" :key="i" class="mode text-center" :class="{ on: level === i }" @click="level = i">
+          <b class="text-sm">{{ l[0] }}</b><div class="text-[11px] muted">{{ l[1] }}</div>
+        </button>
+      </div>
+      <button class="btn btn-primary w-full mt-5" :disabled="busy" @click="run">{{ busy ? t.writeUI.busy : t.writeUI.go }}</button>
+      <p class="mt-3 text-xs faint">{{ level === 0 ? t.writeUI.noteLocal : t.writeUI.noteClaude }}</p>
+    </div>
+    <div class="min-w-0">
+      <div class="doc p-6 sm:p-10" style="min-height:520px">
+        <div v-if="!out.length && !busy" class="grid place-items-center text-center" style="min-height:440px;color:#8a8172">
+          <div><div style="font-size:1.5rem;color:#2a2620">{{ t.writeUI.emptyT }}</div><p class="mt-2" style="font-family:Inter,sans-serif;font-size:.9rem">{{ t.writeUI.emptyP }}</p></div>
         </div>
-        <div>
-          <template v-if="report && report.packages">
-            <h3 class="h3x">{{ c.maint.nowT }} ({{ report.date.slice(0, 10) }})</h3>
-            <p v-if="report.packages.audit" class="mt-2">{{ c.maint.audit(report.packages.audit) }}</p>
-            <p v-if="report.packages.outdated" class="mt-2">{{ c.maint.outdated(report.packages.outdated.length) }}</p>
-            <ul v-if="report.packages.outdated && report.packages.outdated.length" class="mt-2 space-y-1 text-sm text-muted dark:text-night-muted">
-              <li v-for="p in report.packages.outdated" :key="p.name"><span class="font-mono text-xs">{{ p.name }}</span>: {{ p.current }} → {{ p.latest }}</li>
-            </ul>
-          </template>
-          <h3 class="h3x mt-8">{{ c.maint.howT }}</h3>
-          <p class="mt-2">{{ c.maint.how }}</p>
-          <pre class="shell mt-3">npm outdated     # {{ c.maint.c1 }}
-npm audit        # {{ c.maint.c2 }}
-npm update       # {{ c.maint.c3 }}
-npm test         # {{ c.maint.c4 }}</pre>
+        <div v-else>
+          <div style="font-family:Inter,sans-serif;font-size:.72rem;letter-spacing:.08em;text-transform:uppercase;color:#9a907f">{{ t.writeUI.draft }} · drafts/{{ fileName }}</div>
+          <h3 style="font-size:clamp(1.4rem,2.6vw,2rem);font-weight:700;line-height:1.2;margin:.4em 0 .2em;color:#1d1a15">{{ docTitle }}</h3>
+          <div v-for="(b, i) in out" :key="i" :class="{ added: b.added, bib: b.bib }">
+            <h4 v-if="b.h">{{ b.h }}</h4>
+            <p v-for="(p, j) in b.ps" :key="j" v-html="p"></p>
+          </div>
+          <span v-if="busy" class="caret"></span>
+          <p v-if="!busy && level !== 0" style="font-family:Inter,sans-serif;font-size:.75rem;color:#8a8172;margin-top:1.5em">{{ t.writeUI.pagesNote }}</p>
         </div>
       </div>
-    </div></section>
+      <div v-if="out.length && !busy" class="mt-4 flex flex-wrap gap-2">
+        <button class="btn btn-ghost btn-sm" :disabled="continued || level === 0" @click="cont" :title="level === 0 ? t.writeUI.contNeed : ''">✦ {{ t.writeUI.cont }}</button>
+        <button v-if="continued" class="btn btn-ghost btn-sm" @click="uncont">{{ t.writeUI.uncont }}</button>
+        <button class="btn btn-ghost btn-sm" @click="copyText">{{ t.writeUI.copy }}</button>
+        <button class="btn btn-ghost btn-sm" @click="save">{{ t.writeUI.save }}</button>
+      </div>
+    </div>
+  </div>
+</script>
 
-    <!-- Автори -->
-    <section id="about" class="rule bg-sage-900 text-night-ink"><div class="sec">
-      <h2 class="font-serif text-3xl font-semibold tracking-tight sm:text-4xl">{{ c.about.title }}</h2>
-      <p class="mt-4 max-w-3xl text-lg">{{ c.about.main }}</p>
-      <p class="mt-4 max-w-3xl text-sage-100">{{ c.about.note }}</p>
-      <p class="mt-4 max-w-3xl text-sage-100">{{ c.about.license }} <a class="text-white decoration-sage-200" :href="repo">{{ repo.replace('https://', '') }}</a></p>
-    </div></section>
+<script type="text/x-template" id="tpl-privacy">
+  <div class="grid gap-6 lg:grid-cols-[300px_minmax(0,1fr)]">
+    <div class="card p-4 self-start" style="border-radius:20px">
+      <div class="text-xs font-semibold uppercase tracking-wider faint px-2 pt-1">{{ t.priv.action }}</div>
+      <div class="mt-2 grid gap-1">
+        <button v-for="(a, i) in t.priv.actions" :key="i" class="coll" :class="{ on: sel === i }" :style="{ '--c': zoneColor(ACT_TO[i]) }" @click="pick(i)">
+          <span class="dot" :style="{ '--c': zoneColor(ACT_TO[i]) }"></span><span class="flex-1">{{ a[0] }}</span>
+        </button>
+      </div>
+    </div>
+    <div class="min-w-0">
+      <div ref="stage" class="relative grid gap-4 md:grid-cols-3">
+        <div v-for="(z, zi) in ZONES" :key="z.k" :ref="'z' + z.k" class="zone" :class="{ hit: hit === z.k }" :style="{ '--c': z.c }">
+          <div class="grid place-items-center rounded-xl" style="width:44px;height:44px" :style="{ background: 'color-mix(in srgb,' + z.c + ' 16%,transparent)', color: z.c }">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" v-html="z.icon"></svg>
+          </div>
+          <div class="font-bold mt-3">{{ t.priv.zones[zi][0] }}</div>
+          <p class="text-sm muted mt-1">{{ t.priv.zones[zi][1] }}</p>
+        </div>
+        <span v-if="packet" class="packet" :key="packet.id" :style="packet.style"></span>
+      </div>
+      <div class="card p-5 mt-4" :key="sel + L" style="animation:slidein .35s ease both;border-radius:18px">
+        <div class="flex items-center gap-2"><span class="dot" :style="{ '--c': zoneColor(ACT_TO[sel]) }"></span><b>{{ t.priv.actions[sel][0] }}</b><span class="chip ml-auto" :style="{ color: zoneColor(ACT_TO[sel]) }">{{ t.priv.zones[ZONES.findIndex(z => z.k === ACT_TO[sel])][0] }}</span></div>
+        <p class="mt-2 text-sm">{{ t.priv.actions[sel][1] }}</p>
+      </div>
+      <p class="mt-4 text-sm muted" v-html="t.priv.note"></p>
+    </div>
+  </div>
+</script>
 
-    <!-- Източници -->
-    <section class="rule"><div class="sec !py-10">
-      <h2 class="h3x">{{ c.refs.title }}</h2>
-      <ul class="mt-3 space-y-2 text-sm text-muted dark:text-night-muted">
-        <li v-for="r in c.refs.items" :key="r[2]" class="pl-6 -indent-6">{{ r[0] }} <i>{{ r[1] }}</i>{{ r[3] }} <a :href="r[2]" class="break-all">{{ r[2] }}</a></li>
-      </ul>
-    </div></section>
-  </main>
-</div>
-<script src="vendor/vue.js"></script>
+<script type="text/x-template" id="tpl-terminal">
+  <div class="term" style="box-shadow:var(--shadow)">
+    <div class="term-bar"><i></i><i></i><i></i>
+      <div class="ml-3 flex gap-1 scrollx">
+        <button v-for="(c, i) in cmds" :key="c.c" @click="pick(i)" class="mono text-[11px] px-2 py-1 rounded-md whitespace-nowrap" :style="{ background: sel === i ? '#262b24' : 'transparent', color: sel === i ? '#ece7dd' : '#7b766d', border: 0, cursor: 'pointer' }">{{ c.c }}</button>
+      </div>
+    </div>
+    <div class="p-4" style="min-height:330px">
+      <div><span class="ok">~/llm-wiki $</span> {{ typed }}<span v-if="phase === 0" class="caret"></span></div>
+      <div v-for="(l, i) in lines" :key="sel + '-' + i" class="logline" :class="l[0]">{{ l[1] }}</div>
+      <div v-if="phase === 2"><span class="ok">~/llm-wiki $</span> <span class="caret"></span></div>
+    </div>
+  </div>
+</script>
+
+<script type="text/x-template" id="tpl-dupes">
+  <div class="grid gap-6 sm:grid-cols-[1fr_1.1fr] items-center">
+    <div class="relative" style="height:150px">
+      <div v-for="(d, i) in t.feat.dupes.items" :key="i" class="absolute card-soft px-4 py-2.5 text-sm font-semibold flex items-center gap-2" :style="pos(i)" style="transition:all .9s cubic-bezier(.6,.05,.2,1)">
+        <span class="dot" style="--c:var(--t-entity)"></span>{{ merged && i === 0 ? t.feat.dupes.merged : d[0] }}<span class="text-[11px] faint font-normal">{{ d[1] }}</span>
+      </div>
+      <div v-if="merged" class="absolute left-0 right-0 text-center text-xs muted" style="bottom:0;animation:fade .6s .6s both">{{ t.feat.dupes.aliases }}</div>
+    </div>
+    <div>
+      <h3 style="margin-top:0">{{ t.feat.dupes.title }}</h3>
+      <p>{{ t.feat.dupes.text }}</p>
+      <button class="btn btn-ghost btn-sm mt-4" @click="merged = !merged">{{ merged ? t.feat.dupes.again : t.feat.dupes.btn }}</button>
+    </div>
+  </div>
+</script>
+
+<script type="text/x-template" id="tpl-undo">
+  <div>
+    <div class="flex items-center gap-1.5">
+      <template v-for="(c, i) in t.feat.undo.points" :key="i">
+        <span class="rounded-full grid place-items-center text-[10px] font-bold" style="width:22px;height:22px;transition:all .4s" :style="{ background: i < at ? 'var(--sage2)' : 'var(--line)', color: i < at ? '#fff' : 'var(--faint)', transform: i === at - 1 ? 'scale(1.2)' : 'none' }">{{ i + 1 }}</span>
+        <span v-if="i < t.feat.undo.points.length - 1" class="flex-1 h-0.5 rounded" :style="{ background: i < at - 1 ? 'var(--sage)' : 'var(--line)' }" style="transition:background .4s"></span>
+      </template>
+    </div>
+    <div class="mt-2 text-xs muted" style="min-height:1.2em">{{ at ? t.feat.undo.points[at - 1] : t.feat.undo.start }}</div>
+    <div class="mt-2 flex gap-2"><button class="btn btn-ghost btn-sm" :disabled="!at" @click="at--">↶ {{ t.sim.undo }}</button><button class="btn btn-ghost btn-sm" :disabled="at >= t.feat.undo.points.length" @click="at++">{{ t.feat.undo.fwd }}</button></div>
+    <h3>{{ t.feat.undo.title }}</h3>
+    <p>{{ t.feat.undo.text }}</p>
+  </div>
+</script>
+
+<script type="text/x-template" id="tpl-tour">
+  <div class="tour">
+    <div v-if="open" class="tour-panel card p-5">
+      <div class="flex items-center justify-between"><b>{{ t.tour.title }}</b><span class="text-xs muted">{{ n }} / {{ keys.length }}</span></div>
+      <div class="mt-2 h-1.5 rounded-full overflow-hidden" style="background:var(--line)"><div class="h-full" style="background:linear-gradient(90deg,var(--sage),var(--gold));transition:width .5s" :style="{ width: n / keys.length * 100 + '%' }"></div></div>
+      <div class="mt-4 grid gap-2.5">
+        <a v-for="(it, i) in keys" :key="it[0]" :href="it[1]" class="flex items-center gap-3 text-sm" style="text-decoration:none" @click="go(it, $event)">
+          <span class="check" :class="{ on: store.tour[it[0]] }">{{ store.tour[it[0]] ? '✓' : '' }}</span>
+          <span :style="store.tour[it[0]] ? 'color:var(--muted);text-decoration:line-through' : ''">{{ t.tour.items[i] }}</span>
+        </a>
+      </div>
+      <div v-if="n === keys.length" class="mt-4 callout text-sm">{{ t.tour.done }} <a href="https://github.com/cecosd/llm-wiki" style="color:var(--sage);font-weight:600">GitHub</a></div>
+    </div>
+    <button class="tour-btn" @click="open = !open" :aria-expanded="open">
+      <svg width="30" height="30" viewBox="0 0 36 36" aria-hidden="true"><circle cx="18" cy="18" r="15" fill="none" stroke="var(--line)" stroke-width="4"/><circle cx="18" cy="18" r="15" fill="none" stroke="var(--sage)" stroke-width="4" stroke-linecap="round" :stroke-dasharray="94.2" :stroke-dashoffset="94.2 - 94.2 * n / keys.length" transform="rotate(-90 18 18)" style="transition:stroke-dashoffset .6s"/></svg>
+      <span class="hidden sm:inline">{{ n === keys.length ? t.tour.finished : t.tour.btn(n, keys.length) }}</span><span class="sm:hidden">{{ n }}/{{ keys.length }}</span>
+    </button>
+    <canvas v-if="boom" ref="cv" class="confetti"></canvas>
+  </div>
+</script>
+<style>@keyframes shimmer2 { to { background-position: -200% 0; } }</style>
+
+<script type="text/x-template" id="tpl-pagetools">
+  <div class="card overflow-hidden pt" :class="{ focus: focus }" style="border-radius:24px" ref="box">
+    <aside v-if="!focus" class="pt-rail p-3 sm:p-4">
+      <div class="flex items-center justify-between gap-2 px-1">
+        <span class="text-xs font-semibold uppercase tracking-wider faint">{{ P.toolsH }}</span>
+        <span class="text-xs muted">{{ P.tried(triedN, P.tools.length) }}</span>
+      </div>
+      <div class="mt-2 pt-tools">
+        <button v-for="x in P.tools" :key="x[0]" type="button" class="pt-tool" :class="{ on: tool === x[0] }" :aria-pressed="tool === x[0]" @click="demoTool(x[0])">
+          <span class="pt-ico" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" v-html="ICO[x[0]]"></svg></span>
+          <span class="min-w-0 flex-1"><b>{{ x[1] }}</b><span v-if="tool === x[0]" class="pt-desc">{{ x[2] }}</span></span>
+          <span class="check" :class="{ on: tried[x[0]] }" style="width:18px;height:18px;font-size:.65rem">{{ tried[x[0]] ? '✓' : '' }}</span>
+        </button>
+      </div>
+    </aside>
+
+    <article class="pt-page relative min-w-0" ref="art" @mouseup="onSelect" @touchend="onSelect">
+      <div class="flex items-center gap-2 px-3 sm:px-4 py-3" style="border-bottom:1px solid var(--line);background:var(--panel2)">
+        <div class="mono text-xs muted truncate min-w-0 flex-1">{{ P.file }}</div>
+        <button v-if="st.hist.length" type="button" class="btn btn-ghost btn-sm" @click="undo" :title="P.undoTip">↶ {{ P.undo }}</button>
+        <button type="button" class="btn btn-ghost btn-sm hidden sm:inline-flex" :class="{ glow: pulse === 'focus' }" :style="focus ? 'border-color:var(--sage);color:var(--sage)' : ''" :aria-pressed="focus" @click="toggleFocus">{{ focus ? P.focusOff : P.focus }}</button>
+        <button type="button" class="btn btn-primary btn-sm" :class="{ glow: pulse === 'ask' && !ai.open }" @click="openAi('ask')">✦ <span class="hidden sm:inline">{{ P.askBtn }}</span></button>
+      </div>
+
+      <div class="p-5 sm:p-8" :style="focus ? 'max-width:46rem;margin:0 auto' : ''">
+        <div class="flex flex-wrap items-center gap-2">
+          <span class="chip chip-type" style="--c:var(--t-concept)">{{ t.types.concept[0] }}</span>
+          <span class="chip">{{ P.area }}</span>
+          <span class="chip"><span class="dot" style="--c:var(--sage)"></span>{{ P.conf }}</span>
+        </div>
+        <div class="mt-4">
+          <input v-if="renaming" ref="titleInp" v-model="titleDraft" class="pt-title pt-title-inp" :aria-label="P.renameTip" @keydown.enter.prevent="saveRename" @keydown.esc.stop.prevent="renaming = false" @blur="renaming = false">
+          <h3 v-else class="pt-title" :class="{ glow: pulse === 'rename' }" :title="P.renameTip" @dblclick="startRename" @click="pulse === 'rename' && startRename()">{{ st.title }}</h3>
+          <p v-if="renaming" class="mt-2 text-xs muted">{{ P.renameHelp }}</p>
+        </div>
+        <div class="mt-2 text-sm muted">{{ P.also }} {{ st.aliases.join(', ') }}</div>
+        <div class="mt-1 text-sm muted">{{ P.tagsL }} <span v-for="g in st.tags" :key="g" class="mr-1.5">#{{ g }}</span></div>
+        <div class="md mt-4" @click="onClick" ref="body">
+          <div v-for="b in st.blocks" :key="b.id" :data-bid="b.id" :class="{ 'pt-flash': flash === b.id }" v-html="render(b.md)"></div>
+        </div>
+        <p class="mt-6 text-xs faint">{{ P.ai.demo }}</p>
+      </div>
+
+      <div v-if="bubble" class="bubble pt-bubble" :style="{ left: bubble.x + 'px', top: bubble.y + 'px' }" role="toolbar" @mousedown.prevent @mouseup.stop @touchend.stop>
+        <button v-for="(lbl, i) in P.bubble" :key="i" type="button" :class="{ glow: pulse === BTN[i], pri: i === 4 }" :title="P.bubbleTips[i]" @click="act(BTN[i])">{{ lbl }}</button>
+      </div>
+
+      <transition name="slide">
+        <aside v-if="ai.open" class="pt-ai" :aria-label="P.ai.title" @mouseup.stop @touchend.stop>
+          <header class="flex items-center gap-2 px-4 py-3" style="border-bottom:1px solid var(--line)">
+            <span class="grid place-items-center rounded-xl" style="width:30px;height:30px;background:color-mix(in srgb,var(--sage) 16%,transparent);color:var(--sage)">✦</span>
+            <div class="min-w-0 flex-1"><b class="text-sm block leading-tight">{{ P.ai.title }}</b><span class="text-xs muted truncate block">{{ st.title }}</span></div>
+            <button type="button" class="iconbtn" style="width:30px;height:30px" @click="closeAi" :aria-label="t.common.close">✕</button>
+          </header>
+          <div class="pt-ai-body px-4 py-4 grid gap-4" ref="aiBody">
+            <div v-if="ai.sel" class="callout" style="--c:var(--sage)">
+              <div class="flex items-center gap-2"><span class="text-xs font-semibold" style="color:var(--sage)">{{ P.ai.sel }}</span><span class="flex-1"></span><button type="button" class="text-xs muted underline" @click="ai.sel = ''; ai.bid = null; ai.intent = 'ask'">{{ P.ai.remove }}</button></div>
+              <p class="mt-1 serif text-sm italic line-clamp-4">{{ t.q[0] }}{{ ai.sel }}{{ t.q[1] }}</p>
+            </div>
+            <div>
+              <div class="flex flex-wrap gap-1.5 mb-2">
+                <button v-for="(q, i) in (ai.intent === 'edit' ? [P.ai.presetEdit] : P.ai.presets)" :key="i" type="button" class="qchip" style="font-size:.78rem;padding:.3rem .7rem" :disabled="ai.busy" @click="ai.q = q">{{ q }}</button>
+              </div>
+              <textarea v-model="ai.q" rows="3" class="inp" :disabled="ai.busy" :placeholder="ai.sel ? (ai.intent === 'edit' ? P.ai.phEdit : P.ai.phSel) : P.ai.ph" @keydown.ctrl.enter.prevent="submit" @keydown.meta.enter.prevent="submit"></textarea>
+              <div class="mt-2 flex flex-wrap items-center gap-1.5" role="radiogroup">
+                <button v-for="(l, i) in P.ai.levels" :key="i" type="button" role="radio" class="chip" :aria-checked="ai.level === i" :style="ai.level === i ? 'border-color:var(--sage);color:var(--sage)' : ''" @click="ai.level = i">{{ l[0] }}</button>
+                <span class="flex-1"></span>
+                <button v-if="ai.intent !== 'edit'" type="button" class="btn btn-ghost btn-sm" :class="{ glow: pulse === 'askgo' }" :disabled="ai.busy || ai.q.trim().length < 3" @click="ask">? {{ P.ai.ask }}</button>
+                <button v-if="!ai.sel" type="button" class="btn btn-ghost btn-sm" :class="{ glow: pulse === 'outline' }" :disabled="ai.busy" :title="P.ai.outlineTip" @click="outline">☰ {{ P.ai.outline }}</button>
+                <button v-if="ai.sel" type="button" class="btn btn-primary btn-sm" :class="{ glow: pulse === 'propose' }" :disabled="ai.busy || ai.q.trim().length < 3" @click="propose">✎ {{ P.ai.propose }}</button>
+              </div>
+            </div>
+
+            <div v-if="ai.busy" class="card-soft p-4 text-center text-sm">
+              <span class="spin"></span>
+              <p class="mt-2">{{ ai.kind === 'outline' ? P.ai.busyOutline(P.ai.levels[ai.level][1], ai.waited) : P.ai.busy(P.ai.levels[ai.level][1], ai.waited) }}</p>
+              <button type="button" class="btn btn-ghost btn-sm mt-3" @click="cancelAi">✕ {{ P.ai.cancel }}</button>
+            </div>
+
+            <section v-if="ai.answer && !ai.busy">
+              <span class="eyebrow">{{ ai.kind === 'outline' ? P.ai.outlineH : P.ai.answer }}</span>
+              <p v-if="ai.kind === 'outline'" class="mt-1 text-xs muted">{{ P.ai.outlineNote }}</p>
+              <div class="md pt-answer mt-2" v-html="render(ai.answer)" @click="onClick"></div>
+              <div class="mt-3 flex flex-wrap gap-2">
+                <button v-if="!ai.prop && !ai.applied && replaceable" type="button" class="btn btn-primary btn-sm" :title="P.ai.replaceTip" @click="makeProp('replace')">✎ {{ ai.bid !== null ? P.ai.replaceSel : P.ai.replace }}</button>
+                <button v-if="!ai.prop && !ai.applied && ai.kind !== 'outline'" type="button" class="btn btn-ghost btn-sm" @click="makeProp('improve')">✎ {{ P.ai.improve }}</button>
+                <button type="button" class="btn btn-ghost btn-sm" :disabled="ai.saved" @click="saveQ">{{ ai.saved ? '✓ ' + P.ai.saved : P.ai.save }}</button>
+                <button type="button" class="btn btn-ghost btn-sm" @click="copyAns">{{ P.ai.copy }}</button>
+              </div>
+              <p v-if="!ai.prop && !ai.applied && ai.kind !== 'outline'" class="mt-2 text-xs muted">{{ P.ai.improveNote }}</p>
+            </section>
+
+            <section v-if="ai.prop && !ai.busy" class="card-soft p-3">
+              <span class="eyebrow">{{ P.ai.propH }}</span>
+              <p v-if="ai.prop.summary" class="mt-2 text-sm">{{ ai.prop.summary }}</p>
+              <div v-for="(e, i) in ai.prop.edits" :key="i" class="mt-3 grid gap-1.5 text-sm">
+                <div class="pt-before"><div class="pt-lbl" style="color:var(--rose)">{{ P.ai.before }}</div><p class="serif">{{ e.before }}</p></div>
+                <div class="pt-after"><div class="pt-lbl" style="color:var(--sage)">{{ P.ai.after }}</div><p class="serif">{{ e.after }}</p></div>
+              </div>
+              <div v-if="ai.prop.append" class="mt-3 pt-after text-sm"><div class="pt-lbl" style="color:var(--sage)">{{ P.ai.newSec(ai.prop.append[0]) }}</div><p class="serif">{{ plainOf(ai.prop.append[1]) }}</p></div>
+              <div class="mt-3 grid gap-1 text-xs muted">
+                <b style="color:var(--ink)">{{ P.ai.find }}</b>
+                <span>{{ P.ai.aliases }}: {{ P.meta.aliases.join(', ') }}</span>
+                <span>{{ P.ai.tags }}: {{ P.meta.tags.map(x => '#' + x).join(' ') }}</span>
+                <span>{{ P.ai.indexLine }}: {{ P.meta.indexLine }}</span>
+              </div>
+              <div class="mt-4 flex flex-wrap gap-2">
+                <button type="button" class="btn btn-primary btn-sm" :class="{ glow: pulse === 'apply' }" @click="applyProp">✓ {{ P.ai.apply }}</button>
+                <button type="button" class="btn btn-ghost btn-sm" @click="ai.prop = null">{{ P.ai.reject }}</button>
+              </div>
+            </section>
+
+            <section v-if="ai.applied" class="callout text-sm" style="--c:var(--sage)">
+              <b style="color:var(--sage)">✓ {{ P.ai.applied }}</b>
+              <p class="mt-1 text-xs muted">{{ P.ai.appliedBits }}.</p>
+              <button v-if="st.hist.length" type="button" class="btn btn-ghost btn-sm mt-3" @click="undo">↶ {{ P.undo }}</button>
+            </section>
+          </div>
+          <footer class="px-4 py-2 text-[11px] leading-snug muted" style="border-top:1px solid var(--line)">{{ P.ai.foot }}</footer>
+        </aside>
+      </transition>
+    </article>
+
+    <div v-if="man.open" class="modal-back" @click.self="man.open = false" @keydown.esc="man.open = false">
+      <div class="modal card p-5" role="dialog" aria-modal="true" :aria-label="P.man.title" style="width:min(640px,100%)">
+        <b>{{ P.man.title }}</b>
+        <p class="mt-1 text-xs muted">{{ P.man.help }}</p>
+        <textarea ref="manInp" v-model="man.md" rows="7" class="inp mono mt-3" style="font-size:.8rem;line-height:1.6" @keydown.ctrl.enter.prevent="saveManual" @keydown.meta.enter.prevent="saveManual"></textarea>
+        <p v-if="man.err" class="mt-2 text-sm" style="color:var(--rose)">{{ man.err }}</p>
+        <div class="mt-4 flex flex-wrap items-center justify-end gap-2">
+          <span class="mr-auto text-xs muted">{{ P.man.keys }}</span>
+          <button type="button" class="btn btn-ghost btn-sm" @click="man.open = false">{{ P.man.cancel }}</button>
+          <button type="button" class="btn btn-primary btn-sm" :disabled="man.md === man.before || !man.md.trim()" @click="saveManual">✓ {{ P.man.save }}</button>
+        </div>
+      </div>
+    </div>
+
+    <div v-if="del.open" class="modal-back" @click.self="del.open = false" @keydown.esc="del.open = false">
+      <div class="modal card p-5" role="dialog" aria-modal="true" :aria-label="P.del.title">
+        <b>{{ P.del.title }}</b>
+        <p class="mt-1 text-xs muted">{{ P.del.help }}</p>
+        <p class="mt-3 callout serif text-sm italic" style="--c:var(--rose)">{{ del.text }}</p>
+        <p class="mt-3 text-sm"><span class="muted">{{ del.links.length ? P.del.links : P.del.none }}</span> <b>{{ del.links.join(', ') }}</b></p>
+        <div class="mt-4 flex justify-end gap-2">
+          <button type="button" class="btn btn-ghost btn-sm" ref="delCancel" @click="del.open = false">{{ t.common.cancel }}</button>
+          <button type="button" class="btn btn-primary btn-sm" style="background:var(--rose)" @click="applyDel">{{ P.del.btn }}</button>
+        </div>
+      </div>
+    </div>
+
+    <div v-if="lk.open" class="modal-back" @click.self="lk.open = false" @keydown.esc="lk.open = false">
+      <div class="modal card p-5" role="dialog" aria-modal="true" :aria-label="P.lk.title">
+        <b>{{ P.lk.title }}</b>
+        <p class="mt-1 text-xs muted">{{ P.lk.help }}</p>
+        <p class="mt-3 callout serif text-sm italic">{{ t.q[0] }}{{ lk.text }}{{ t.q[1] }}</p>
+        <input ref="lkInp" v-model="lk.q" type="search" class="inp mt-3" :placeholder="P.lk.ph">
+        <div class="mt-2" style="max-height:240px;overflow:auto">
+          <button v-for="(p, i) in lkHits" :key="p.slug" type="button" class="res w-full text-left" :class="{ glow: pulse === 'pick' && p.slug === P.linkTo }" style="border-radius:10px" @click="applyLink(p.slug)">
+            <span class="dot mt-1.5" :style="{ '--c': typeColor(p.type) }"></span><span class="flex-1 min-w-0 truncate text-sm">{{ p.title }}</span><span class="text-xs faint">{{ t.types[p.type][0] }}</span>
+          </button>
+          <p v-if="!lkHits.length" class="py-4 text-center text-sm muted">{{ P.lk.none(lk.q) }}</p>
+        </div>
+        <p v-if="lk.err" class="mt-2 text-sm" style="color:var(--rose)">{{ lk.err }}</p>
+        <div class="mt-3 flex justify-end"><button type="button" class="btn btn-ghost btn-sm" @click="lk.open = false">{{ t.common.cancel }}</button></div>
+      </div>
+    </div>
+  </div>
+</script>
+
+<script type="text/x-template" id="tpl-settings">
+  <div class="card overflow-hidden" style="border-radius:24px" ref="box">
+    <div class="setx">
+      <nav class="setx-tabs p-3" role="tablist" :aria-label="t.nav.items.find(n => n[0] === 'settings')[1]">
+        <button v-for="tb in S.tabs" :key="tb[0]" type="button" role="tab" :aria-selected="tab === tb[0]" class="coll" :class="{ on: tab === tb[0] }" style="--c:var(--sage)" @click="setTab(tb[0])">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" v-html="ICO[tb[0]]" aria-hidden="true"></svg>
+          <span class="flex-1 whitespace-nowrap">{{ tb[1] }}</span><span v-if="seen[tb[0]]" class="text-xs" style="color:var(--sage)">✓</span>
+        </button>
+      </nav>
+
+      <div class="relative min-w-0 p-5 sm:p-8" :key="tab + L" style="animation:slidein .35s ease both">
+        <!-- Парола -->
+        <template v-if="tab === 'pwd'">
+          <h3 class="setx-h">{{ S.pwd.h }}</h3>
+          <p class="mt-2 muted text-sm" style="max-width:40rem">{{ S.pwd.p }}</p>
+          <div class="mt-5 card-soft p-4 flex items-center gap-3"><span class="dot" :style="{ '--c': pw.set ? 'var(--sage)' : 'var(--faint)' }"></span><b class="text-sm">{{ pw.set ? S.pwd.on : S.pwd.off }}</b></div>
+          <div v-if="!pw.set" class="mt-3 flex flex-col sm:flex-row gap-2">
+            <input v-model="pw.next" type="password" class="inp flex-1" autocomplete="new-password" :placeholder="S.pwd.newPh" @keydown.enter="setPwd">
+            <button type="button" class="btn btn-primary btn-sm" @click="setPwd">{{ S.pwd.set }}</button>
+          </div>
+          <div v-else class="mt-3 grid gap-2">
+            <div><button type="button" class="btn btn-primary btn-sm" @click="lockNow">🔒 {{ S.pwd.lock }}</button></div>
+            <div class="flex flex-col sm:flex-row gap-2">
+              <input v-model="pw.cur" type="password" class="inp flex-1" autocomplete="current-password" :placeholder="S.pwd.curPh" @keydown.enter="removePwd">
+              <button type="button" class="btn btn-ghost btn-sm" @click="removePwd">{{ S.pwd.remove }}</button>
+            </div>
+          </div>
+          <p v-if="pw.msg" class="mt-2 text-sm" :style="{ color: pw.bad ? 'var(--rose)' : 'var(--sage)' }">{{ pw.msg }}</p>
+          <div class="mt-6 text-xs font-semibold uppercase tracking-wider faint">{{ S.pwd.factsH }}</div>
+          <ul class="mt-2 grid gap-2 text-sm"><li v-for="f in S.pwd.facts" :key="f" class="flex gap-2"><span style="color:var(--sage)">✓</span><span>{{ f }}</span></li></ul>
+          <p class="mt-4 text-xs faint">{{ S.pwd.demo }}</p>
+
+          <div v-if="login.open" class="setx-login" @keydown.esc="login.open = false">
+            <div class="setx-browser">
+              <div class="flex items-center gap-1.5 px-3 py-2" style="border-bottom:1px solid var(--line);background:var(--panel2)"><span class="dot" style="--c:#e48a98"></span><span class="dot" style="--c:#e7c47c"></span><span class="dot" style="--c:#6fb39d"></span><span class="mono text-xs muted ml-2 truncate">localhost:4321/login</span></div>
+              <form class="p-6" @submit.prevent="tryLogin">
+                <b class="block" style="font-size:1.2rem">{{ S.pwd.login.h }}</b>
+                <p v-if="login.msg" class="mt-3 text-sm" :style="{ color: login.ok ? 'var(--sage)' : 'var(--clay)' }">{{ login.msg }}</p>
+                <input ref="loginInp" v-model="login.pw" type="password" class="inp mt-3" autocomplete="off" :placeholder="S.pwd.login.ph" :disabled="login.ok">
+                <button type="submit" class="btn btn-primary btn-sm w-full mt-3" :disabled="login.ok">{{ S.pwd.login.btn }}</button>
+                <p v-if="login.wait" class="mt-3 text-xs faint">{{ S.pwd.login.wait(login.wait) }}</p>
+                <p v-else-if="login.fails" class="mt-3 text-xs faint">{{ S.pwd.login.count(login.fails, 5) }}</p>
+              </form>
+            </div>
+            <p class="mt-3 text-xs muted text-center">{{ S.pwd.login.note }}</p>
+            <div class="mt-2 text-center"><button type="button" class="btn btn-ghost btn-sm" @click="closeLogin">{{ S.pwd.login.close }}</button></div>
+          </div>
+        </template>
+
+        <!-- Архив -->
+        <template v-else-if="tab === 'archive'">
+          <h3 class="setx-h">{{ S.arc.h }}</h3>
+          <p class="mt-2 muted text-sm" style="max-width:42rem">{{ S.arc.p }}</p>
+          <div class="mt-5 grid gap-5 lg:grid-cols-[1fr_1.1fr]">
+            <div>
+              <div class="text-xs font-semibold uppercase tracking-wider faint">{{ S.arc.whyH }}</div>
+              <ul class="mt-2 grid gap-2 text-sm"><li v-for="w in S.arc.why" :key="w" class="flex gap-2"><span style="color:var(--sage)">✓</span><span>{{ w }}</span></li></ul>
+              <button type="button" class="btn btn-primary btn-sm mt-5" :disabled="arc.busy" @click="makeArchive">{{ S.arc.btn }}</button>
+              <div v-if="arc.busy || arc.done" class="mt-4 grid gap-1.5 text-sm">
+                <div v-for="(s, i) in S.arc.steps" :key="i" class="flex items-center gap-2" :style="{ opacity: i <= arc.step ? 1 : .35 }">
+                  <span v-if="i < arc.step || arc.done" style="color:var(--sage)">✓</span><span v-else-if="i === arc.step" class="spin" style="width:12px;height:12px"></span><span v-else class="faint">·</span>{{ s }}
+                </div>
+              </div>
+              <div v-if="arc.done" class="mt-4 callout text-sm" style="--c:var(--sage)">
+                <b>{{ S.arc.ready(nPages, mb) }}</b>
+                <div class="mt-2"><button type="button" class="btn btn-ghost btn-sm" @click="toast(S.arc.dlToast)">⤓ {{ S.arc.dl(arc.name) }}</button></div>
+              </div>
+              <div class="mt-5 text-xs font-semibold uppercase tracking-wider faint">{{ S.arc.earlier }}</div>
+              <div v-if="arc.list.length" class="mt-2 grid gap-1.5">
+                <div v-for="(a, i) in arc.list" :key="a" class="flex items-center gap-2 text-xs"><span class="mono truncate flex-1">{{ a }}</span><button type="button" class="btn btn-ghost btn-sm" style="padding:.2rem .6rem" @click="delArchive(i)">{{ S.arc.del }}</button></div>
+              </div>
+              <p v-else class="mt-2 text-sm muted">{{ S.arc.none }}</p>
+            </div>
+            <div class="setx-zip">
+              <div class="flex items-center gap-2 mono text-xs"><span style="color:var(--gold)">▣</span><b class="truncate">{{ arc.name }}</b></div>
+              <div class="mt-3 text-[11px] font-semibold uppercase tracking-wider faint">{{ S.arc.insideH }}</div>
+              <div v-for="x in S.arc.inside" :key="x[0]" class="setx-row"><span class="mono" style="color:var(--sage)">├ {{ x[0] }}</span><span class="muted">{{ x[1] }}</span></div>
+              <div class="mt-3 text-[11px] font-semibold uppercase tracking-wider faint">{{ S.arc.outH }}</div>
+              <div v-for="x in S.arc.out" :key="x[0]" class="setx-row"><span class="mono" style="color:var(--rose);text-decoration:line-through">{{ x[0] }}</span><span class="muted">{{ x[1] }}</span></div>
+              <p class="mt-3 text-xs muted">{{ S.arc.open }}</p>
+            </div>
+          </div>
+          <p class="mt-5 callout text-sm" style="--c:var(--gold)">{{ S.arc.full }}</p>
+        </template>
+
+        <!-- Инсталация -->
+        <template v-else-if="tab === 'setup'">
+          <h3 class="setx-h">{{ S.setup.h }}</h3>
+          <p class="mt-2 muted text-sm" style="max-width:42rem">{{ S.setup.p }}</p>
+          <div class="mt-5 grid gap-2">
+            <div v-for="(it, i) in S.setup.items" :key="i" class="card-soft px-4 py-3 flex items-start gap-3">
+              <span v-if="chk.at <= i && chk.busy" class="spin mt-0.5" style="width:16px;height:16px"></span>
+              <span v-else class="check on mt-0.5" :style="i === 5 ? 'background:var(--gold);border-color:var(--gold)' : ''" style="width:20px;height:20px;font-size:.7rem">{{ i === 5 ? '!' : '✓' }}</span>
+              <div class="min-w-0 flex-1"><b class="text-sm">{{ it[0] }}</b> <span v-if="i === 5" class="chip" style="font-size:.66rem">{{ S.setup.optional }}</span><div class="text-xs muted mt-0.5">{{ it[1] }}</div></div>
+            </div>
+          </div>
+          <div class="mt-4 flex flex-wrap items-center gap-2">
+            <button type="button" class="btn btn-ghost btn-sm" :disabled="chk.busy" @click="recheck">↻ {{ S.setup.again }}</button>
+            <span v-if="!chk.busy" class="text-sm" style="color:var(--sage)">{{ S.setup.allOk }}</span>
+          </div>
+          <div class="mt-6 card-soft p-4">
+            <div class="flex flex-wrap items-center gap-3"><button type="button" class="btn btn-primary btn-sm" :disabled="conn.busy" @click="testConn">{{ S.setup.test }}</button><span v-if="conn.busy" class="spin" style="width:14px;height:14px"></span><span v-if="conn.ok" class="text-sm" style="color:var(--sage)">✓ {{ S.setup.testOk(conn.s) }}</span></div>
+            <p class="mt-2 text-xs muted">{{ S.setup.testNote }}</p>
+          </div>
+          <p class="mt-4 text-xs faint">{{ S.setup.cli }}</p>
+        </template>
+
+        <!-- Обновления -->
+        <template v-else-if="tab === 'updates'">
+          <h3 class="setx-h">{{ S.upd.verH }}</h3>
+          <p class="mt-2 text-sm">{{ S.upd.installed(TESTS.version) }}</p>
+          <div class="mt-3 flex flex-wrap items-center gap-3"><button type="button" class="btn btn-ghost btn-sm" :disabled="ver.busy" @click="checkVer">{{ S.upd.check }}</button><span v-if="ver.busy" class="spin" style="width:14px;height:14px"></span><span v-if="ver.done" class="text-sm" style="color:var(--sage)">✓ {{ S.upd.latest(TESTS.version) }}</span></div>
+          <p class="mt-2 text-xs muted">{{ S.upd.checkNote }}</p>
+          <p class="mt-4 text-sm muted">{{ S.upd.howH }}</p>
+          <div class="mt-2 flex items-center gap-2 rounded-xl px-3 py-2" style="background:var(--panel2);border:1px solid var(--line)"><code class="mono text-xs flex-1 min-w-0" style="word-break:break-all">{{ S.upd.cmd }}</code><button type="button" class="btn btn-ghost btn-sm" style="padding:.25rem .6rem" @click="copy(S.upd.cmd)">{{ S.upd.copy }}</button></div>
+
+          <h3 class="setx-h mt-8">{{ S.upd.pkgH }}</h3>
+          <p class="mt-2 muted text-sm" style="max-width:42rem">{{ S.upd.pkgP }}</p>
+          <div class="mt-3 flex flex-wrap items-center gap-3"><button type="button" class="btn btn-primary btn-sm" :disabled="pkg.busy" @click="checkPkg">{{ S.upd.pkgBtn }}</button><span v-if="pkg.busy" class="mono text-xs muted"><span class="spin" style="width:12px;height:12px"></span> npm outdated · npm audit</span></div>
+          <p class="mt-2 text-xs muted">{{ S.upd.pkgNote }}</p>
+          <div v-if="pkg.done" class="mt-4 grid gap-4" style="animation:slidein .35s ease both">
+            <div>
+              <div class="text-xs font-semibold uppercase tracking-wider faint">{{ S.upd.newH }}</div>
+              <div class="scrollx mt-2"><table class="setx-table"><thead><tr><th v-for="c in S.upd.cols" :key="c">{{ c }}</th></tr></thead>
+                <tbody><tr v-for="p in TESTS.outdated" :key="p.name"><td class="mono">{{ p.name }}</td><td class="mono">{{ p.current }}</td><td class="mono">{{ p.wanted }}</td><td class="mono">{{ p.latest }} <span v-if="p.major" class="chip" style="color:var(--gold);font-size:.66rem">{{ S.upd.major }}</span></td></tr></tbody></table></div>
+              <p class="mt-2 text-xs muted">{{ S.upd.why }}</p>
+            </div>
+            <div><div class="text-xs font-semibold uppercase tracking-wider faint">{{ S.upd.auditH }}</div><p class="mt-1 text-sm" style="color:var(--sage)">✓ {{ S.upd.auditOk }}</p></div>
+          </div>
+        </template>
+
+        <!-- Тестове -->
+        <template v-else>
+          <h3 class="setx-h">{{ S.tests.h }}</h3>
+          <p class="mt-2 muted text-sm" style="max-width:42rem">{{ S.tests.p }}</p>
+          <div class="mt-4 flex flex-wrap items-center gap-3">
+            <button type="button" class="btn btn-primary btn-sm" :class="{ glow: pulseTests }" :disabled="run.busy" @click="runTests">▶ {{ S.tests.run }}</button>
+            <span v-if="run.busy" class="text-sm muted">{{ S.tests.running(run.n, TESTS.tests.length) }}</span>
+          </div>
+          <p class="mt-2 text-xs muted">{{ S.tests.note }}</p>
+          <div v-if="run.busy" class="mt-3"><div class="h-1.5 rounded-full overflow-hidden" style="background:var(--line)"><div class="h-full" style="background:var(--sage);transition:width .1s" :style="{ width: run.n / TESTS.tests.length * 100 + '%' }"></div></div><p class="mt-2 text-xs mono muted truncate">✓ {{ curTest }}</p></div>
+          <div v-else class="mt-5" style="animation:slidein .35s ease both">
+            <div class="flex flex-wrap items-baseline gap-x-3 gap-y-1"><b class="text-sm">{{ run.done ? S.tests.local : S.tests.release }}</b><span class="text-xs muted">{{ S.tests.meta(TESTS.version, dateStr) }}</span></div>
+            <div class="mt-3 flex flex-wrap gap-2">
+              <span class="chip" style="color:var(--sage)">✓ {{ S.tests.sum[0](TESTS.summary.pass) }}</span>
+              <span class="chip">✕ {{ S.tests.sum[1](TESTS.summary.fail) }}</span>
+              <span class="chip" style="color:var(--gold)">◐ {{ S.tests.sum[2](TESTS.summary.known) }}</span>
+              <span class="chip">○ {{ S.tests.sum[3](TESTS.summary.notCovered) }}</span>
+            </div>
+            <div class="mt-4 grid gap-2">
+              <details v-for="g in groups" :key="g.id" class="setx-group" :open="g.id === 'security'">
+                <summary><span class="flex-1">{{ g.name }}</span><span class="mono text-xs" :style="{ color: g.known ? 'var(--gold)' : 'var(--sage)' }">{{ g.pass }}/{{ g.items.length }}</span></summary>
+                <ul class="grid gap-1.5 px-4 pb-3 text-sm">
+                  <li v-for="(x, i) in g.items" :key="i" class="flex gap-2"><span :style="{ color: x[1] === 'pass' ? 'var(--sage)' : 'var(--gold)' }">{{ x[1] === 'pass' ? '✓' : '◐' }}</span><span>{{ x[L === 'bg' ? 2 : 3] }}<template v-if="x[1] === 'known'"> <span class="chip" style="color:var(--gold);font-size:.66rem">{{ S.tests.known }}</span><span class="block text-xs muted mt-1">{{ S.tests.knownWhy }}</span></template></span></li>
+                </ul>
+              </details>
+            </div>
+            <div class="mt-5 text-xs font-semibold uppercase tracking-wider faint">{{ S.tests.ncH }}</div>
+            <ul class="mt-2 grid gap-2 text-sm"><li v-for="(x, i) in TESTS.notCovered" :key="i" class="flex gap-2"><span class="faint">○</span><span>{{ x[L === 'bg' ? 0 : 1] }}<span class="block text-xs muted">{{ x[L === 'bg' ? 2 : 3] }}</span></span></li></ul>
+            <p class="mt-4 text-xs faint mono">{{ S.tests.cmd }}</p>
+          </div>
+        </template>
+      </div>
+    </div>
+  </div>
+</script>
+
 <script src="landing.js"></script>
+<script src="vendor/vue.js"></script>
+<script src="app.js"></script>
 </body>
 </html>

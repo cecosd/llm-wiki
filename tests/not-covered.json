@@ -33,5 +33,10 @@
     "en": "Your Anthropic privacy setting and Anthropic’s handling of the data",
     "bg": "Настройката ви за поверителност при Anthropic и начинът, по който Anthropic обработва данните",
     "why": { "en": "This is outside the application and cannot be read or verified from it.", "bg": "Това е извън приложението и не може да се прочете или провери от него." }
+  },
+  {
+    "en": "Isolation (npm run serve:safe) on macOS and Windows without WSL",
+    "bg": "Изолацията (npm run serve:safe) в macOS и Windows без WSL",
+    "why": { "en": "It uses bubblewrap, which exists only on Linux. There the packages of the program run with all your rights.", "bg": "Ползва bubblewrap, който го има само в Linux. Там пакетите на програмата работят с всичките ви права." }
   }
 ]

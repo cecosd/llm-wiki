@@ -235,6 +235,8 @@ The sections are: Overview, Topics, Concepts, People and organizations, Sources 
 | `npm run lint` | Mechanical lint, writes `outputs/lint-mech-YYYY-MM-DD.md` |
 | `npm run lint:quick` | Only broken links, in the console |
 | `npm run serve` | Interface at http://localhost:4321: upload, sorting, browsing, graph. Refreshes itself while you write in wiki/ |
+| `npm run serve:safe` | The same in isolation (Linux and WSL, needs `bubblewrap`): the code and its packages see only the project folder and write only to the data. See SECURITY.md |
+| `npm run sandbox:check` | Checks the isolation from inside: what can and cannot be seen |
 | `npm run new -- <type> <slug>` | New page from a template |
 | `npm run content -- <bg\|en>` | Installs the language pack of this file, the skills, the agent, the templates and the starter pages, and sets the content language |
 | `npm run i18n:check` | Checks the interface translations in `locales/` (a new language = a new JSON file, see README and PROJECT-HISTORY.md, section 11) |

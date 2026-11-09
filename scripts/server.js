@@ -20,7 +20,8 @@ import { versionInfo, checkCode, checkPackages, latestResults, runTests, testsBu
 import { authEnabled, isLocked, verifyPassword, setPassword, clearPassword, validPassword, hasSession, startSession, endSession, MIN_PASSWORD } from './auth.js';
 import { areaMap, areaKey, listAreas, setArea, renameArea, proposeClassification, applyAssignments, scopeFilter } from './areas.js';
 import { $t, pickLang, runWithLang, locales, messagesFor, hasLocale, contentLang } from './i18n.js';
-import { packs, installPack } from './content-pack.js';
+import { packs, installPack, canWrite } from './content-pack.js';
+import { askOutside } from './sandbox-ipc.js';
 import { P, lazy, pageUnits } from './vocab.js';
 import { SPECIAL, snapshot, summary, plain, excerpt, AREAS, pagesList, pageDetail, searchHits, contentStats, graphData } from './pages-data.js';
 import { NM, VENDOR } from './vendor.js';
@@ -34,8 +35,11 @@ const app = express();
 
 // --- Защита: само localhost (срещу DNS rebinding) и заявки от самата страница ---
 // Домейнът, под който библиотеката се отваря локално (записан в hosts файла на Windows). Сменя се с WIKI_HOST.
-const WIKI_HOST = String(process.env.WIKI_HOST || 'my.wiki').toLowerCase();
-const ALLOWED_HOSTS = new Set([`localhost:${PORT}`, `127.0.0.1:${PORT}`, `[::1]:${PORT}`, WIKI_HOST, `${WIKI_HOST}:${PORT}`]);
+// .wiki е истински домейн от първо ниво: без запис в hosts my.wiki води към чужд сървър, който чрез DNS rebinding
+// би могъл да чете библиотеката. Затова името се приема само ако е зададено изрично или инсталаторът го е записал
+// в hosts (тогава съществува .wiki-launch).
+const WIKI_HOST = String(process.env.WIKI_HOST || (fs.existsSync(path.join(ROOT, '.wiki-launch')) ? 'my.wiki' : '')).toLowerCase();
+const ALLOWED_HOSTS = new Set([`localhost:${PORT}`, `127.0.0.1:${PORT}`, `[::1]:${PORT}`, ...(WIKI_HOST ? [WIKI_HOST, `${WIKI_HOST}:${PORT}`] : [])]);
 app.use((req, res, next) => runWithLang(pickLang(req), next)); // езикът на заявката важи за всички $t() под нея
 app.disable('x-powered-by');
 // Втора защита след пречистването на HTML: вграден код и чужди адреси не работят.
@@ -660,13 +664,21 @@ app.use('/api/agent', express.json({ limit: '64kb' }));
 // Смяна на езика: интерфейсът следва бисквитката, а езикът на съдържанието (CLAUDE.md, скилове, шаблони, промптове)
 // се сменя тук, за да са на един език. Без пакет за този език се ползва английският.
 app.use('/api/lang', express.json({ limit: '1kb' }));
-app.post('/api/lang', (req, res) => {
+app.post('/api/lang', async (req, res) => {
   const code = String(req.body?.code || '');
   if (!hasLocale(code)) return res.status(400).json({ error: $t('Unknown language.') });
   // Докато Claude работи, езикът не се сменя (CLAUDE.md и шаблоните се четат при всяко задание): отказваме с причина
   if (agent.isBusy()) return res.json({ ok: false, error: $t('Wait for the processing to finish.') });
   const pack = packs().includes(code) ? code : 'en';
-  res.json({ ok: true, content: installPack(pack).ok ? pack : null });
+  let inst = installPack(pack);
+  if (inst.readOnly && process.env.LIB_SANDBOX_IPC) {
+    // В изолацията CLAUDE.md, .claude/ и scripts/ са само за четене: тях ги копира стартерът отвън (sandbox.js),
+    // и то само от пакетите в content/. Сървърът довършва това, което може да пише сам (шаблоните и contentLang).
+    const outside = await askOutside('content-lang', { code: pack });
+    inst = outside?.ok ? installPack(pack, { only: canWrite }) : { ok: false, readOnly: true };
+  }
+  if (inst.readOnly) return res.json({ ok: false, error: $t('In isolation the content language cannot be changed. Stop the library and run: npm run content -- {0}', [pack]) });
+  res.json({ ok: true, content: inst.ok ? pack : null });
 });
 app.use('/api/estimate', express.json({ limit: '64kb' }));
 // Оценка на токени и цена преди действие с Claude (нищо не се праща към Claude)
@@ -859,5 +871,7 @@ app.use('/product', express.static(path.join(ROOT, 'docs'))); // страниц�
 app.use(express.static(path.join(ROOT, 'scripts', 'viewer')));
 
 app.listen(PORT, '127.0.0.1', () => {
-  console.log(`\n  📚 ${$t('The library is open at http://localhost:{0} (and at http://{1}, if it is set in hosts)', [PORT, WIKI_HOST])}\n     ${$t('Ctrl+C to stop')}\n`);
+  const where = WIKI_HOST ? $t('The library is open at http://localhost:{0} (and at http://{1}, if it is set in hosts)', [PORT, WIKI_HOST]) : $t('The library is open at http://localhost:{0}', [PORT]);
+  const sandbox = process.env.LIB_SANDBOX === '1' ? $t('Isolation: on (the program sees only the project folder)') : $t('Isolation: off (start with npm run serve:safe to turn it on)');
+  console.log(`\n  📚 ${where}\n     ${sandbox}\n     ${$t('Ctrl+C to stop')}\n`);
 });

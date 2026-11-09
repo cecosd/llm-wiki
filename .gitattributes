@@ -1,0 +1,2 @@
+# Shell scripts must keep Linux line endings, or bash refuses them (install.sh did).
+*.sh text eol=lf

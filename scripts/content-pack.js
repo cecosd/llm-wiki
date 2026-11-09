@@ -4,11 +4,16 @@
 //   CLAUDE.md, .claude/skills/*/SKILL.md, .claude/agents/*.md, wiki/_templates/*, scripts/starter/*
 // и записва `contentLang` в library.config.json (така промптовете знаят на какъв език да пише Claude).
 // Страниците, които вече са в wiki/, не се пипат. Нов език: копирай content/en/ като content/<код>/ и го преведи.
+// Ползва САМО вградените модули на Node (без lib.js): така стартерът на изолацията (sandbox.js) го вика извън
+// клетката, без да зарежда нито един пакет.
 import fs from 'node:fs';
 import path from 'node:path';
-import { ROOT } from './lib.js';
+import { fileURLToPath } from 'node:url';
 
+const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const CONTENT = path.join(ROOT, 'content');
+const CLAUDE = path.join(ROOT, 'CLAUDE.md');
+const CONFIG = path.join(ROOT, 'library.config.json');
 export const packs = () => fs.existsSync(CONTENT) ? fs.readdirSync(CONTENT).filter((d) => fs.statSync(path.join(CONTENT, d)).isDirectory()) : [];
 
 /** [откъде, накъде] за всеки файл на пакета */
@@ -25,26 +30,41 @@ function plan(code) {
   return out;
 }
 
+/** Може ли да се пише тук: самият файл, ако го има, иначе най-близката съществуваща папка над него. */
+export function canWrite(p) {
+  let cur = p;
+  while (!fs.existsSync(cur)) { const up = path.dirname(cur); if (up === cur) return false; cur = up; }
+  try { fs.accessSync(cur, fs.constants.W_OK); return true; } catch { return false; }
+}
 
-/** Инсталира пакета content/<код>/ и записва contentLang. Връща { ok, files, backedUp } или { ok: false }. */
-export function installPack(code) {
+/**
+ * Инсталира пакета content/<код>/ и записва contentLang. Връща { ok, files, backedUp }, { ok: false } при непознат
+ * пакет или { ok: false, readOnly: true }, ако някое място е само за четене (тогава нищо не е пипнато).
+ * В изолацията CLAUDE.md, .claude/ и scripts/ са само за четене, за да не може пробит пакет да ги подмени. Тогава
+ * стартерът отвън (sandbox.js) копира тях (only, config: false), а сървърът вътре останалото (only: canWrite).
+ */
+export function installPack(code, { only = () => true, config = true } = {}) {
   if (!packs().includes(code)) return { ok: false };
+  const steps = plan(code).filter(([, to]) => only(to));
+  const backup = only(CLAUDE) && fs.existsSync(CLAUDE);
+  const targets = [...steps.map(([, to]) => to), ...(backup ? [CLAUDE + '.bak'] : []), ...(config ? [CONFIG] : [])];
+  if (targets.some((t) => !canWrite(t))) return { ok: false, readOnly: true };
   let backedUp = false;
-  const claude = path.join(ROOT, 'CLAUDE.md');
-  if (fs.existsSync(claude)) {
-    const cur = fs.readFileSync(claude, 'utf8');
+  if (backup) {
+    const cur = fs.readFileSync(CLAUDE, 'utf8');
     const same = packs().some((p) => { const f = path.join(CONTENT, p, 'CLAUDE.md'); return fs.existsSync(f) && fs.readFileSync(f, 'utf8') === cur; });
-    if (!same) { fs.copyFileSync(claude, claude + '.bak'); backedUp = true; } // редактиран на ръка: пазим копие
+    if (!same) { fs.copyFileSync(CLAUDE, CLAUDE + '.bak'); backedUp = true; } // редактиран на ръка: пазим копие
   }
   let files = 0;
-  for (const [from, to] of plan(code)) {
+  for (const [from, to] of steps) {
     fs.mkdirSync(path.dirname(to), { recursive: true });
     fs.copyFileSync(from, to); files++;
   }
-  const cfgFile = path.join(ROOT, 'library.config.json');
-  let cfg = {};
-  try { cfg = JSON.parse(fs.readFileSync(cfgFile, 'utf8')); } catch { /* още няма настройки */ }
-  cfg.contentLang = code;
-  fs.writeFileSync(cfgFile, JSON.stringify(cfg, null, 2) + '\n');
+  if (config) {
+    let cfg = {};
+    try { cfg = JSON.parse(fs.readFileSync(CONFIG, 'utf8')); } catch { /* още няма настройки */ }
+    cfg.contentLang = code;
+    fs.writeFileSync(CONFIG, JSON.stringify(cfg, null, 2) + '\n');
+  }
   return { ok: true, files, backedUp };
 }

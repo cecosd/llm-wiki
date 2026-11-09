@@ -180,8 +180,10 @@ function safeUrl(value, isImage) {
   // Браузърът пренебрегва контролни и невидими знаци в адреса, затова и проверката не бива да ги вижда.
   const v = [...String(value)].filter((c) => { const n = c.codePointAt(0); return n > 32 && !(n >= 127 && n <= 160) && !(n >= 8203 && n <= 8207) && n !== 8232 && n !== 8233 && n !== 65279; }).join('');
   const scheme = v.match(/^([a-z][a-z0-9+.-]*):/i)?.[1]?.toLowerCase();
-  if (!scheme) return !v.startsWith('\\');
-  if (isImage) return scheme === 'https' || scheme === 'http' || /^data:image\/(png|jpe?g|gif|webp);/i.test(v);
+  // Картинка от чужд адрес се зарежда сама, без щракване, и може да изнесе данни в адреса си. В приложението CSP я
+  // спира, но архивът за четене се отваря от диска без CSP, затова тук остават само вградени и локални картинки.
+  if (!scheme) return !v.startsWith('\\') && !(isImage && v.startsWith('//'));
+  if (isImage) return /^data:image\/(png|jpe?g|gif|webp);/i.test(v);
   return scheme === 'https' || scheme === 'http' || scheme === 'mailto';
 }
 

@@ -23,6 +23,8 @@
     "lint:quick": "node scripts/lint.js --quick",
     "new": "node scripts/new.js",
     "serve": "node scripts/server.js",
+    "serve:safe": "node scripts/sandbox.js",
+    "sandbox:check": "node scripts/sandbox.js --check",
     "launch": "bash scripts/launch/wsl-start.sh",
     "launch:install": "bash scripts/launch/install-windows.sh",
     "remove": "node scripts/remove.js",

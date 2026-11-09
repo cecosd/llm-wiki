@@ -7,6 +7,7 @@
 //  - Преди всяка обработка се прави git точка; „Върни“ възстановява wiki/ отпреди нея.
 //  - Един файл наведнъж; при изчерпан лимит опашката спира и чака.
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import { spawn, spawnSync } from 'node:child_process';
 import { ROOT, WIKI, OUTPUTS, EXTRACTED, RAW, rel, walk, wikiPages, ingestState, normRaw, extractLinks } from './lib.js';
@@ -104,12 +105,22 @@ function git(args) {
   return { ok: r.status === 0, out: (r.stdout || '').trim(), err: (r.stderr || '').trim() };
 }
 
+// Настройките на куката са в лична временна папка (само за този потребител), а не в outputs/: там Claude може да пише
+// и, ако Claude Code препрочете настройките по време на работа, подведен Claude би могъл да махне куката.
+let guardDir = null;
+function privateGuardDir() {
+  if (guardDir && fs.existsSync(guardDir)) return guardDir;
+  guardDir = fs.mkdtempSync(path.join(os.tmpdir(), 'llm-wiki-guard-')); // 0700, ново име всеки път
+  process.once('exit', () => { try { fs.rmSync(guardDir, { recursive: true, force: true }); } catch {} });
+  return guardDir;
+}
+
 /**
- * Аргументите за сигурност на всяко пускане на Claude. Настройките се записват наново всеки път, така че страница,
- * подведена от документ, да не може да ги промени за следващото пускане (Claude може да пише в outputs/).
+ * Аргументите за сигурност на всяко пускане на Claude. Настройките се записват наново всеки път, извън папките,
+ * в които Claude има право да пише (wiki/ и outputs/).
  */
 export function guardArgs() {
-  const file = path.join(ROOT, 'outputs', '.claude-guard.json');
+  const file = path.join(privateGuardDir(), 'claude-guard.json');
   const slash = (p) => p.split(path.sep).join('/');
   const command = `"${slash(process.execPath)}" "${slash(path.join(ROOT, 'scripts', 'guard-read.js'))}"`;
   writeJSON(file, { hooks: { PreToolUse: [{ matcher: 'Read|Grep|Glob', hooks: [{ type: 'command', command }] }] } });

@@ -141,7 +141,24 @@ const HANDLERS = {
   '.json': (f) => '```json\n' + fs.readFileSync(f, 'utf8').slice(0, 200_000) + '\n```',
 };
 
-const files = only.length ? only.map((p) => path.resolve(ROOT, p)) : rawFiles();
+// Само файлове вътре в raw/ (без .extracted). Claude може да пуска `npm run extract <път>`, затова път извън raw/
+// би копирал чужд файл в библиотеката, където Claude може да го прочете. Сравнява се текстът на пътя, както в
+// guard-read.js: подпапки на raw/ може да са връзки към друг диск, а Claude не може да създава връзки.
+const RAW_DIR = path.join(ROOT, 'raw');
+function insideRaw(p) {
+  const full = path.resolve(ROOT, p);
+  const r = path.relative(RAW_DIR, full);
+  if (!r || r === '..' || r.startsWith('..' + path.sep) || path.isAbsolute(r) || r.split(path.sep)[0] === '.extracted') return null;
+  return full;
+}
+const refused = [];
+const files = only.length
+  ? only.map((p) => { const f = insideRaw(path.resolve(ROOT, p)); if (!f) refused.push(p); return f; }).filter(Boolean)
+  : rawFiles();
+if (refused.length) {
+  console.error($t('✖ Only files inside raw/ can be extracted. Refused:\n  {0}', [refused.join('\n  ')]));
+  process.exitCode = 1;
+}
 let done = 0, skipped = 0, unsupported = [], empty = [], failed = [];
 
 for (const file of files) {
