@@ -25,7 +25,12 @@ export const TIER_OF = { haiku: 'light', sonnet: 'medium', opus: 'strong' };
 
 /** Грешка от модела или от стъпка: kind като в llm.js (auth, limit, model, offline, format, cancelled…) */
 export class AiError extends Error {
-  constructor(r) { super(String(r?.error || r?.kind || 'error')); this.kind = r?.kind || 'error'; this.detail = String(r?.detail || ''); this.status = r?.status || null; this.minutes = r?.minutes || null; }
+  constructor(r) {
+    super(String(r?.error || r?.kind || 'error'));
+    this.kind = r?.kind || 'error'; this.detail = String(r?.detail || ''); this.status = r?.status || null; this.minutes = r?.minutes || null;
+    // Името на модела и времето до следващия опит влизат в съобщението (errorText) и в паузата на опашката
+    this.error = String(r?.error || ''); this.model = r?.model || null; this.retryAfter = r?.retryAfter || 0;
+  }
 }
 
 // ---------- Помощни ----------
@@ -177,6 +182,11 @@ async function askJson(ctx, opts, ok = (j) => j && typeof j === 'object' && !Arr
   });
   j = parseJsonLoose(fixed);
   if (ok(j)) return j;
+  // Краен случай: отговорът е отрязан на лимита за изход. Остават завършените части, вместо цялата обработка да спре.
+  for (const t of [fixed, text]) {
+    const s = parseJsonLoose(t, { salvage: true });
+    if (ok(s)) { ctx.step({ icon: 'alert', text: $t('The answer was cut off at the output limit: only its complete part is used'), warn: true }); return s; }
+  }
   throw new AiError({ kind: 'format', detail: String(text).slice(0, 500) });
 }
 

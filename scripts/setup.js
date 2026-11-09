@@ -6,7 +6,7 @@ import { spawnSync } from 'node:child_process';
 import { ROOT, RAW, WIKI } from './lib.js';
 import { $t, contentLang } from './i18n.js';
 import { findClaude, askClaude } from './agent.js';
-import { aiConfig, readiness } from './providers.js';
+import { aiConfig, readiness, TIERS } from './providers.js';
 import { complete, errorText } from './llm.js';
 
 const IS_WIN = process.platform === 'win32';
@@ -139,7 +139,15 @@ export async function testAI() {
     return r.ok ? { ok: true, model: cfg.models.light } : { ok: false, kind: r.kind, error: r.error, detail: r.detail };
   }
   if (!readiness(cfg).ok) return { ok: false, kind: 'not-ready', error: errorText({ kind: 'not-ready' }, cfg) };
-  const r = await complete({ tier: 'light', prompt: 'Reply with the single word: ok', maxTokens: 300, timeoutMs: 120000, cfg });
-  return r.ok ? { ok: true, model: cfg.models.light, answer: String(r.text).trim().slice(0, 80) } : { ok: false, kind: r.kind, error: errorText(r, cfg), detail: String(r.error || '').slice(0, 300) };
+  // Всеки различен модел от трите нива: иначе модел за реч на „мощното“ ниво се вижда чак при обработка в режим „Най-добър“
+  const done = []; let answer = '';
+  for (const tier of TIERS) {
+    const model = cfg.models[tier];
+    if (!model || done.includes(model)) continue;
+    const r = await complete({ tier, prompt: 'Reply with the single word: ok', maxTokens: 300, timeoutMs: 120000, cfg });
+    if (!r.ok) return { ok: false, kind: r.kind, model, error: errorText({ ...r, model }, cfg), detail: String(r.error || '').slice(0, 300) };
+    done.push(model); answer = answer || String(r.text).trim().slice(0, 80);
+  }
+  return { ok: true, model: done.join(', '), answer };
 }
 export const testClaude = testAI; // старото име

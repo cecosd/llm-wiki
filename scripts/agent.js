@@ -425,8 +425,8 @@ export function createAgent({ broadcast }) {
       .catch((e) => {
         if (job.cancelled || e.kind === 'cancelled') return finish(job, { status: 'cancelled', message: $t('Stopped by you.') });
         if (e.kind === 'limit') return finish(job, { status: 'limited', message: errorText(e, cfg) + ' ' + $t('The queue is waiting.'), detail: e.message });
-        // Дневният лимит се нулира в полунощ тихоокеанско време: опашката чака дотогава, не опитва на всеки 30 минути
-        if (e.kind === 'daily') return finish(job, { status: 'limited', message: errorText(e, cfg) + ' ' + $t('The queue is waiting.'), detail: e.message, retryMs: msToPacificMidnight() + 120000 });
+        // Дневен лимит: опашката чака колкото казва доставчикът (Groq), иначе до полунощ тихоокеанско време (Google)
+        if (e.kind === 'daily') return finish(job, { status: 'limited', message: errorText(e, cfg) + ' ' + $t('The queue is waiting.'), detail: e.message, retryMs: e.retryAfter ? e.retryAfter * 1000 + 60000 : msToPacificMidnight() + 120000 });
         if (!e.kind) return finish(job, { status: 'error', message: $t('The processing stopped with an error.'), detail: String(e.stack || e).slice(0, 2000) });
         finish(job, { status: 'error', message: errorText(e, cfg), detail: String(e.detail || e.message || '').slice(0, 2000) });
       });

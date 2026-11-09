@@ -20,6 +20,8 @@ const $t = (s) => s;
 export const CONFIG_FILE = path.join(ROOT, 'library.config.json');
 export const SECRETS_FILE = path.join(ROOT, '.library-secrets.json');
 export const TIERS = ['light', 'medium', 'strong'];
+/** Модели, които не пишат текст: реч, звук, изображения, вграждания (embeddings), проверки за безопасност */
+export const NOT_TEXT = /whisper|orpheus|playai|tts|speech|transcri|audio|realtime|embed|rerank|moderation|guard|dall-e|gpt-image|imagen|-image|veo-|lyria|sora|\baqa\b|-ocr|computer-use|gemini-live/i;
 
 // Цени на Anthropic (USD за милион токена), както в estimate.js. Останалите доставчици: въвеждат се в Настройки.
 const CLAUDE_TIERS = { light: 'haiku', medium: 'sonnet', strong: 'opus' };
@@ -72,10 +74,15 @@ export const PRESETS = [
     baseUrl: 'https://generativelanguage.googleapis.com/v1beta/openai', models: { light: 'gemini-3.5-flash-lite', medium: 'gemini-3.8-flash', strong: 'gemini-4-argon' }, context: 1000000,
     prices: { light: { in: 0.30, out: 2.50 }, medium: { in: 1.50, out: 7.50 }, strong: { in: 4.00, out: 20.00 } },
     keyUrl: 'https://aistudio.google.com/apikey', docs: 'https://aistudio.google.com/docs/billing', billingUrl: 'https://aistudio.google.com/billing' },
+  // Groq: таблицата с лимити дава за gpt-oss по 8000 токена на минута и 200 000 на ден (Groq, n.d.-c). Страницата не казва
+  // ясно за кой план е, а колоната за плана Developer при моделите е много по-висока (250 000 на минута; Groq, n.d.-d),
+  // затова това са лимитите на безплатния план. Една заявка трябва да се побере в лимита на минута, затова контекстът
+  // е 7000, а не 131 072. Llama 3.x е спрян за безплатния план на 16.08.2026 (Groq, n.d.-b); лимитите са на модел,
+  // затова чете gpt-oss-20b, а пише gpt-oss-120b.
   { id: 'groq', group: 'free', engine: 'api', protocol: 'openai', name: 'Groq', vendor: 'Groq', needsKey: true, envKey: 'GROQ_API_KEY', free: true,
-    label: $t('Groq (free tier)'), hint: $t('Fast open models with a free tier and limits per minute and per day.'),
-    baseUrl: 'https://api.groq.com/openai/v1', models: { light: '', medium: '', strong: '' }, context: 128000, rpm: 20,
-    keyUrl: 'https://console.groq.com/keys', docs: 'https://console.groq.com/docs/openai' },
+    label: $t('Groq (free tier)'), hint: $t('A free key from the Groq console. On the free plan each model has about 8,000 tokens per minute and 200,000 tokens per day, so every request carries a short part of the text: enough for articles and short texts, not for a whole book in one day. Only text models work; Groq also lists models for speech and safety checks.'),
+    baseUrl: 'https://api.groq.com/openai/v1', models: { light: 'openai/gpt-oss-20b', medium: 'openai/gpt-oss-120b', strong: 'openai/gpt-oss-120b' }, context: 7000, rpm: 30, tpd: 200000, reasoningEffort: 'low',
+    keyUrl: 'https://console.groq.com/keys', docs: 'https://console.groq.com/docs/rate-limits', limitsUrl: 'https://console.groq.com/settings/limits' },
   { id: 'openrouter', group: 'free', engine: 'api', protocol: 'openai', name: 'OpenRouter', vendor: 'OpenRouter', needsKey: true, envKey: 'OPENROUTER_API_KEY', free: true,
     label: $t('OpenRouter (many models, some free)'), hint: $t('One key for models of many vendors. Models whose name ends in :free cost nothing, with limits.'),
     baseUrl: 'https://openrouter.ai/api/v1', models: { light: '', medium: '', strong: '' }, context: 128000, rpm: 15,
@@ -151,6 +158,7 @@ export function aiConfig(raw = readConfig().ai) {
     context: num(own.context) || p.context || 8192,
     maxOutput: num(own.maxOutput) || 0,
     rpm: own.rpm === '' || own.rpm == null ? (p.rpm || 0) : num(own.rpm),
+    tpd: p.tpd || 0, // токени на ден за един модел на безплатния план (за предупреждението в оценката)
     vision: !!own.vision,
     // Името и надписите са на всеки доставчик поотделно (при смяна на модела се сменят и те)
     name: str(own.name, 40) || p.name || 'AI',
@@ -264,6 +272,7 @@ export function aiSettings() {
       };
     }),
     groups: PRESET_GROUPS,
+    notText: NOT_TEXT.source, // страницата предупреждава, ако в поле за модел е избран такъв модел
   };
 }
 

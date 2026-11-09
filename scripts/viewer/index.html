@@ -1709,6 +1709,7 @@
           </div>
           <datalist id="ai-models"><option v-for="m in models" :key="m" :value="m"></option></datalist>
           <p v-if="modelsMsg" class="text-xs text-muted sm:col-span-2 dark:text-night-muted">{{ modelsMsg }}</p>
+          <p v-for="t in badModels" :key="'bad-' + t" class="flex items-start gap-1.5 text-xs text-clay-500 sm:col-span-2"><ic name="alert" class="mt-px size-3.5 shrink-0"></ic><span>{{ $t('“{0}” ({1}) is a model for speech, sound, images or safety checks and does not write text. Clear the field to use {2}, or choose a text model.', [form.models[t], tierLabel(t), preset.defaults.models[t] || $t('the medium one')]) }}</span></p>
         </template>
         <label v-if="show.context" class="block text-sm"><span class="mb-1 block font-medium">{{ preset.engine==='manual' ? $t('Size of one request (tokens)') : $t('Context of the model (tokens)') }}</span>
           <input v-model.number="form.context" type="number" min="2000" step="1000" :placeholder="String(preset.defaults.context)" class="field"></label>
@@ -1756,7 +1757,8 @@
         <button class="btn-primary" :disabled="busy" @click="save(false)"><ic :name="busy ? 'spinner' : 'check'" :class="['size-4', busy && 'animate-spin']"></ic>{{ sel===s.current.provider ? $t('Save') : $t('Use this model') }}</button>
         <button v-if="preset.engine!=='manual'" class="btn-soft" :disabled="busy || testing" @click="test"><ic :name="testing ? 'spinner' : 'sparkle'" :class="['size-4', testing && 'animate-spin']"></ic>{{ $t('Test the connection') }}</button>
       </div>
-      <p v-if="preset.engine!=='manual'" class="mt-1 text-xs text-muted dark:text-night-muted">{{ $t('The test saves the settings and sends one word to the light model (a tiny cost). After saving, the page reloads with the new names.') }}</p>
+      <p v-if="preset.engine==='api'" class="mt-1 text-xs text-muted dark:text-night-muted">{{ $t('The test saves the settings and sends one word to each of the chosen models (a tiny cost). After saving, the page reloads with the new names.') }}</p>
+      <p v-else-if="preset.engine!=='manual'" class="mt-1 text-xs text-muted dark:text-night-muted">{{ $t('The test saves the settings and sends one word to the light model (a tiny cost). After saving, the page reloads with the new names.') }}</p>
       <p v-else class="mt-1 text-xs text-muted dark:text-night-muted">{{ $t('After saving, the page reloads with the new names.') }}</p>
       <p v-if="testMsg" :class="['mt-2 text-sm', testOk ? 'text-sage-700 dark:text-sage-200' : 'text-clay-500']">{{ testMsg }}</p>
     </div>

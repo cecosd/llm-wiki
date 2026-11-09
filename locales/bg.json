@@ -1216,7 +1216,6 @@
     "OpenAI API": "OpenAI API",
     "Paid per token. The server gives the model the text in parts and writes the pages itself.": "Плаща се на токен. Сървърът подава текста на модела на части и сам пише страниците.",
     "Groq (free tier)": "Groq (безплатно ниво)",
-    "Fast open models with a free tier and limits per minute and per day.": "Бързи отворени модели с безплатно ниво и лимити на минута и на ден.",
     "OpenRouter (many models, some free)": "OpenRouter (много модели, част от тях безплатни)",
     "One key for models of many vendors. Models whose name ends in :free cost nothing, with limits.": "Един ключ за модели на много доставчици. Моделите, чието име завършва на :free, са безплатни, с лимити.",
     "DeepSeek API": "DeepSeek API",
@@ -1370,6 +1369,22 @@
     "Your limits": "Твоите лимити",
     "Credit and billing": "Кредит и плащане",
     "What happens and why": "Какво се случва и защо",
-    "About {0} requests. Free tiers limit the requests per day: if the limit runs out, the job waits for the reset and starts again from the beginning of that source.": "Около {0} заявки. Безплатните нива ограничават заявките на ден: ако лимитът свърши, задачата чака нулирането и започва отначало за този източник."
+    "About {0} requests. Free tiers limit the requests per day: if the limit runs out, the job waits for the reset and starts again from the beginning of that source.": "Около {0} заявки. Безплатните нива ограничават заявките на ден: ако лимитът свърши, задачата чака нулирането и започва отначало за този източник.",
+    "{0}: the daily limit for the model “{1}” is used up. {0} frees it again in about {2}. Shorter texts, a lighter model for reading chapters or a paid key help.": "{0}: дневният лимит за модела „{1}“ е изчерпан. {0} го освобождава отново след около {2}. Помагат по-кратки текстове, по-лек модел за четене на главите или платен ключ.",
+    "{0} does not write text with the model “{1}”: it is a model for speech, sound, images or safety checks. Choose a text model in Settings → Model.": "{0} не пише текст с модела „{1}“: това е модел за реч, звук, изображения или проверки за безопасност. Избери модел за текст в Настройки → Модел.",
+    "{0} asks you to accept the terms of the model “{1}” in its console first (the link is in the details). Usually such a model is not for text: choose a text model in Settings → Model.": "{0} иска първо да приемеш условията на модела „{1}“ в конзолата му (връзката е в подробностите). Обикновено такъв модел не е за текст: избери модел за текст в Настройки → Модел.",
+    "{0}: one request ({1} tokens) is larger than the limit of tokens per minute of this key ({2}). Set “Context” in Settings → Model to about {3}, or use a paid plan.": "{0}: една заявка ({1} токена) е по-голяма от лимита токени на минута на този ключ ({2}). Задай „Контекст“ в Настройки → Модел около {3} или ползвай платен план.",
+    "{0}: one request is larger than this key allows. Lower “Context” in Settings → Model, or use a paid plan.": "{0}: една заявка е по-голяма, отколкото позволява този ключ. Намали „Контекст“ в Настройки → Модел или ползвай платен план.",
+    "{0} h {1} min": "{0} ч {1} мин",
+    "{0} min": "{0} мин",
+    "A free key from the Groq console. On the free plan each model has about 8,000 tokens per minute and 200,000 tokens per day, so every request carries a short part of the text: enough for articles and short texts, not for a whole book in one day. Only text models work; Groq also lists models for speech and safety checks.": "Безплатен ключ от конзолата на Groq. На безплатния план всеки модел има около 8000 токена на минута и 200 000 токена на ден, затова всяка заявка носи кратка част от текста: стига за статии и кратки текстове, не и за цяла книга за един ден. Работят само моделите за текст; Groq показва и модели за реч и за проверки за безопасност.",
+    "About {0} thousand tokens go to the model “{1}”, and the free plan of {2} gives {3} thousand tokens per day for each model. The job stops at the daily limit and then starts the source again from the beginning, so it may never finish: use the free plan for articles and short texts, or a paid key.": "Около {0} хиляди токена отиват към модела „{1}“, а безплатният план на {2} дава {3} хиляди токена на ден за всеки модел. Задачата спира на дневния лимит и после започва източника отначало, затова може никога да не завърши: ползвай безплатния план за статии и кратки текстове или платен ключ.",
+    "{0} models for speech, sound, images or safety checks are not shown: they do not write text.": "{0} модела за реч, звук, изображения или проверки за безопасност не са показани: те не пишат текст.",
+    "“{0}” ({1}) is a model for speech, sound, images or safety checks and does not write text. Clear the field to use {2}, or choose a text model.": "„{0}“ ({1}) е модел за реч, звук, изображения или проверки за безопасност и не пише текст. Изчисти полето, за да се ползва {2}, или избери модел за текст.",
+    "the medium one": "средния модел",
+    "The free plan of Groq counts tokens: about 8,000 per minute and 200,000 per day for each model. Why the context is 7,000: one request must fit in the limit per minute. A whole book does not fit in one day; the estimate warns before you start.": "Безплатният план на Groq брои токени: около 8000 на минута и 200 000 на ден за всеки модел. Защо контекстът е 7000: една заявка трябва да се побере в лимита на минута. Цяла книга не се побира в един ден; оценката предупреждава, преди да започнеш.",
+    "Press “Test the connection”: one short request to each chosen model. Why: a wrong key, a missing credit or a model that does not write text show up before a whole book is sent.": "Натисни „Опитай връзката“: по една кратка заявка към всеки избран модел. Защо: грешен ключ, липсващ кредит или модел, който не пише текст, се виждат, преди да се прати цяла книга.",
+    "The test saves the settings and sends one word to each of the chosen models (a tiny cost). After saving, the page reloads with the new names.": "Проверката запазва настройките и праща по една дума на всеки от избраните модели (минимален разход). След запис страницата се зарежда наново с новите имена.",
+    "The answer was cut off at the output limit: only its complete part is used": "Отговорът е отрязан на лимита за изход: ползва се само завършената му част"
   }
 }

@@ -1217,7 +1217,6 @@
     "OpenAI API": "OpenAI API",
     "Paid per token. The server gives the model the text in parts and writes the pages itself.": "Paid per token. The server gives the model the text in parts and writes the pages itself.",
     "Groq (free tier)": "Groq (free tier)",
-    "Fast open models with a free tier and limits per minute and per day.": "Fast open models with a free tier and limits per minute and per day.",
     "OpenRouter (many models, some free)": "OpenRouter (many models, some free)",
     "One key for models of many vendors. Models whose name ends in :free cost nothing, with limits.": "One key for models of many vendors. Models whose name ends in :free cost nothing, with limits.",
     "DeepSeek API": "DeepSeek API",
@@ -1370,6 +1369,22 @@
     "Your limits": "Your limits",
     "Credit and billing": "Credit and billing",
     "What happens and why": "What happens and why",
-    "About {0} requests. Free tiers limit the requests per day: if the limit runs out, the job waits for the reset and starts again from the beginning of that source.": "About {0} requests. Free tiers limit the requests per day: if the limit runs out, the job waits for the reset and starts again from the beginning of that source."
+    "About {0} requests. Free tiers limit the requests per day: if the limit runs out, the job waits for the reset and starts again from the beginning of that source.": "About {0} requests. Free tiers limit the requests per day: if the limit runs out, the job waits for the reset and starts again from the beginning of that source.",
+    "{0}: the daily limit for the model “{1}” is used up. {0} frees it again in about {2}. Shorter texts, a lighter model for reading chapters or a paid key help.": "{0}: the daily limit for the model “{1}” is used up. {0} frees it again in about {2}. Shorter texts, a lighter model for reading chapters or a paid key help.",
+    "{0} does not write text with the model “{1}”: it is a model for speech, sound, images or safety checks. Choose a text model in Settings → Model.": "{0} does not write text with the model “{1}”: it is a model for speech, sound, images or safety checks. Choose a text model in Settings → Model.",
+    "{0} asks you to accept the terms of the model “{1}” in its console first (the link is in the details). Usually such a model is not for text: choose a text model in Settings → Model.": "{0} asks you to accept the terms of the model “{1}” in its console first (the link is in the details). Usually such a model is not for text: choose a text model in Settings → Model.",
+    "{0}: one request ({1} tokens) is larger than the limit of tokens per minute of this key ({2}). Set “Context” in Settings → Model to about {3}, or use a paid plan.": "{0}: one request ({1} tokens) is larger than the limit of tokens per minute of this key ({2}). Set “Context” in Settings → Model to about {3}, or use a paid plan.",
+    "{0}: one request is larger than this key allows. Lower “Context” in Settings → Model, or use a paid plan.": "{0}: one request is larger than this key allows. Lower “Context” in Settings → Model, or use a paid plan.",
+    "{0} h {1} min": "{0} h {1} min",
+    "{0} min": "{0} min",
+    "A free key from the Groq console. On the free plan each model has about 8,000 tokens per minute and 200,000 tokens per day, so every request carries a short part of the text: enough for articles and short texts, not for a whole book in one day. Only text models work; Groq also lists models for speech and safety checks.": "A free key from the Groq console. On the free plan each model has about 8,000 tokens per minute and 200,000 tokens per day, so every request carries a short part of the text: enough for articles and short texts, not for a whole book in one day. Only text models work; Groq also lists models for speech and safety checks.",
+    "About {0} thousand tokens go to the model “{1}”, and the free plan of {2} gives {3} thousand tokens per day for each model. The job stops at the daily limit and then starts the source again from the beginning, so it may never finish: use the free plan for articles and short texts, or a paid key.": "About {0} thousand tokens go to the model “{1}”, and the free plan of {2} gives {3} thousand tokens per day for each model. The job stops at the daily limit and then starts the source again from the beginning, so it may never finish: use the free plan for articles and short texts, or a paid key.",
+    "{0} models for speech, sound, images or safety checks are not shown: they do not write text.": "{0} models for speech, sound, images or safety checks are not shown: they do not write text.",
+    "“{0}” ({1}) is a model for speech, sound, images or safety checks and does not write text. Clear the field to use {2}, or choose a text model.": "“{0}” ({1}) is a model for speech, sound, images or safety checks and does not write text. Clear the field to use {2}, or choose a text model.",
+    "the medium one": "the medium one",
+    "The free plan of Groq counts tokens: about 8,000 per minute and 200,000 per day for each model. Why the context is 7,000: one request must fit in the limit per minute. A whole book does not fit in one day; the estimate warns before you start.": "The free plan of Groq counts tokens: about 8,000 per minute and 200,000 per day for each model. Why the context is 7,000: one request must fit in the limit per minute. A whole book does not fit in one day; the estimate warns before you start.",
+    "Press “Test the connection”: one short request to each chosen model. Why: a wrong key, a missing credit or a model that does not write text show up before a whole book is sent.": "Press “Test the connection”: one short request to each chosen model. Why: a wrong key, a missing credit or a model that does not write text show up before a whole book is sent.",
+    "The test saves the settings and sends one word to each of the chosen models (a tiny cost). After saving, the page reloads with the new names.": "The test saves the settings and sends one word to each of the chosen models (a tiny cost). After saving, the page reloads with the new names.",
+    "The answer was cut off at the output limit: only its complete part is used": "The answer was cut off at the output limit: only its complete part is used"
   }
 }

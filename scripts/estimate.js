@@ -178,6 +178,14 @@ function pipelineEstimate(kind, b, settings) {
     title = $t('Library synthesis'); extra.past = pastAverage('synthesis');
     parts = [callCost('strong', M * (Math.min(budget, 6000) + 1500) + 2 * Math.min(budget, 8000), M * 1800 + 3500, M + 2)];
   } else return { ok: false, error: $t('Unknown action.') };
+  // Безплатният Groq дава определен брой токени на ден за всеки модел (Groq, n.d.-c). Задача, която иска
+  // повече, спира на дневния лимит и после започва източника отначало, затова се казва предварително.
+  if (cfg.tpd && cfg.engine !== 'manual') {
+    const per = {};
+    for (const p of parts) per[p.model] = (per[p.model] || 0) + p.input + p.output;
+    const [m, n] = Object.entries(per).sort((a, b) => b[1] - a[1])[0] || [];
+    if (n > cfg.tpd * 0.9) warn.push($t('About {0} thousand tokens go to the model “{1}”, and the free plan of {2} gives {3} thousand tokens per day for each model. The job stops at the daily limit and then starts the source again from the beginning, so it may never finish: use the free plan for articles and short texts, or a paid key.', [Math.round(n / 1000), m, cfg.name, Math.round(cfg.tpd / 1000)]));
+  }
   const total = sum(parts, [0.8, 1.4]);
   const priced = cfg.local || cfg.engine === 'manual' || cfg.preset.vendor === 'Anthropic' || Object.values(cfg.prices).some(Boolean);
   if (!total.usd && !priced) warn.push($t('The prices of this model are not set, so only the tokens are shown. Enter them in Settings → Model.'));

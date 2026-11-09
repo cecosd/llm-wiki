@@ -47,10 +47,14 @@ function fakeModel() {
     let body = '';
     req.on('data', (d) => { body += d; });
     req.on('end', () => {
-      if (req.method === 'GET' && req.url === '/v1/models') { res.setHeader('content-type', 'application/json'); return res.end(JSON.stringify({ data: [{ id: 'fake-small' }, { id: 'fake-big' }] })); }
+      // Като списъка на Groq: модели за текст, за реч и за проверки за безопасност, и един изключен
+      if (req.method === 'GET' && req.url === '/v1/models') {
+        res.setHeader('content-type', 'application/json');
+        return res.end(JSON.stringify({ data: [{ id: 'fake-small', active: true }, { id: 'whisper-large-v3' }, { id: 'canopylabs/orpheus-v1-english' }, { id: 'fake-big' }, { id: 'meta-llama/llama-prompt-guard-2-22m' }, { id: 'fake-retired', active: false }] }));
+      }
       let j = {}; try { j = JSON.parse(body); } catch {}
       const prompt = String(j.messages?.at(-1)?.content || '');
-      calls.push({ url: req.url, auth: req.headers.authorization || null, model: j.model, prompt });
+      calls.push({ url: req.url, auth: req.headers.authorization || null, model: j.model, prompt, max: j.max_tokens || j.max_completion_tokens || null, effort: j.reasoning_effort || null });
       res.setHeader('content-type', 'application/json');
       // Грешките на Google, както ги връща крайната точка, съвместима с OpenAI (масив с един обект)
       const google = (code, status, message, extra = {}) => { res.statusCode = code; res.end(JSON.stringify([{ error: { code, message, status, ...extra } }])); };
@@ -58,6 +62,15 @@ function fakeModel() {
       if (j.model === 'err-daily') return google(429, 'RESOURCE_EXHAUSTED', 'You exceeded your current quota.\n* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 20, model: err-daily\nPlease retry in 3.2s.', { details: [{ '@type': 'type.googleapis.com/google.rpc.QuotaFailure', violations: [{ quotaId: 'GenerateRequestsPerDayPerProjectPerModel-FreeTier', quotaValue: '20' }] }] });
       if (j.model === 'err-free0') return google(429, 'RESOURCE_EXHAUSTED', 'You exceeded your current quota.\n* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 0, model: err-free0');
       if (j.model === 'err-minute' && calls.filter((c) => c.model === 'err-minute').length === 1) return google(429, 'RESOURCE_EXHAUSTED', 'You exceeded your current quota.\n* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 5, model: err-minute\nPlease retry in 1s.', { details: [{ '@type': 'type.googleapis.com/google.rpc.QuotaFailure', violations: [{ quotaId: 'GenerateRequestsPerMinutePerProjectPerModel-FreeTier', quotaValue: '5' }] }] });
+      // Грешките на Groq: обект { error: { message, type } }, с текстовете от тестовата инсталация
+      const groq = (code, message, type = 'invalid_request_error') => { res.statusCode = code; res.end(JSON.stringify({ error: { message, type } })); };
+      if (j.model === 'whisper-large-v3') return groq(400, 'The model `whisper-large-v3` does not support chat completions');
+      if (j.model === 'canopylabs/orpheus-v1-english') return groq(400, 'The model `canopylabs/orpheus-v1-english` requires terms acceptance. Please have the org admin accept the terms at https://console.groq.com/playground?model=canopylabs%2Forpheus-v1-english');
+      if (j.model === 'err-toobig') return groq(413, 'Request too large for model `err-toobig` in organization `org_test` service tier `on_demand` on tokens per minute (TPM): Limit 8000, Requested 9500, please reduce your message size and try again.', 'tokens');
+      if (j.model === 'err-tpd') return groq(429, 'Rate limit reached for model `err-tpd` in organization `org_test` service tier `on_demand` on tokens per day (TPD): Limit 200000, Used 199990, Requested 900. Please try again in 2m30s.', 'tokens');
+      // Модел, който „мисли“ и стига лимита за изход: първият отговор е отрязан (finish_reason „length“)
+      if (j.model === 'err-cut' && calls.filter((c) => c.model === 'err-cut').length === 1) return res.end(JSON.stringify({ choices: [{ message: { content: '{"answ' }, finish_reason: 'length' }], usage: { prompt_tokens: 100, completion_tokens: 300 } }));
+      if (j.model === 'err-tpm' && calls.filter((c) => c.model === 'err-tpm').length === 1) return groq(429, 'Rate limit reached for model `err-tpm` in organization `org_test` service tier `on_demand` on tokens per minute (TPM): Limit 8000, Used 7900, Requested 500. Please try again in 1.2s.', 'tokens');
       res.end(JSON.stringify({ choices: [{ message: { content: answer(prompt) } }], usage: { prompt_tokens: 100, completion_tokens: 50 } }));
     });
   });
@@ -118,7 +131,8 @@ test(T('ai', 'Testing the connection and loading the models go to the chosen add
   assert.equal(c.auth, `Bearer ${KEY}`);
   assert.equal(c.model, 'fake-small');
   const m = await api(srv.port, 'POST', '/api/ai/models', { provider: 'openai-compatible' });
-  assert.deepEqual(m.json.models, ['fake-big', 'fake-small']);
+  assert.deepEqual(m.json.models, ['fake-big', 'fake-small'], 'only text models, without the retired one');
+  assert.equal(m.json.hidden, 3, 'speech and safety models are counted as hidden');
 });
 
 test(T('ai', 'A model on this computer is free in the estimate, which shows the tokens and the number of requests', 'Модел на този компютър е безплатен в оценката, която показва токените и броя заявки'), async () => {
@@ -240,6 +254,80 @@ test(T('ai', 'Gemini has a free profile (Flash-Lite reads, Flash writes) and a p
   assert.ok(e.json.usd?.mid > 0, JSON.stringify(e.json));
   const { msToPacificMidnight } = await import(pathToFileURL(path.join(box.root, 'scripts', 'llm.js')).href);
   assert.equal(msToPacificMidnight(new Date('2026-11-09T20:00:00Z')), 12 * 3600000, 'noon in Los Angeles is 12 hours before the reset');
+});
+
+test(T('ai', 'Groq: a model for speech, terms to accept, a request over the limit per minute and a used-up daily limit get a clear message; the test reaches every level', 'Groq: модел за реч, условия за приемане, заявка над лимита на минута и изчерпан дневен лимит дават ясно съобщение; проверката стига до всяко ниво'), async () => {
+  const cases = [
+    ['whisper-large-v3', /does not write text with the model “whisper-large-v3”/],
+    ['canopylabs/orpheus-v1-english', /accept the terms of the model “canopylabs\/orpheus-v1-english”/],
+    ['err-toobig', /one request \(9500 tokens\) is larger than the limit of tokens per minute of this key \(8000\).*about 6800/s],
+    ['err-tpd', /daily limit for the model “err-tpd” is used up.*in about 3 min/s],
+  ];
+  for (const [m, re] of cases) {
+    await setProvider({ provider: 'openai-compatible', profile: { models: { light: 'fake-small', medium: 'fake-big', strong: m } } });
+    const t = await api(srv.port, 'POST', '/api/setup/test');
+    assert.equal(t.json.ok, false, m);
+    assert.equal(t.json.model, m, 'the test reaches the strong level');
+    assert.match(t.json.error, re);
+    assert.equal(calls.filter((c) => c.model === m).length, 1, `${m}: no repeated request`);
+  }
+  // Лимит на минута: Groq пише „Please try again in 1.2s“; изчаква толкова и минава от втория опит
+  await setProvider({ provider: 'openai-compatible', profile: { models: { light: 'err-tpm', medium: 'fake-small', strong: '' } } });
+  const started = Date.now();
+  const t = await api(srv.port, 'POST', '/api/setup/test');
+  assert.equal(t.json.ok, true, JSON.stringify(t.json));
+  assert.equal(t.json.model, 'err-tpm, fake-small');
+  assert.equal(calls.filter((c) => c.model === 'err-tpm').length, 2);
+  assert.ok(Date.now() - started < 4500, 'waits about the time Groq asks, not the default 5 s');
+  await setProvider({ provider: 'openai-compatible', profile: { models: { light: 'fake-small', medium: 'fake-big', strong: '' } } });
+  const { hintSeconds } = await import(pathToFileURL(path.join(box.root, 'scripts', 'llm.js')).href);
+  assert.equal(hintSeconds('Please try again in 1m2.5s.'), 62.5);
+  assert.equal(hintSeconds('Please try again in 2h5m'), 7500);
+  assert.equal(hintSeconds('Please try again in 250ms.'), 0.25);
+  assert.equal(hintSeconds('Please retry in 34.5s.'), 34.5);
+  assert.equal(hintSeconds('"retryDelay": "41s"'), 41);
+});
+
+test(T('ai', 'An answer cut off at the output limit is asked again with more room; a cut JSON keeps its complete part', 'Отговор, отрязан на лимита за изход, се иска пак с повече място; отрязан JSON запазва завършената си част'), async () => {
+  await setProvider({ provider: 'openai-compatible', profile: { models: { light: 'err-cut', medium: 'fake-small', strong: '' } } });
+  const t = await api(srv.port, 'POST', '/api/setup/test');
+  assert.equal(t.json.ok, true, JSON.stringify(t.json));
+  const cut = calls.filter((c) => c.model === 'err-cut');
+  assert.equal(cut.length, 2);
+  assert.ok(cut[1].max > cut[0].max, `more room the second time: ${cut[0].max} → ${cut[1].max}`);
+  await setProvider({ provider: 'openai-compatible', profile: { models: { light: 'fake-small', medium: 'fake-big', strong: '' } } });
+  const { parseJsonLoose, salvageJson } = await import(pathToFileURL(path.join(box.root, 'scripts', 'llm.js')).href);
+  const truncated = '```json\n{"title":"Heat","ideas":[{"text":"Entropy grows.","page":1},{"text":"Engines ne';
+  assert.equal(parseJsonLoose(truncated), null, 'not salvaged unless asked');
+  assert.deepEqual(parseJsonLoose(truncated, { salvage: true }), { title: 'Heat', ideas: [{ text: 'Entropy grows.', page: 1 }] });
+  assert.equal(salvageJson('{"a":1}'), null, 'a complete object is not touched');
+});
+
+test(T('ai', 'Groq has text models by default and a context that fits its free limit per minute; the estimate warns when a source needs more tokens than a day gives', 'Groq има модели за текст по подразбиране и контекст, който се побира в безплатния лимит на минута; оценката предупреждава, когато източникът иска повече токени, отколкото дава един ден'), async () => {
+  const { json } = await api(srv.port, 'GET', '/api/ai');
+  const g = json.presets.find((p) => p.id === 'groq'), notText = new RegExp(json.notText, 'i');
+  for (const t of ['light', 'medium', 'strong']) assert.ok(g.defaults.models[t] && !notText.test(g.defaults.models[t]), t);
+  assert.ok(g.defaults.context <= 8000, 'one request fits in 8000 tokens per minute');
+  assert.ok(notText.test('whisper-large-v3') && notText.test('canopylabs/orpheus-arabic-saudi') && notText.test('openai/gpt-oss-safeguard-20b'));
+  // Профилът (с адреса на фалшивия сървър) пробва и двата модела и иска кратко мислене само от gpt-oss
+  await setProvider({ provider: 'groq', key: 'gsk-test-key', profile: { baseUrl: `http://127.0.0.1:${modelPort}/v1` } });
+  const t = await api(srv.port, 'POST', '/api/setup/test');
+  assert.equal(t.json.ok, true, JSON.stringify(t.json));
+  assert.equal(t.json.model, `${g.defaults.models.light}, ${g.defaults.models.medium}`);
+  assert.ok(calls.filter((c) => /gpt-oss/.test(c.model)).every((c) => c.effort === 'low'));
+  assert.ok(calls.filter((c) => /^fake/.test(c.model)).every((c) => c.effort === null), 'other models get no reasoning_effort');
+  const LONG = 'raw/articles/long-2020.txt';
+  box.write(LONG, 'long');
+  box.write('raw/.extracted/articles/long-2020.txt.md', `<!-- извлечено от ${LONG} | думи: 160000 | 2026-11-09T00:00:00.000Z -->\n\n` + 'Entropy grows in closed systems and engines need a temperature difference. '.repeat(13000));
+  try {
+    const long = await api(srv.port, 'POST', '/api/estimate', { kind: 'ingest', paths: [LONG] });
+    assert.ok(long.json.warnings.some((w) => /thousand tokens per day/.test(w)), JSON.stringify(long.json.warnings));
+    const short = await api(srv.port, 'POST', '/api/estimate', { kind: 'ingest', paths: [BOOK] });
+    assert.ok(!short.json.warnings.some((w) => /thousand tokens per day/.test(w)), JSON.stringify(short.json.warnings));
+  } finally {
+    fs.rmSync(path.join(box.root, LONG), { force: true });
+    fs.rmSync(path.join(box.root, 'raw/.extracted/articles/long-2020.txt.md'), { force: true });
+  }
 });
 
 test(T('ai', 'The agent cannot read the file with the keys', 'Агентът не може да прочете файла с ключовете'), async () => {

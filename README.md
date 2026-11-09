@@ -128,6 +128,15 @@ The key belongs to a project in Google AI Studio, and the project decides the ti
 - **A paid Gemini account.** Its key goes into the paid profile, which carries Google's prices, so the estimate shows an amount (the prices can be changed). A Google AI Pro or Ultra subscription to the Gemini app does not give an API key by itself, but it includes monthly Google Cloud credits (10 USD with AI Pro) that count for the Gemini API after you activate them in the Google Developer Program (Google, 2026).
 - **How many requests.** A book takes about one request per chapter plus 5 to 10. The light model (Flash-Lite) reads the chapters and the medium one (Flash) writes the pages, so the limits of the two models are used separately. When the daily limit runs out, the queue waits for the reset and starts that source again.
 
+#### Groq: free key
+
+Groq is fast, but its free plan counts tokens, not only requests.
+
+- **Models.** Groq's list mixes text models with models for speech (Whisper, Orpheus) and safety checks (Prompt Guard, Safeguard) (Groq, n.d.-d). Only text models write pages, so “Load the models” hides the others and a warning appears if one of them is in a field. The profile reads chapters with `openai/gpt-oss-20b` and writes with `openai/gpt-oss-120b`; Llama 3.x was retired for the free plan on 16 August 2026 (Groq, n.d.-b).
+- **Limits.** Groq's limits table gives these models 30 requests and 8,000 tokens per minute and 1,000 requests and 200,000 tokens per day, for each model (Groq, n.d.-c). The page does not say clearly which plan the table is for, and the Developer column on the models page is much higher (250,000 tokens per minute; Groq, n.d.-d), so check your own numbers on the limits page of the Groq console (the “Your limits” link in Settings → Model).
+- **What follows.** One request must fit in the limit per minute, so the profile sets the context to 7,000 tokens and the server sends short parts. A book needs more tokens than one day gives: the estimate warns before you start, and a job that hits the daily limit waits as long as Groq says and then starts that source again. Use the free plan for articles and short texts, and expect it to be slow: a request takes most of the limit per minute, so about one passes per minute (a chapter of 6,500 words takes around 15 to 20).
+- **Errors.** A model for speech answers “does not support chat completions”, and some models first ask you to accept their terms in the Groq console; both get a clear message. A request that is too large is error 413 (Groq, n.d.-a). The gpt-oss models think before they answer and spend part of the output limit on it, so the profile asks them for short thinking, and an answer cut off at the limit is asked for again with more room. “Test the connection” sends one short request to each chosen model, so a wrong model shows up before a whole text is sent.
+
 ### Claude Code commands
 
 | Command | What happens |
@@ -231,6 +240,14 @@ Google. (n.d.-b). *Gemini Developer API pricing*. Google AI Studio. Retrieved No
 Google. (n.d.-c). *OpenAI compatibility*. Google AI Studio. https://aistudio.google.com/docs/openai
 
 Google. (n.d.-d). *Rate limits*. Google AI Studio. Retrieved November 9, 2026, from https://aistudio.google.com/docs/rate-limits
+
+Groq. (n.d.-a). *API error codes and responses*. GroqDocs. Retrieved November 9, 2026, from https://console.groq.com/docs/errors
+
+Groq. (n.d.-b). *Model deprecation*. GroqDocs. Retrieved November 9, 2026, from https://console.groq.com/docs/deprecations
+
+Groq. (n.d.-c). *Rate limits*. GroqDocs. Retrieved November 9, 2026, from https://console.groq.com/docs/rate-limits
+
+Groq. (n.d.-d). *Supported models*. GroqDocs. Retrieved November 9, 2026, from https://console.groq.com/docs/models
 
 Ollama. (n.d.). *Anthropic compatibility*. Ollama Docs. https://docs.ollama.com/api/anthropic-compatibility
 
