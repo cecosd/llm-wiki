@@ -874,6 +874,13 @@ const ScopeBar = defineComponent({
       return [...m.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], 'bg')).map(([name, n]) => ({ name, n }));
     },
     names() { return new Set(this.areaList.map((a) => a.name)); },
+    // Предложените теми плюс избраните, които не са сред предложенията (напр. от отворена запазена пътека).
+    // Избраната тема не изчезва тихо: стои с отметка и се маха с щракване.
+    shownTopics() {
+      const have = new Set(this.topics.map((t) => t.slug)), bySlug = new Map((this.pages || []).map((p) => [p.slug, p]));
+      const extra = this.scope.focus.filter((s) => !have.has(s)).map((s) => ({ slug: s, title: bySlug.get(s)?.title || s, area: bySlug.get(s)?.area || null }));
+      return [...extra, ...this.topics];
+    },
   },
   watch: {
     q() { clearTimeout(this.t); this.t = setTimeout(() => this.fetchTopics(), 450); },
@@ -894,16 +901,20 @@ const ScopeBar = defineComponent({
     toggleTopic(slug) { const f = new Set(this.scope.focus); f.has(slug) ? f.delete(slug) : f.add(slug); this.scope.focus = [...f]; },
     async fetchTopics() {
       const q = (this.q || '').trim();
-      if (q.length < 3 && !this.scope.areas.length) { this.topics = []; this.scope.focus = []; return; }
+      if (q.length < 3 && !this.scope.areas.length) { this.topics = []; return; }
       this.loading = true;
       try {
         const r = await fetch('/api/topics?q=' + encodeURIComponent(q) + (this.scope.areas.length ? '&a=' + encodeURIComponent(this.scope.areas.join(',')) : ''));
         this.topics = r.ok ? await r.json() : [];
       } catch { this.topics = []; }
       this.loading = false;
-      const have = new Set(this.topics.map((t) => t.slug));
-      const keep = this.scope.focus.filter((s) => have.has(s));
-      if (keep.length !== this.scope.focus.length) this.scope.focus = keep;
+      // Избраните теми НЕ се махат, защото не са сред предложенията за текущия текст: така се губеше
+      // обхватът на запазена пътека и тя „изчезваше“. Махат се само теми, чиито страници вече ги няма.
+      if (this.pages?.length) {
+        const known = new Set(this.pages.map((p) => p.slug));
+        const keep = this.scope.focus.filter((s) => known.has(s));
+        if (keep.length !== this.scope.focus.length) this.scope.focus = keep;
+      }
     },
   },
 });
@@ -976,7 +987,7 @@ const PathView = defineComponent({
   data: () => ({
     ...shared, LEVELS, input: '', loading: false, res: null, done: new Set(), current: null,
     stack: [], panel: null, panelLoading: false, recent: [], saved: [], mobilePanel: false,
-    error: '', pending: false, waited: 0, wantGen: false, picked: store.get('pathlevel', 'local'),
+    error: '', pending: false, others: [], waited: 0, wantGen: false, picked: store.get('pathlevel', 'local'),
   }),
   computed: {
     level() { const m = this.q ? this.mode : this.picked; return LEVELS.some((l) => l.id === m) ? m : 'local'; },
@@ -1027,6 +1038,8 @@ const PathView = defineComponent({
     key() { const sk = scopeKey(); return 'path:' + (this.level === 'local' ? '' : this.level + ':') + (this.q || '').trim().toLowerCase() + (sk === '~' ? '' : '|' + sk); },
     // отваряне на запазена пътека: връща и обхвата, с който е съставена
     applyScope(r) { scope.areas = [...(r.areas || [])]; scope.focus = [...(r.focus || [])]; store.set('scope:areas', JSON.stringify(scope.areas)); },
+    // обхватът на запазена пътека с думи: области и теми (с заглавията им)
+    scopeLabel(r) { return [...(r.areas || []), ...(r.focus || []).map((s) => this.titles.get(s) || s)].join(' · '); },
     loadRecent() { try { return JSON.parse(store.get('paths', '[]')); } catch { return []; } },
     pushRecent(q) {
       const l = [q, ...this.loadRecent().filter((x) => x !== q)].slice(0, 8);
@@ -1044,22 +1057,27 @@ const PathView = defineComponent({
       if (v === this.q && location.hash === target) this.run(); else location.hash = target;
     },
     async run() {
-      this.cancel(); this.panel = null; this.stack = []; this.mobilePanel = false; this.error = ''; this.pending = false; this.res = null;
+      this.cancel(); this.panel = null; this.stack = []; this.mobilePanel = false; this.error = ''; this.pending = false; this.others = []; this.res = null;
       const gen = this.wantGen; this.wantGen = false;
       if (!this.q || !this.q.trim()) { this.done = new Set(); this.current = null; this.loading = false; return; }
       this.loading = true;
-      const q = this.q, level = this.level;
+      // всяко пускане има номер: отговор на по-старо пускане (друг въпрос, ниво или обхват) не пише върху по-новото
+      const q = this.q, level = this.level, seq = this.runSeq = (this.runSeq || 0) + 1;
+      const stale = () => seq !== this.runSeq;
+      let res = null;
       try {
         if (level === 'local') {
-          this.res = await (await fetch('/api/path?q=' + encodeURIComponent(q) + scopeQuery())).json();
+          res = await (await fetch('/api/path?q=' + encodeURIComponent(q) + scopeQuery())).json();
         } else {
           const saved = await (await fetch(`/api/path/saved?level=${level}&q=${encodeURIComponent(q)}${scopeQuery()}`)).json();
-          if (saved) this.res = saved;
+          if (stale()) return;
+          if (saved?.steps) res = saved;
           else if (gen) { this.loading = false; return this.generate(); }
-          else { this.loading = false; this.pending = true; return; }
+          else { this.loading = false; this.others = saved?.others || []; this.pending = true; return; }
         }
-      } catch { this.res = { steps: [], stages: [], note: $t('The server is not responding') }; }
-      if (q !== this.q || level !== this.level) return; // междувременно е сменен въпросът
+      } catch { res = { steps: [], stages: [], note: $t('The server is not responding') }; }
+      if (stale()) return; // междувременно е сменен въпросът, нивото или обхватът
+      this.res = res;
       this.loading = false;
       this.afterResult();
     },

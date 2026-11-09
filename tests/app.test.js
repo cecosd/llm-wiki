@@ -66,6 +66,19 @@ test(T('app', 'Learning by question works locally without Claude', 'Ученет
   assert.ok(JSON.stringify(r.json).includes('entropy'));
 });
 
+test(T('app', 'A saved Claude path opens with its scope and is offered when the chosen scope differs', 'Запазена пътека с Claude се отваря с обхвата си и се предлага, когато избраният обхват е друг'), async () => {
+  const at = '2026-11-07T19:28:27.931Z', q = encodeURIComponent('Entropy question');
+  const plan = { goal: 'g', stages: [{ label: 'S', hint: '', steps: [{ slug: 'entropy', why: 'w', look: 'l' }, { slug: 'sample-2020-note', why: 'w', look: 'l' }] }], gaps: '' };
+  box.write('outputs/.claude-paths.json', JSON.stringify({ 'medium|entropy question|~physics~entropy': { at, q: 'Entropy question', plan, areas: ['Physics'], focus: ['entropy'] } }));
+  const hit = await api(srv.port, 'GET', `/api/path/saved?level=medium&q=${q}&a=Physics&f=entropy`);
+  assert.equal(hit.json?.cached, true, hit.body);
+  assert.equal(hit.json.steps.length, 2);
+  // темата не е избрана (напр. след презареждане): пътеката не се губи, а се предлага с обхвата си
+  const other = await api(srv.port, 'GET', `/api/path/saved?level=medium&q=${q}&a=Physics`);
+  assert.deepEqual(other.json, { others: [{ areas: ['Physics'], focus: ['entropy'], at }] });
+  assert.equal((await api(srv.port, 'GET', `/api/path/saved?level=light&q=${q}`)).json, null);
+});
+
 test(T('app', 'A page can be renamed by hand without changing its file name', 'Страница може да се преименува на ръка, без да се сменя името на файла'), async () => {
   const r = await api(srv.port, 'POST', '/api/page/rename', { slug: 'entropy', title: 'Entropy (renamed)' });
   assert.equal(r.status, 200, r.body);

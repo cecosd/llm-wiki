@@ -343,9 +343,16 @@ app.get('/api/path/list', (_req, res) => {
 });
 app.get('/api/path/saved', (req, res) => {
   const q = String(req.query.q || '').trim(), level = String(req.query.level || '');
-  const hit = PATH_LEVELS[level] && readPaths()[pathKey(q, level, scopeOf(req.query))];
-  if (!hit) return res.json(null);
-  res.json({ ...buildClaudePath(hit.plan, q, level, snapshot()), cached: true, savedAt: hit.at });
+  if (!PATH_LEVELS[level]) return res.json(null);
+  const all = readPaths(), hit = all[pathKey(q, level, scopeOf(req.query))];
+  if (hit) return res.json({ ...buildClaudePath(hit.plan, q, level, snapshot()), cached: true, savedAt: hit.at });
+  // Няма пътека за този обхват, но може да има за същия въпрос и ниво с друг обхват (темите не се помнят
+  // след презареждане). Връщаме ги, за да се отворят безплатно, вместо да се съставят наново.
+  const base = pathKey(q, level);
+  const others = Object.entries(all).filter(([k]) => k === base || k.startsWith(base + '|~'))
+    .map(([, v]) => ({ areas: v.areas || [], focus: v.focus || [], at: v.at }))
+    .sort((a, b) => String(b.at).localeCompare(String(a.at)));
+  res.json(others.length ? { others } : null);
 });
 app.delete('/api/path/saved', express.json({ limit: '8kb' }), (req, res) => {
   const q = String(req.body?.q || '').trim(), level = String(req.body?.level || '');

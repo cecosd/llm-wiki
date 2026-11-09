@@ -1284,8 +1284,8 @@
     <div v-if="saved.length" :class="['max-w-3xl', recent.length && 'mt-8']">
       <p class="eyebrow">{{ $t('Composed with Claude') }}</p>
       <ul class="mt-3 space-y-1.5">
-        <li v-for="r in saved" :key="r.level+r.q" class="group flex items-center gap-2">
-          <a :href="'#/path/'+encodeURIComponent(r.q)+'?m='+r.level" @click="applyScope(r)" class="card card-hover flex min-w-0 flex-1 items-center gap-3 !rounded-2xl px-4 py-3"><ic name="sparkle" class="size-4 shrink-0 text-sage-600"></ic><span class="min-w-0 flex-1 truncate">{{ r.q }}<span v-if="r.areas && r.areas.length" class="ml-2 text-xs text-muted">{{ r.areas.join(', ') }}</span></span><span class="chip shrink-0 bg-sage-50 text-sage-700 dark:bg-sage-900/40 dark:text-sage-200">{{ levelLabel(r.level) }}</span><span class="hidden shrink-0 text-xs text-muted sm:block">{{ relDate(r.at) }}</span></a>
+        <li v-for="r in saved" :key="r.level+r.q+scopeLabel(r)" class="group flex items-center gap-2">
+          <a :href="'#/path/'+encodeURIComponent(r.q)+'?m='+r.level" @click="applyScope(r)" class="card card-hover flex min-w-0 flex-1 items-center gap-3 !rounded-2xl px-4 py-3"><ic name="sparkle" class="size-4 shrink-0 text-sage-600"></ic><span class="min-w-0 flex-1 truncate">{{ r.q }}<span v-if="scopeLabel(r)" class="ml-2 text-xs text-muted">{{ scopeLabel(r) }}</span></span><span class="chip shrink-0 bg-sage-50 text-sage-700 dark:bg-sage-900/40 dark:text-sage-200">{{ levelLabel(r.level) }}</span><span class="hidden shrink-0 text-xs text-muted sm:block">{{ relDate(r.at) }}</span></a>
           <button class="btn-ghost !p-2 text-muted hover:text-clay-500" :title="$t('Delete the path “{0}”', [r.q])" :aria-label="$t('Delete the path {0}', [r.q])" @click="deleteSaved(r)"><ic name="trash" class="size-4"></ic></button>
         </li>
       </ul>
@@ -1320,9 +1320,26 @@
 
   <div v-else-if="pending" class="card mt-8 max-w-3xl p-8 text-center">
     <span class="mx-auto grid size-14 place-items-center rounded-3xl bg-sage-50 text-sage-600 dark:bg-sage-900/40 dark:text-sage-200"><ic name="sparkle" class="size-6"></ic></span>
-    <p class="mt-4 font-serif text-xl font-semibold">{{ $t('There is no path at the “{0}” level yet', [levelLabel(level)]) }}</p>
-    <p class="mt-2 text-sm text-muted dark:text-night-muted">{{ $t('Composing uses part of Claude’s limit. The result is saved, so opening it next time is free.') }}</p>
-    <button class="btn-primary mt-5" @click="generate()"><ic name="sparkle" class="size-4"></ic>{{ $t('Compose with Claude') }}</button>
+    <p class="mt-4 font-serif text-xl font-semibold">{{ others.length ? $t('This question already has a saved path with another scope') : $t('There is no path at the “{0}” level yet', [levelLabel(level)]) }}</p>
+    <template v-if="others.length">
+      <p class="mt-2 text-sm text-muted dark:text-night-muted">{{ $t('The selected areas and topics differ from the ones the path was composed with. Opening the saved path is free.') }}</p>
+      <ul class="mx-auto mt-4 max-w-md space-y-1.5 text-left">
+        <li v-for="o in others" :key="o.at">
+          <button type="button" class="card card-hover flex w-full items-center gap-3 !rounded-2xl px-4 py-3" @click="applyScope(o)">
+            <ic name="sparkle" class="size-4 shrink-0 text-sage-600"></ic>
+            <span class="min-w-0 flex-1 truncate text-left text-sm">{{ scopeLabel(o) || $t('All areas') }}</span>
+            <span class="shrink-0 text-xs text-muted">{{ relDate(o.at) }}</span>
+            <span class="shrink-0 text-sm font-medium text-sage-700 dark:text-sage-200">{{ $t('Open') }}</span>
+          </button>
+        </li>
+      </ul>
+      <p class="mt-5 text-sm text-muted dark:text-night-muted">{{ $t('Or compose a new path for the current choice. Composing uses part of Claude’s limit.') }}</p>
+      <button class="btn-soft mt-3" @click="generate()"><ic name="sparkle" class="size-4"></ic>{{ $t('Compose with Claude') }}</button>
+    </template>
+    <template v-else>
+      <p class="mt-2 text-sm text-muted dark:text-night-muted">{{ $t('Composing uses part of Claude’s limit. The result is saved, so opening it next time is free.') }}</p>
+      <button class="btn-primary mt-5" @click="generate()"><ic name="sparkle" class="size-4"></ic>{{ $t('Compose with Claude') }}</button>
+    </template>
   </div>
 
   <div v-else-if="res && !steps.length" class="card mt-8 max-w-3xl p-8 text-center">
@@ -1491,7 +1508,7 @@
 
 <!-- ============================ ОБХВАТ (области и теми) ============================ -->
 <script type="text/x-template" id="tpl-scope">
-<div v-if="areaList.length > 1 || topics.length" class="max-w-3xl space-y-3 rounded-3xl border border-line p-4 dark:border-night-line">
+<div v-if="areaList.length > 1 || shownTopics.length" class="max-w-3xl space-y-3 rounded-3xl border border-line p-4 dark:border-night-line">
   <div v-if="areaList.length > 1">
     <p class="text-xs font-medium text-muted dark:text-night-muted">{{ $t('Areas') }} <span class="font-normal">{{ $t('(with no choice, all are used)') }}</span></p>
     <div class="mt-1.5 flex flex-wrap items-center gap-1.5" role="group" :aria-label="$t('Areas')">
@@ -1500,10 +1517,10 @@
       <button v-if="scope.areas.length" type="button" class="text-xs text-muted underline hover:text-ink dark:hover:text-night-ink" @click="clearAreas">{{ $t('All areas') }}</button>
     </div>
   </div>
-  <div v-if="topics.length">
+  <div v-if="shownTopics.length">
     <p class="text-xs font-medium text-muted dark:text-night-muted">{{ $t('Suggested topics') }} <span class="font-normal">{{ $t('(optional: choose to limit the work to them and the pages related to them)') }}</span></p>
     <div class="mt-1.5 flex flex-wrap items-center gap-1.5" role="group" :aria-label="$t('Suggested topics')">
-      <button v-for="t in topics" :key="t.slug" type="button" :aria-pressed="scope.focus.includes(t.slug)" @click="toggleTopic(t.slug)" :title="t.area || $t('no area')"
+      <button v-for="t in shownTopics" :key="t.slug" type="button" :aria-pressed="scope.focus.includes(t.slug)" @click="toggleTopic(t.slug)" :title="t.area || $t('no area')"
               :class="['chip border px-3 py-1 text-xs transition', scope.focus.includes(t.slug) ? 'border-sage-500 bg-sage-50 text-sage-700 dark:bg-sage-900/40 dark:text-sage-200' : 'border-line text-ink/70 hover:border-sage-200 dark:border-night-line dark:text-night-ink/70']">{{ t.title }}<span v-if="areaList.length > 1 && t.area" class="ml-1 opacity-60">· {{ t.area }}</span></button>
       <button v-if="scope.focus.length" type="button" class="text-xs text-muted underline hover:text-ink dark:hover:text-night-ink" @click="scope.focus = []">{{ $t('No topic selection') }}</button>
     </div>
