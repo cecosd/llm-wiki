@@ -235,6 +235,8 @@ The sections are: Overview, Topics, Concepts, People and organizations, Sources 
 | `npm run lint` | Mechanical lint, writes `outputs/lint-mech-YYYY-MM-DD.md` |
 | `npm run lint:quick` | Only broken links, in the console |
 | `npm run serve` | Interface at http://localhost:4321: upload, sorting, browsing, graph. Refreshes itself while you write in wiki/ |
+| `npm run serve:safe` | The same in isolation (Linux and WSL, needs `bubblewrap`): the code and its packages see only the project folder and write only to the data. See SECURITY.md |
+| `npm run sandbox:check` | Checks the isolation from inside: what can and cannot be seen |
 | `npm run new -- <type> <slug>` | New page from a template |
 | `npm run content -- <bg\|en>` | Installs the language pack of this file, the skills, the agent, the templates and the starter pages, and sets the content language |
 | `npm run i18n:check` | Checks the interface translations in `locales/` (a new language = a new JSON file, see README and PROJECT-HISTORY.md, section 11) |
@@ -257,9 +259,20 @@ Before every action with Claude the interface shows approximate tokens and price
 
 The model for reading chapters and the model for writing the pages are chosen separately in the interface (Haiku, Sonnet or Opus). If they differ, chapters are read by `chapter-reader` with the chosen model; if they are the same, you read them yourself. The ready modes are only a quick choice. The button in the interface runs the processing in one of three modes: "Economy" (Sonnet edits, the subagent `chapter-reader` on Haiku reads the chapters), "Balanced" (Sonnet) or "Best" (Opus). In economy mode, for every chapter of a book call `chapter-reader` with the path and range of the chapter and work from its notes; read only the table of contents and the introduction yourself. The judgement (emphasis, merging concepts, contradictions) always stays yours.
 
+## Model and provider
+
+Which model works is chosen in "Settings → Model" (the `ai` key in `library.config.json`; API keys are in `.library-secrets.json`). There are three ways of working:
+
+- **Agent (Claude Code):** as described in this file, with the skills. Besides a Claude subscription or API key, Claude Code can work with a model of another provider that accepts the Anthropic format (DeepSeek, local Ollama and others). Then Haiku, Sonnet and Opus in the interface are the three models chosen for that provider. The rules in this file apply the same way.
+- **Without tools (API, local model):** the server (`scripts/pipeline.js`) gives the model the text in parts and writes the pages itself from the templates, with the same rules: emphasis from the source, chapters, citations to the chapter and the PDF page, extending concepts, `## Contradictions`, index and log. The model gets only text, so unknown `[[links]]` become plain text.
+- **By hand (copy and paste):** the same as without tools, but every request is copied into a chat in the browser and the answer is pasted back into the interface.
+
+Log entries from processing without tools have the note "processed without tools by …". Such pages can be upgraded later with a stronger model ("Upgrade").
+
 ## Prohibitions
 
 - Do not change, rename or delete files in `raw/` (except the move from the inbox, which the script does).
 - Do not invent citations, pages or years. If you do not know, write `p. ?` and `confidence: low`.
 - Do not copy long passages from the sources. Paraphrase; a quote of up to 1 to 2 sentences, in quotation marks, with a page.
 - Do not delete pages from the wiki without explicit consent. To merge duplicate pages use a `refactor` entry in the log.
+- Do not read `.library-secrets.json`, `.library-auth.json` and `library.config.json`: they hold the keys and the settings of the human.
