@@ -31,6 +31,13 @@ The current results are on the [product page](docs/index.html) and on the Settin
 
 Text processed with Claude goes to Anthropic through Claude Code. Whether it is used for model training depends on your plan and settings: see the “Where your data goes” section on the product page and Anthropic (2026a).
 
+## Other models and API keys
+
+- **Where the text goes.** With another provider (Settings → Model) the text goes to that provider, under its terms; free tiers often use the content for training. A local model (Ollama, LM Studio) keeps everything on the computer. In copy-and-paste mode nothing is sent by the application: you paste each request into a chat yourself.
+- **Keys.** API keys are kept in `.library-secrets.json` in the project folder: created with mode 0600, listed in `.gitignore`, not in the reading archive, refused to the agent by `--disallowedTools` and by the `guard-read.js` hook, and writable inside the isolation only as that one file. The settings page receives only the last 4 characters. A key can also come from an environment variable (`LIB_AI_KEY` or the usual one of the provider); such variables pass into the isolation.
+- **Claude Code with another provider.** The application sets `ANTHROPIC_BASE_URL`, `ANTHROPIC_AUTH_TOKEN` and the three model names only for that run; the permission rules, the hook and the isolation stay the same. With the Claude subscription the environment of Claude Code is not changed.
+- **Without tools** the model cannot read or write files at all: the server sends the text and writes the pages itself, and links to pages that do not exist become plain text.
+
 ## Reporting a vulnerability
 
 Please use [GitHub private vulnerability reporting](https://github.com/cecosd/llm-wiki/security/advisories/new). If it is not available, open an issue without technical details and ask for a private contact. Do not publish working exploits before a fix.

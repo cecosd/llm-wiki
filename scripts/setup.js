@@ -6,6 +6,8 @@ import { spawnSync } from 'node:child_process';
 import { ROOT, RAW, WIKI } from './lib.js';
 import { $t, contentLang } from './i18n.js';
 import { findClaude, askClaude } from './agent.js';
+import { aiConfig, readiness } from './providers.js';
+import { complete, errorText } from './llm.js';
 
 const IS_WIN = process.platform === 'win32';
 const IS_MAC = process.platform === 'darwin';
@@ -33,6 +35,11 @@ function claudeAuth(bin) {
  * или търговски (Team, Enterprise, API: без обучение по подразбиране). Самата настройка не може да се прочете отвън.
  */
 export function accountTerms() {
+  const cfg = aiConfig();
+  // Друг доставчик: условията са неговите. Локалният модел и ръчният режим не пращат нищо сами.
+  if (cfg.engine === 'manual') return { terms: 'manual', plan: null, provider: cfg.provider };
+  if (cfg.local) return { terms: 'local', plan: null, provider: cfg.provider };
+  if (cfg.preset.id !== 'claude-code') return { terms: cfg.free ? 'free-tier' : 'commercial', plan: cfg.free ? 'free' : 'api', provider: cfg.provider, vendor: cfg.preset.vendor || cfg.name };
   const bin = findClaude();
   if (!bin || !claudeVersion(bin)) return { terms: 'unknown', plan: null };
   const a = claudeAuth(bin);
@@ -60,31 +67,46 @@ export function checkSetup() {
   add({ id: 'deps', title: $t('Libraries are installed'), ok: deps, detail: deps ? $t('The folder node_modules is in place.') : $t('The folder node_modules is missing.'),
     fix: $t('Run this once in the project folder:'), cmd: 'npm install' });
 
-  // 3. Claude Code
-  const bin = findClaude();
-  const ver = bin ? claudeVersion(bin) : null;
-  add({ id: 'claude', title: $t('Claude Code is installed'), ok: !!ver, detail: ver ? ver : $t('The command claude was not found.'),
-    fix: $t('Install Claude Code (it reads and writes the pages for you), then reload this page.'),
-    cmd: IS_WIN ? 'irm https://claude.ai/install.ps1 | iex' : 'curl -fsSL https://claude.ai/install.sh | bash',
-    link: 'https://docs.claude.com/en/docs/claude-code/setup' });
-
-  // 4. Вход в акаунта
-  let auth = { known: false, loggedIn: false };
-  if (ver) auth = claudeAuth(bin);
+  // 3. Моделът: доставчикът се избира в „Настройки → Модел“
+  const cfg = aiConfig(), ready = readiness(cfg);
   steps.push({
-    id: 'login', required: true, title: $t('You are signed in to your Claude account'),
-    ok: auth.loggedIn, unknown: !!ver && !auth.known,
-    detail: !ver ? $t('Install Claude Code first.')
-      : auth.loggedIn ? [auth.email, auth.plan && ($t('plan') + ' ' + auth.plan)].filter(Boolean).join(' · ') || $t('Signed in.')
-      : auth.known ? $t('Not signed in.') : $t('This version of Claude Code cannot say whether you are signed in. Use “Test the connection”.'),
-    fix: $t('Run claude in a terminal and sign in with a Claude subscription (Pro or Max) or an Anthropic API key. You only do this once.'),
-    cmd: 'claude', test: !!ver,
+    id: 'ai', required: cfg.engine !== 'agent' || cfg.preset.id !== 'claude-code', title: $t('The model: {0}', [cfg.name]),
+    ok: ready.ok, href: '#/settings', test: ready.ok && cfg.engine !== 'manual',
+    detail: [$t(cfg.preset.label), cfg.engine === 'agent' ? $t('agent with tools') : cfg.engine === 'manual' ? $t('copy and paste') : $t('without tools'),
+      cfg.engine !== 'manual' && cfg.models.medium && cfg.preset.id !== 'claude-code' ? cfg.models.medium : null,
+      !ready.ok ? { url: $t('the address is missing'), key: $t('the key is missing'), model: $t('the model is missing') }[ready.missing] : null].filter(Boolean).join(' · '),
+    fix: $t('Choose the model, the address and the key in Settings → Model. Claude Code is needed only for the agent.'),
   });
+
+  if (cfg.engine === 'agent') {
+    // 4. Claude Code (агентът с инструменти; работи и с модели на други доставчици)
+    const bin = findClaude();
+    const ver = bin ? claudeVersion(bin) : null;
+    add({ id: 'claude', title: $t('Claude Code is installed'), ok: !!ver, detail: ver ? ver : $t('The command claude was not found.'),
+      fix: $t('Install Claude Code (it reads and writes the pages for you), then reload this page.'),
+      cmd: IS_WIN ? 'irm https://claude.ai/install.ps1 | iex' : 'curl -fsSL https://claude.ai/install.sh | bash',
+      link: 'https://docs.claude.com/en/docs/claude-code/setup' });
+
+    // 5. Вход в акаунта (само при абонамент: при ключ или друг доставчик Claude Code ползва ключа от настройките)
+    if (cfg.preset.id === 'claude-code') {
+      let auth = { known: false, loggedIn: false };
+      if (ver) auth = claudeAuth(bin);
+      steps.push({
+        id: 'login', required: true, title: $t('You are signed in to your Claude account'),
+        ok: auth.loggedIn, unknown: !!ver && !auth.known,
+        detail: !ver ? $t('Install Claude Code first.')
+          : auth.loggedIn ? [auth.email, auth.plan && ($t('plan') + ' ' + auth.plan)].filter(Boolean).join(' · ') || $t('Signed in.')
+          : auth.known ? $t('Not signed in.') : $t('This version of Claude Code cannot say whether you are signed in. Use “Test the connection”.'),
+        fix: $t('Run claude in a terminal and sign in with a Claude subscription (Pro or Max) or an Anthropic API key. You only do this once.'),
+        cmd: 'claude', test: !!ver,
+      });
+    }
+  }
 
   // 5. git (точки за връщане)
   const git = run('git', ['--version']);
   add({ id: 'git', title: $t('git, for restore points'), required: false, ok: git.status === 0, detail: git.status === 0 ? (git.stdout || '').trim() : $t('git was not found.'),
-    fix: $t('Without git everything works, but the “Undo” button after Claude’s changes will not be available.'), link: 'https://git-scm.com/downloads',
+    fix: $t('Without git everything works, but the “Undo” button after {ai}’s changes will not be available.'), link: 'https://git-scm.com/downloads',
     cmd: IS_WIN ? 'winget install --id Git.Git -e' : IS_MAC ? 'brew install git' : 'sudo apt install git' });
 
   // 6. OCR (по желание)
@@ -109,7 +131,15 @@ export function checkSetup() {
 }
 
 /** Кратка платена проверка: праща една дума на най-лекия модел. Стартира се само по натискане на бутон. */
-export async function testClaude() {
-  const r = await askClaude({ prompt: 'Reply with the single word: ok', model: 'haiku', maxTurns: 1, timeoutMs: 60000 });
-  return r.ok ? { ok: true } : { ok: false, kind: r.kind, error: r.error };
+export async function testAI() {
+  const cfg = aiConfig();
+  if (cfg.engine === 'manual') return { ok: true, manual: true };
+  if (cfg.engine === 'agent') {
+    const r = await askClaude({ prompt: 'Reply with the single word: ok', model: 'haiku', maxTurns: 1, timeoutMs: 90000 });
+    return r.ok ? { ok: true, model: cfg.models.light } : { ok: false, kind: r.kind, error: r.error, detail: r.detail };
+  }
+  if (!readiness(cfg).ok) return { ok: false, kind: 'not-ready', error: errorText({ kind: 'not-ready' }, cfg) };
+  const r = await complete({ tier: 'light', prompt: 'Reply with the single word: ok', maxTokens: 300, timeoutMs: 120000, cfg });
+  return r.ok ? { ok: true, model: cfg.models.light, answer: String(r.text).trim().slice(0, 80) } : { ok: false, kind: r.kind, error: errorText(r, cfg), detail: String(r.error || '').slice(0, 300) };
 }
+export const testClaude = testAI; // старото име

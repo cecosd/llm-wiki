@@ -13,7 +13,9 @@ import fs from 'node:fs';
 import path from 'node:path';
 import matter from 'gray-matter';
 import { ROOT, today, extractLinks } from './lib.js';
-import { askClaude, PATH_LEVELS } from './agent.js';
+import { PATH_LEVELS } from './agent.js';
+import { askAI } from './ai.js';
+import { clipTokens } from './llm.js';
 import { CYR } from './merge.js';
 import { $t, contentLang } from './i18n.js';
 import { any, anyP, Pall, P, pageUnits, lazy } from './vocab.js';
@@ -212,8 +214,23 @@ const DEPTH = lazy(() => ({
   strong: P('Work thoroughly: read all relevant pages, follow the citations to the chapters, check the key claims in the original text (raw/.extracted/, markers <!-- стр. N -->) and describe the contradictions between the authors.'),
 }));
 
-function claudePrompt({ topic, length, voice, hints }) {
+/**
+ * За модел без инструменти: най-близките до темата страници (по търсачката), всяка с [[slug]] над нея.
+ * Източниците и главите идват първи, защото само тях статията цитира; понятията дават рамката.
+ */
+const PAGES_PER_LEVEL = { light: 6, medium: 12, strong: 20 };
+function materialOf(ranked, budget, level) {
+  const list = [...(ranked || [])];
+  const order = (p) => (SRC_TYPES.has(p.data.type) ? 0 : ['concept', 'comparison', 'topic'].includes(p.data.type) ? 1 : 2);
+  const chosen = list.sort((a, b) => order(a) - order(b)).slice(0, PAGES_PER_LEVEL[level] || 12);
+  if (!chosen.length) return P('(no pages found for this topic)');
+  const share = Math.max(300, Math.floor(budget / chosen.length));
+  return chosen.map((p) => `### [[${p.slug}]] (${p.data.type}) ${p.data.title || p.slug}${p.data.apa ? `\n${P('Reference')}: ${p.data.apa}` : ''}\n${clipTokens(p.content, share)}`).join('\n\n');
+}
+
+function claudePrompt({ topic, length, voice, hints, material }) {
   const L = LENGTHS[length] || LENGTHS.medium;
+  const text = material != null;
   return [
     P('You are writing a scientific article in English based on the author\'s materials (the wiki/ folder in the current directory). This is your working environment, not the topic of the article.'),
     '',
@@ -222,8 +239,10 @@ function claudePrompt({ topic, length, voice, hints }) {
     voice ? P('\nHOW THE AUTHOR SOUNDS (their sample sentences: follow the tone, the rhythm and the length of the sentences; do not copy them):\n"""\n{0}\n"""', [voice.slice(0, 1500)]) : '',
     '',
     P('HOW TO WORK'),
-    P('- Start with wiki/index.md and choose the pages on the topic (concepts, entities, topics, comparisons, questions, sources, sources/chapters). The identifier (slug) of a page is the file name without .md.'),
-    `- ${DEPTH[L.depth] || ''}`.replace('undefined', ''),
+    ...(text ? [P('- Use ONLY the pages of the library in MATERIAL below. The identifier (slug) of each page is in [[…]] above it.')] : [
+      P('- Start with wiki/index.md and choose the pages on the topic (concepts, entities, topics, comparisons, questions, sources, sources/chapters). The identifier (slug) of a page is the file name without .md.'),
+      `- ${DEPTH[L.depth] || ''}`.replace('undefined', ''),
+    ]),
     P('- Write ONLY what is based on the library. Do not invent claims, authors, years or pages. If something is missing, say so as a limitation in the conclusion.'),
     P('- After every substantial claim put a citation in the wiki format: ([[slug-of-chapter-or-source]], p. N), where N is the PDF page recorded in the pages of the library. If you do not know it, write only ([[slug]]), without a page. Do NOT write author names and years in parentheses: citations are converted automatically to APA 7.'),
     P('- Cite only pages from wiki/sources/ and wiki/sources/chapters/ (sources and chapters). The concept and person pages are for orientation, not for citing.'),
@@ -243,27 +262,28 @@ function claudePrompt({ topic, length, voice, hints }) {
     '',
     P('LANGUAGE: impersonal scientific style; clear paragraphs; no em dash (—) and no dash for a pause; do not begin all sentences the same way.'),
     '',
-    P('HINTS from a rough word-based searcher (they may be incomplete, check them):'),
-    hints || P('(none)'),
+    ...(text ? [P('MATERIAL (pages of the library):'), material] : [P('HINTS from a rough word-based searcher (they may be incomplete, check them):'), hints || P('(none)')]),
     '',
     P('Return only the Markdown of the article, with no explanations before or after it.'),
   ].filter((x) => x !== '').join('\n');
 }
 
-export async function writeWithClaude({ topic, level, length, voice, hints, pages, signal }) {
+export async function writeWithClaude({ topic, level, length, voice, hints, ranked, pages, signal }) {
   const L = PATH_LEVELS[level] || PATH_LEVELS.medium;
-  const r = await askClaude({
-    prompt: claudePrompt({ topic, length, voice, hints }), model: L.model, effort: L.effort,
+  const out = Math.min(16000, Math.round((LENGTHS[length] || LENGTHS.medium).words * 2.6) + 800);
+  const r = await askAI({
+    level, agentPrompt: claudePrompt({ topic, length, voice, hints }), maxTokens: out, label: $t('Writing with {ai}'),
+    textPrompt: (budget) => claudePrompt({ topic, length, voice, material: materialOf(ranked, budget - 1500, level) }),
     maxTurns: L.maxTurns + 12, timeoutMs: Math.round(L.timeoutMs * 1.6), signal,
   });
   if (!r.ok) return r;
   let md = noDash(r.text).trim().replace(/^```(?:markdown|md)?\s*/i, '').replace(/\s*```$/, '');
-  if (!/^#\s/m.test(md) || words(md) < 120) return { ok: false, kind: 'format', error: $t('Claude did not return an article. Try again or with a more powerful level.'), detail: md.slice(0, 400) };
+  if (!/^#\s/m.test(md) || words(md) < 120) return { ok: false, kind: 'format', error: $t('{ai} did not return an article. Try again or with a more powerful level.'), detail: md.slice(0, 400) };
   md = md.replace(new RegExp(`^##\\s*${HDR('bibliography')}[\\s\\S]*$`, 'im'), '').trim(); // библиографията я прави сървърът
   const citer = makeCiter(pages), warnings = [];
   const body = citer.convert(md);
   if (citer.cited.size < 2) warnings.push($t('The article cites few sources. Check whether the library covers the topic, or try a more powerful level.'));
-  if (citer.missing.size) warnings.push($t('Claude cited non-existent pages ({0}): the citations were removed.', [[...citer.missing].join(', ')]));
+  if (citer.missing.size) warnings.push($t('{ai} cited non-existent pages ({0}): the citations were removed.', [[...citer.missing].join(', ')]));
   if (/library|wiki|knowledge base|collection|библиотек|база знания|колекци/i.test(body)) warnings.push($t('The text mentions the library or the wiki. Check and rewrite those sentences.'));
   const target = (LENGTHS[length] || LENGTHS.medium).words, n = words(body);
   if (n < target * 0.6) warnings.push($t('The text is shorter than requested ({0} of about {1} words).', [n, target]));
@@ -273,7 +293,8 @@ export async function writeWithClaude({ topic, level, length, voice, hints, page
 // ---------- Дописване на вече написана статия ----------
 const BIB_RE = new RegExp(`^##\\s*${HDR('bibliography')}\\s*$`, 'm');
 
-function continuePrompt({ title, body, instruction, words: n, hints }) {
+function continuePrompt({ title, body, instruction, words: n, hints, material }) {
+  const text = material != null;
   return [
     P('You are continuing a scientific article in English based on the author\'s materials (the wiki/ folder in the current directory). This is your working environment, not the topic of the article.'),
     '',
@@ -284,7 +305,8 @@ function continuePrompt({ title, body, instruction, words: n, hints }) {
     P('LENGTH: about {0} words.', [n]),
     '',
     P('HOW TO WORK'),
-    P('- Start with wiki/index.md and read the pages needed for the new text. The identifier (slug) of a page is the file name without .md.'),
+    text ? P('- Use ONLY the pages of the library in MATERIAL below. The identifier (slug) of each page is in [[…]] above it.')
+      : P('- Start with wiki/index.md and read the pages needed for the new text. The identifier (slug) of a page is the file name without .md.'),
     P('- Follow the tone, the terminology and the way of citing of the text so far. Do not repeat or contradict what is said; if something connects with it, build on it.'),
     P('- Write ONLY what is based on the library. Do not invent claims, authors, years or pages.'),
     P('- After every substantial claim put a citation in the wiki format: ([[slug-of-chapter-or-source]], p. N), where N is the PDF page. If you do not know it, write only ([[slug]]). Do NOT write author names and years in parentheses: citations are converted automatically to APA 7.'),
@@ -294,8 +316,7 @@ function continuePrompt({ title, body, instruction, words: n, hints }) {
     P('- Impersonal scientific style; no em dash (—). Do not include the title of the article, an abstract, a conclusion or a bibliography.'),
     P('- If you write new sections, start them with ## (subsections with ###); if you only continue a thought, return plain paragraphs without a heading.'),
     '',
-    P('HINTS from a rough word-based searcher (they may be incomplete, check them):'),
-    hints || P('(none)'),
+    ...(text ? [P('MATERIAL (pages of the library):'), material] : [P('HINTS from a rough word-based searcher (they may be incomplete, check them):'), hints || P('(none)')]),
     '',
     P('Return only the Markdown of the new text, with no explanations before or after it.'),
   ].join('\n');
@@ -306,22 +327,25 @@ function continuePrompt({ title, body, instruction, words: n, hints }) {
  * Новият текст влиза преди „Заключение“ (ако има), иначе преди „Библиография“, иначе накрая.
  * Библиографията се допълва с новоцитираните източници, като вече написаните записи се пазят.
  */
-export async function continueWithClaude({ body, title, instruction, level, words: n = 600, hints, pages, signal }) {
+export async function continueWithClaude({ body, title, instruction, level, words: n = 600, hints, ranked, pages, signal }) {
   const L = PATH_LEVELS[level] || PATH_LEVELS.medium;
   const text = String(body ?? '');
   if (!text.trim()) return { ok: false, kind: 'empty', error: $t('The article is empty.') };
-  const r = await askClaude({
-    prompt: continuePrompt({ title, body: text, instruction: String(instruction || '').trim(), words: n, hints }), model: L.model, effort: L.effort,
+  const ins = String(instruction || '').trim();
+  const r = await askAI({
+    level, agentPrompt: continuePrompt({ title, body: text, instruction: ins, words: n, hints }), maxTokens: Math.round(n * 2.6) + 600, label: $t('Continue with {ai}'),
+    // без инструменти: статията (отрязана, ако е дълга) плюс страниците по темата, в рамките на контекста
+    textPrompt: (budget) => continuePrompt({ title, body: clipTokens(text, Math.floor(budget * 0.4)), instruction: ins, words: n, material: materialOf(ranked, Math.floor(budget * 0.55), level) }),
     maxTurns: L.maxTurns + 12, timeoutMs: Math.round(L.timeoutMs * 1.4), signal,
   });
   if (!r.ok) return r;
   let add = noDash(r.text).trim().replace(/^```(?:markdown|md)?\s*/i, '').replace(/\s*```$/, '');
   add = add.replace(/^#\s+.*\n+/, '').replace(new RegExp(`^##\\s*${HDR('bibliography')}[\\s\\S]*$`, 'im'), '').trim();
-  if (words(add) < 40) return { ok: false, kind: 'format', error: $t('Claude did not return a usable new text. Try again, with another direction or with a more powerful level.'), detail: add.slice(0, 400) };
+  if (words(add) < 40) return { ok: false, kind: 'format', error: $t('{ai} did not return a usable new text. Try again, with another direction or with a more powerful level.'), detail: add.slice(0, 400) };
 
   const citer = makeCiter(pages), warnings = [];
   add = citer.convert(add);
-  if (citer.missing.size) warnings.push($t('Claude cited non-existent pages ({0}): the citations were removed.', [[...citer.missing].join(', ')]));
+  if (citer.missing.size) warnings.push($t('{ai} cited non-existent pages ({0}): the citations were removed.', [[...citer.missing].join(', ')]));
   if (/library|wiki|knowledge base|collection|библиотек|база знания|колекци/i.test(add)) warnings.push($t('The new text mentions the library or the wiki. Check and rewrite those sentences.'));
 
   // разделяне на статията на основен текст и библиография

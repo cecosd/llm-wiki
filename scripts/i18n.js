@@ -6,6 +6,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { AsyncLocalStorage } from 'node:async_hooks';
 import { ROOT } from './lib.js';
+import { aiName } from './providers.js';
 
 export const LOCALES_DIR = path.join(ROOT, 'locales');
 const FALLBACK = 'en';
@@ -74,9 +75,10 @@ export const currentLang = () => als.getStore() || systemLang();
 
 const fmt = (s, args) => (args && args.length ? s.replace(/\{(\d+)\}/g, (m, i) => (args[i] ?? m)) : s);
 
-/** Превод по английски ключ; `{0}`, `{1}` се заместват от args. */
+/** Превод по английски ключ; `{0}`, `{1}` се заместват от args, а `{ai}` от името на избрания модел (providers.js). */
 export function t(key, args) {
-  return fmt(messagesFor(currentLang())[key] ?? key, args);
+  const s = fmt(messagesFor(currentLang())[key] ?? key, args);
+  return s.includes('{ai}') ? s.replace(/\{ai\}/g, aiName()) : s;
 }
 
 export const $t = t; // короткото име е същото като в интерфейса (в модулите `t` често е локална променлива)

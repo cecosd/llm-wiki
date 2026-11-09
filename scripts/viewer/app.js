@@ -5,7 +5,7 @@ const I18N = window.I18N; // език и преводи: виж /locale.js и i1
 // ---------- Речници ----------
 const TYPES = {
   chapter:    { label: $t('Chapter'),     plural: $t('Chapters'),     icon: 'bookmark', hex: '#dba27c', soft: 'bg-clay-100/70 text-clay-500 dark:bg-clay-500/10 dark:text-clay-400', desc: $t('The chapters of books: the step between the book and the text itself.') },
-  source:     { label: $t('Source'),  plural: $t('Sources'), icon: 'book',    hex: '#c2703d', soft: 'bg-clay-100 text-clay-500 dark:bg-clay-500/15 dark:text-clay-400', desc: $t('Books, articles and tables that Claude has read and summarized.') },
+  source:     { label: $t('Source'),  plural: $t('Sources'), icon: 'book',    hex: '#c2703d', soft: 'bg-clay-100 text-clay-500 dark:bg-clay-500/15 dark:text-clay-400', desc: $t('Books, articles and tables that {ai} has read and summarized.') },
   concept:    { label: $t('Concept'),   plural: $t('Concepts'),   icon: 'bulb',    hex: '#3f8571', soft: 'bg-sage-50 text-sage-600 dark:bg-sage-900/50 dark:text-sage-200', desc: $t('Ideas, theories and methods gathered from all sources.') },
   entity:     { label: $t('Person'),   plural: $t('People'),  icon: 'user',    hex: '#7c6bb8', soft: 'bg-violet-50 text-violet-600 dark:bg-violet-500/15 dark:text-violet-300', desc: $t('Authors, schools, organizations and tools.') },
   topic:      { label: $t('Topic'),      plural: $t('Topics'),      icon: 'compass', hex: '#3b82a6', soft: 'bg-sky-50 text-sky-700 dark:bg-sky-500/15 dark:text-sky-300', desc: $t('Hubs that gather concepts and sources around one field.') },
@@ -24,15 +24,24 @@ const CONF = {
   medium: { label: $t('medium'), cls: 'bg-amber-50 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300', dot: 'bg-amber-400', hint: $t('One good source or several with small differences.') },
   low:    { label: $t('low'),  cls: 'bg-clay-100 text-clay-500 dark:bg-clay-500/15 dark:text-clay-400', dot: 'bg-clay-400', hint: $t('There are almost no sources, there are contradictions or the page is incomplete. A good candidate for more reading.') },
 };
+// Избраният модел (providers.js през /locale.js): името за „{ai}“, начинът на работа и моделите на трите нива.
+// При Claude нивата са Haiku, Sonnet и Opus; при друг доставчик са моделите, избрани в „Настройки → Модел“.
+const AI = window.AI || { name: 'Claude', engine: 'agent', tools: true, claude: true, subscription: true, tierNames: {}, labels: {} };
+const TN = { light: AI.tierNames?.light || $t('Light'), medium: AI.tierNames?.medium || $t('Medium'), strong: AI.tierNames?.strong || $t('Powerful') };
+/** Къде отиват данните при действие с модела (за кратките бележки в интерфейса) */
+const dataNote = () => (AI.engine === 'manual' ? $t('you paste it into the chat yourself')
+  : AI.local ? $t('it stays on this computer')
+  : AI.subscription ? $t('sent to Anthropic through your subscription')
+  : $t('sent to {0}', [AI.vendor || AI.name]));
 const MODES = [
-  { id: 'economy', label: $t('Economy'), hint: $t('Haiku reads the chapters, Sonnet writes the pages. Uses the least of your limit; for large numbers of books.') },
-  { id: 'balanced', label: $t('Balanced'), hint: $t('Sonnet reads and writes. A finer reading, moderate cost.') },
-  { id: 'best', label: $t('Best'), hint: $t('Opus reads and writes. The most thorough, but uses up the limit fastest.') },
+  { id: 'economy', label: $t('Economy'), hint: $t('{0} reads the chapters, {1} writes the pages. Uses the least of your limit; for large numbers of books.', [TN.light, TN.medium]) },
+  { id: 'balanced', label: $t('Balanced'), hint: $t('{0} reads and writes. A finer reading, moderate cost.', [TN.medium]) },
+  { id: 'best', label: $t('Best'), hint: $t('{0} reads and writes. The most thorough, but uses up the limit fastest.', [TN.strong]) },
 ];
 const MODEL_OPTS = [
-  { id: 'haiku', label: $t('Haiku (cheapest)') },
-  { id: 'sonnet', label: $t('Sonnet (balanced)') },
-  { id: 'opus', label: $t('Opus (most powerful)') },
+  { id: 'haiku', label: $t('{0} (cheapest)', [TN.light]) },
+  { id: 'sonnet', label: $t('{0} (balanced)', [TN.medium]) },
+  { id: 'opus', label: $t('{0} (most powerful)', [TN.strong]) },
 ];
 const FOLDERS = { books: $t('book'), papers: $t('paper'), articles: $t('text'), web: $t('web'), data: $t('table'), notes: $t('note'), images: $t('picture'), other: $t('other') };
 
@@ -81,7 +90,7 @@ const readerOk = (type, slug) => ['source', 'chapter'].includes(type) && (!windo
 
 // Общи помощници, достъпни във всички шаблони
 // ro: архивът за четене (виж archive.js). Там няма записи, Claude и пътища към raw/.
-const shared = { MODEL_OPTS, MODES, TYPES, typeOrder, KINDS, FORMATS, FORMAT_ICON, FORMAT_BG, STATUS, CONF, relDate, size, plural, fileIcon, ro: !!window.LIB_STATIC };
+const shared = { MODEL_OPTS, MODES, TYPES, typeOrder, KINDS, FORMATS, FORMAT_ICON, FORMAT_BG, STATUS, CONF, relDate, size, plural, fileIcon, ro: !!window.LIB_STATIC, AI, TN, dataNote };
 
 // ---------- Иконки (линейни, 24×24) ----------
 const ICONS = {
@@ -247,7 +256,7 @@ const HomeView = defineComponent({
       return [
         { title: $t('Upload'), text: $t('Drop files in the field below or into raw/inbox/.') },
         { title: $t('Sort'), text: $t('Files go into folders and their text is extracted.') },
-        { title: $t('Process'), text: $t('Claude Code reads them and writes the pages.') },
+        { title: $t('Process'), text: $t('{ai} reads them and writes the pages.') },
         { title: $t('Explore'), text: $t('Search, follow links, ask the library.') },
       ];
     },
@@ -293,7 +302,7 @@ const HomeView = defineComponent({
     async start() {
       if (!(await this.$root.confirmClaude({ kind: 'ingest' }))) return;
       const r = await this.post('/api/agent/ingest');
-      this.$emit('toast', r.queued ? { text: $t('Claude started: {0} {1} in the queue', [r.queued, plural(r.queued, $t('file'), $t('files'))]) } : { text: $t('They are already in the queue'), icon: 'alert' });
+      this.$emit('toast', r.queued ? { text: $t('{ai} started: {0} {1} in the queue', [r.queued, plural(r.queued, $t('file'), $t('files'))]) } : { text: $t('They are already in the queue'), icon: 'alert' });
     },
     async stop() { await this.post('/api/agent/cancel'); },
     async resume() { await this.post('/api/agent/resume'); },
@@ -361,7 +370,7 @@ const HomeView = defineComponent({
         this.uploads = [];
         if (r.needsConfirm) { this.$emit('refresh'); this.start(); }
         this.$emit('toast', !r.ok ? { text: $t('Something went wrong, see “What happened”.'), icon: 'alert' }
-          : r.queued ? { text: $t('Sorted. Claude started processing ({0}).', [r.queued]) } : { text: $t('Sorted.') });
+          : r.queued ? { text: $t('Sorted. {ai} started processing ({0}).', [r.queued]) } : { text: $t('Sorted.') });
       } catch {
         this.$emit('toast', { text: $t('The server is not responding'), icon: 'alert' });
       } finally {
@@ -854,11 +863,17 @@ const CollectionView = defineComponent({
 // ---------- Пътека за учене ----------
 // Въпросът става подредена пътека. Страниците се четат в панел до пътеката, така че
 // следването на връзки не те изважда от нея: винаги се виждат „къде съм“ и „накъде вървя“.
+// В ръчен режим нивата не сменят модела, а само колко материал влиза в заявката за копиране
+const MANUAL_HINTS = {
+  light: $t('A short request with little material: the quickest to copy.'),
+  medium: $t('A request with the main pages of the library.'),
+  strong: $t('The longest request, with the most material from the library.'),
+};
 const LEVELS = [
-  { id: 'local', label: $t('Quick'), hint: $t('Arranges by words from the question. Works locally, without Claude and without using your limit, but does not understand meaning.') },
-  { id: 'light', label: $t('Light'), hint: $t('Claude with the light model (Haiku): quick and economical, arranges by the index and a few opened pages.') },
-  { id: 'medium', label: $t('Medium'), hint: $t('Claude with the medium model (Sonnet): reads the main pages and arranges from the general to the specific.') },
-  { id: 'strong', label: $t('Powerful'), hint: $t('Claude with the most powerful model (Opus): reads the most, follows citations to chapters and marks contradictions. The slowest and the most expensive for your limit.') },
+  { id: 'local', label: $t('Quick'), hint: $t('Arranges by words from the question. Works locally, without {ai} and without using your limit, but does not understand meaning.') },
+  { id: 'light', label: $t('Light'), hint: AI.engine === 'manual' ? MANUAL_HINTS.light : $t('{ai} with the light model ({0}): quick and economical, arranges by the index and a few opened pages.', [TN.light]) },
+  { id: 'medium', label: $t('Medium'), hint: AI.engine === 'manual' ? MANUAL_HINTS.medium : $t('{ai} with the medium model ({0}): reads the main pages and arranges from the general to the specific.', [TN.medium]) },
+  { id: 'strong', label: $t('Powerful'), hint: AI.engine === 'manual' ? MANUAL_HINTS.strong : $t('{ai} with the most powerful model ({0}): reads the most, follows citations to chapters and marks contradictions. The slowest and the most expensive for your limit.', [TN.strong]) },
 ];
 // ---------- Обхват: области и теми, общи за „Учене по въпрос“ и „Писане с wiki“ ----------
 const scope = Vue.reactive((() => { let a = []; try { a = JSON.parse(store.get('scope:areas', '[]')); } catch {} return { areas: Array.isArray(a) ? a.map(String) : [], focus: [] }; })());
@@ -1156,10 +1171,10 @@ const PathView = defineComponent({
 
 // ---------- Писане с wiki ----------
 const WRITE_HINTS = {
-  local: $t('Arranges the text from the library’s pages into an article structure. Without Claude, does not use your limit, but it is a draft to edit, not a connected text.'),
-  light: $t('Claude with the light model (Haiku): quick and economical; a simpler text.'),
-  medium: $t('Claude with the medium model (Sonnet): reads the main pages and writes a connected text.'),
-  strong: $t('Claude with the most powerful model (Opus): reads the most, checks claims against the original and describes contradictions. The slowest and the most expensive for your limit.'),
+  local: $t('Arranges the text from the library’s pages into an article structure. Without {ai}, does not use your limit, but it is a draft to edit, not a connected text.'),
+  light: AI.engine === 'manual' ? MANUAL_HINTS.light : $t('{ai} with the light model ({0}): quick and economical; a simpler text.', [TN.light]),
+  medium: AI.engine === 'manual' ? MANUAL_HINTS.medium : $t('{ai} with the medium model ({0}): reads the main pages and writes a connected text.', [TN.medium]),
+  strong: AI.engine === 'manual' ? MANUAL_HINTS.strong : $t('{ai} with the most powerful model ({0}): reads the most, checks claims against the original and describes contradictions. The slowest and the most expensive for your limit.', [TN.strong]),
 };
 // ---------- Добави статия по DOI или адрес ----------
 const LANGS = [
@@ -1182,7 +1197,7 @@ const SetupView = defineComponent({
       try {
         const d = await (await api('/api/setup/test', { method: 'POST' })).json();
         this.testOk = !!d.ok;
-        this.testMsg = d.ok ? $t('The connection works. Claude answered.') : (d.error || $t('Claude returned no answer.'));
+        this.testMsg = d.manual ? $t('Copy and paste needs no test: you send the requests yourself.') : d.ok ? $t('The connection works. {ai} answered.') : (d.error || $t('{ai} returned no answer.'));
         if (d.ok) this.load();
       } catch { this.testOk = false; this.testMsg = $t('The server is not responding.'); }
       this.testing = false;
@@ -1196,10 +1211,112 @@ const SetupView = defineComponent({
   },
 });
 
+// ---------- Настройки → Модел ----------
+// Основните бутони и прозорци, чиито надписи човекът най-често иска да смени (търсенето намира всички останали)
+const MAIN_LABELS = ['Process with {ai}', 'Ask {ai}', 'Ask {ai} about this page', 'With {ai}', 'Compose with {ai}', 'Write with {ai}', 'Continue with {ai}',
+  'Determine with {ai}', 'Send to {ai}', 'Before sending to {ai}', '{ai} is working', 'Question to {ai}', 'Writing with {ai}', '{ai} level', 'Quick, without {ai}'];
+const AiSettings = defineComponent({
+  template: '#tpl-ai',
+  data: () => ({ ...shared, s: null, sel: '', form: null, key: '', showKey: false, busy: false, msg: '', bad: false, models: [], modelsMsg: '', loadingModels: false, testing: false, testMsg: '', testOk: false, labelQuery: '', tiers: ['light', 'medium', 'strong'] }),
+  computed: {
+    preset() { return this.s?.presets.find((p) => p.id === this.sel) || null; },
+    groups() { return (this.s?.groups || []).map((g) => ({ ...g, items: this.s.presets.filter((p) => p.group === g.id) })).filter((g) => g.items.length); },
+    show() {
+      const p = this.preset || {};
+      const fixed = ['claude-code', 'claude-api'].includes(p.id);
+      return {
+        url: !fixed && p.engine !== 'manual', key: (p.needsKey || p.keyOptional) && p.engine !== 'manual',
+        models: !fixed && p.engine !== 'manual', context: !fixed, rpm: p.engine === 'api', vision: p.engine === 'api',
+        prices: !fixed && !p.local && p.engine !== 'manual',
+      };
+    },
+    labelKeys() {
+      const all = Object.keys(window.__I18N?.messages || {});
+      const q = this.labelQuery.trim().toLowerCase();
+      if (!q) return [...new Set([...MAIN_LABELS, ...Object.keys(this.form?.labels || {})])].filter((k) => all.includes(k));
+      return all.filter((k) => k.toLowerCase().includes(q) || this.preview(k, true).toLowerCase().includes(q)).slice(0, 60);
+    },
+    changedLabels() { return Object.values(this.form?.labels || {}).filter(Boolean).length; },
+  },
+  created() { this.load(); },
+  methods: {
+    engineText: (e) => (e === 'agent' ? $t('agent with tools') : e === 'manual' ? $t('copy and paste') : $t('without tools')),
+    tierLabel(t) { return { light: $t('Light model (reads chapters)'), medium: $t('Medium model (writes the pages)'), strong: $t('Powerful model (synthesis)') }[t]; },
+    /** Текстът на ключа на езика на интерфейса, с името от формата вместо {ai} */
+    preview(k, raw) {
+      const name = this.form?.name || this.preset?.name || 'AI';
+      const t = (!raw && this.form?.labels?.[k]) || (window.__I18N?.messages?.[k] ?? k);
+      return String(t).replace(/\{ai\}/g, name);
+    },
+    async load() {
+      try { this.s = await (await fetch('/api/ai')).json(); } catch { this.s = null; return; }
+      if (!this.sel) this.sel = this.s.current.provider;
+      this.fill();
+    },
+    fill() {
+      const p = this.preset; if (!p) return;
+      const v = p.values || {};
+      const price = (t) => ({ in: v.prices?.[t]?.in ?? '', out: v.prices?.[t]?.out ?? '' });
+      this.form = {
+        baseUrl: v.baseUrl || '', models: { light: '', medium: '', strong: '', ...(v.models || {}) },
+        prices: { light: price('light'), medium: price('medium'), strong: price('strong') },
+        context: v.context || '', rpm: v.rpm ?? '', vision: !!v.vision, name: v.name || '', labels: { ...(v.labels || {}) },
+      };
+      this.key = ''; this.models = []; this.modelsMsg = ''; this.testMsg = ''; this.msg = '';
+    },
+    pick(id) { this.sel = id; this.fill(); },
+    setLabel(k, v) { const l = { ...this.form.labels }; if (v && v.trim()) l[k] = v; else delete l[k]; this.form.labels = l; },
+    async post(body) {
+      const r = await api('/api/ai', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
+      return r.json();
+    },
+    /** reload: след запис страницата се зарежда наново, за да се сменят имената и надписите навсякъде */
+    async save(quiet, activate = true) {
+      this.busy = true; this.msg = ''; this.bad = false;
+      try {
+        const f = this.form;
+        const r = await this.post({ provider: this.sel, activate, ...(this.key ? { key: this.key } : {}), profile: { baseUrl: f.baseUrl, models: f.models, prices: f.prices, context: f.context || 0, rpm: f.rpm, vision: f.vision, name: f.name, labels: f.labels } });
+        if (!r.ok) { this.bad = true; this.msg = r.error || $t('I could not'); return false; }
+        this.s = r; this.key = '';
+        if (!quiet) { this.msg = $t('Saved. The page reloads with the new names…'); setTimeout(() => location.reload(), 700); }
+        return true;
+      } catch { this.bad = true; this.msg = $t('The server is not responding.'); return false; }
+      finally { this.busy = false; }
+    },
+    async removeKey() {
+      if (!confirm($t('Remove the saved key of {0}?', [this.preset.label]))) return;
+      const r = await this.post({ provider: this.sel, activate: false, removeKey: true });
+      if (r.ok) { this.s = r; this.msg = $t('The key was removed.'); this.bad = false; }
+    },
+    async loadModels() {
+      if (!(await this.save(true, false))) return; // адресът и ключът трябват на сървъра, но моделът в употреба не се сменя
+      this.loadingModels = true; this.modelsMsg = '';
+      try {
+        const d = await (await api('/api/ai/models', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ provider: this.sel }) })).json();
+        if (d.ok) { this.models = d.models; this.modelsMsg = d.models.length ? $t('{0} models: choose them from the list in the fields above.', [d.models.length]) : $t('The provider returned no models.'); }
+        else this.modelsMsg = d.error || $t('I could not');
+      } catch { this.modelsMsg = $t('The server is not responding.'); }
+      finally { this.loadingModels = false; }
+    },
+    async test() {
+      this.testMsg = '';
+      if (this.sel !== this.s.current.provider && !confirm($t('The test saves this model as the one in use. Continue?'))) return;
+      if (!(await this.save(true))) return;
+      this.testing = true;
+      try {
+        const d = await (await api('/api/setup/test', { method: 'POST' })).json();
+        this.testOk = !!d.ok;
+        this.testMsg = d.ok ? $t('The connection works ({0}). Save to reload the page with the new names.', [d.model || this.preset.name]) : [d.error, d.detail].filter(Boolean).join(' ');
+      } catch { this.testOk = false; this.testMsg = $t('The server is not responding.'); }
+      finally { this.testing = false; }
+    },
+  },
+});
+
 const SettingsView = defineComponent({
   template: '#tpl-settings',
   emits: ['copy'],
-  data: () => ({ info: null, code: null, packages: null, tests: null, testError: '', archive: { busy: false, result: null, error: '', list: [] }, busy: { code: false, packages: false, tests: false, auth: false }, pw: { current: '', next: '', message: '', bad: false } }),
+  data: () => ({ ...shared, info: null, code: null, packages: null, tests: null, testError: '', archive: { busy: false, result: null, error: '', list: [] }, busy: { code: false, packages: false, tests: false, auth: false }, pw: { current: '', next: '', message: '', bad: false } }),
   computed: {
     updateCmd() {
       const pack = this.info?.contentLang && this.info.contentLang !== 'en' ? ` && npm run content -- ${this.info.contentLang}` : '';
@@ -1307,7 +1424,7 @@ const FindView = defineComponent({
       try {
         if (!(await this.$root.confirmClaude({ kind: 'ingest', paths: a.paths, opts }))) { a.state = 'later'; a.extra = $t('The file is waiting to be processed on the home page.'); a.busy = false; return; }
         const r = await (await api('/api/agent/ingest', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ paths: a.paths, opts }) })).json();
-        if (r.queued) { a.state = 'queued'; this.$emit('toast', { text: $t('Claude started processing. Progress is on the home page.') }); }
+        if (r.queued) { a.state = 'queued'; this.$emit('toast', { text: $t('{ai} started processing. Progress is on the home page.') }); }
         else { a.state = 'later'; a.extra = $t('Already in the queue.'); }
       } catch { this.$emit('toast', { text: $t('The server is not responding'), icon: 'alert' }); }
       a.busy = false;
@@ -1641,6 +1758,7 @@ const app = createApp({
   data: () => ({
     ...shared, I18N, route: parseRoute(), pages: [], stats: {}, version: 0, live: false, setupLeft: 0,
     drawer: false, palette: false, pq: '', hits: [], pi: 0, toasts: [], agent: null, reader: null, cost: null,
+    manual: [], manualHidden: false, manualShow: false, manualText: '', manualBusy: false, manualError: '', // ръчен режим (копиране в чат)
     focus: store.get('focus', '0') === '1', // режим фокус: само текстът на страницата (запомня се на този компютър)
     theme: store.get('theme', 'system'), isMac: /Mac|iPhone|iPad/.test(navigator.platform),
   }),
@@ -1720,7 +1838,31 @@ const app = createApp({
       const n = Math.min(r.last, Math.max(r.first, r.page + d));
       if (n !== r.page) this.loadReader(this.reader.src, n);
     },
-    async loadAgent() { try { this.agent = await (await fetch('/api/agent')).json(); } catch {} this.loadSetup(); },
+    async loadAgent() {
+      try { this.agent = await (await fetch('/api/agent')).json(); } catch {}
+      if (AI.engine === 'manual') { try { this.setManual(await (await fetch('/api/manual')).json()); } catch {} }
+      this.loadSetup();
+    },
+    // ---------- Ръчен режим: заявки, които чакат отговор от чата ----------
+    setManual(items) {
+      const first = this.manual[0]?.id;
+      this.manual = Array.isArray(items) ? items : [];
+      if (this.manual[0]?.id !== first) { this.manualText = ''; this.manualError = ''; this.manualShow = false; if (this.manual.length) this.manualHidden = false; }
+    },
+    async manualSend() {
+      const it = this.manual[0]; if (!it) return;
+      this.manualBusy = true; this.manualError = '';
+      try {
+        const r = await (await api('/api/manual/' + encodeURIComponent(it.id), { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ text: this.manualText }) })).json();
+        if (!r.ok) this.manualError = r.error || $t('I could not');
+      } catch { this.manualError = $t('The server is not responding.'); }
+      finally { this.manualBusy = false; }
+    },
+    async manualSkip() {
+      const it = this.manual[0]; if (!it) return;
+      if (!confirm($t('Stop this request? The task it belongs to stops too, and its half-finished changes are rolled back.'))) return;
+      try { await api('/api/manual/' + encodeURIComponent(it.id) + '/cancel', { method: 'POST' }); } catch {}
+    },
     // Точка в менюто, ако нещо задължително липсва; при първо влизане отваря екрана за инсталация
     async loadSetup() {
       try {
@@ -1751,6 +1893,7 @@ const app = createApp({
         this.live = true;
         let d = {}; try { d = JSON.parse(e.data); } catch {}
         if (d.type === 'agent') { this.agent = d.state; return; }
+        if (d.type === 'manual') { this.setManual(d.items); return; }
         clearTimeout(this._rt);
         this._rt = setTimeout(() => { this.refresh(); this.version++; }, 250);
       };
@@ -1787,6 +1930,7 @@ app.component('find-view', FindView);
 app.component('areas-view', AreasView);
 app.component('setup-view', SetupView);
 app.component('settings-view', SettingsView);
+app.component('ai-settings', AiSettings);
 app.component('scope-bar', ScopeBar);
 app.component('view-toggle', ViewToggle);
 app.component('archive-home', ArchiveHome);

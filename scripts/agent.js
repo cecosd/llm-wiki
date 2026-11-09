@@ -13,6 +13,9 @@ import { spawn, spawnSync } from 'node:child_process';
 import { ROOT, WIKI, OUTPUTS, EXTRACTED, RAW, rel, walk, wikiPages, ingestState, normRaw, extractLinks } from './lib.js';
 import { $t, currentLang } from './i18n.js';
 import { P, lazy } from './vocab.js';
+import { aiConfig, aiPublic, readiness, claudeEnv } from './providers.js';
+import { runPipeline, TIER_OF } from './pipeline.js';
+import { errorText } from './llm.js';
 
 const SETTINGS_FILE = path.join(ROOT, 'library.config.json');
 const HISTORY_FILE = path.join(OUTPUTS, '.agent-history.json');
@@ -21,7 +24,10 @@ const IS_WIN = process.platform === 'win32';
 // Read е ограничен до проекта с правило. Grep и Glob трябва да са разрешени по име, иначе в режим dontAsk изчезват,
 // затова и трите минават през куката guard-read.js, която важи и за подагента.
 const READ_TOOLS = ['Read(./**)', 'Glob', 'Grep'];
-const DENIED_TOOLS = ['WebFetch', 'WebSearch', 'Read(./.git/**)', 'Read(./.library-git/**)', 'Read(./.library-auth.json)', 'Read(./library.config.json)', 'Read(.env)', 'Read(~/.ssh/**)', 'Read(~/.aws/**)', 'Read(~/.gnupg/**)'];
+const DENIED_TOOLS = ['WebFetch', 'WebSearch', 'Read(./.git/**)', 'Read(./.library-git/**)', 'Read(./.library-auth.json)', 'Read(./.library-secrets.json)', 'Read(./library.config.json)', 'Read(.env)', 'Read(~/.ssh/**)', 'Read(~/.aws/**)', 'Read(~/.gnupg/**)'];
+// Claude Code с модел на друг доставчик: --effort е само за моделите на Anthropic
+const effortFor = (effort) => (aiConfig().preset.vendor === 'Anthropic' ? effort : null);
+const spawnOpts = (extra) => ({ cwd: ROOT, windowsHide: true, env: claudeEnv(), ...extra });
 const ALLOWED_TOOLS = [
   'Read(./**)', 'Glob', 'Grep', 'TodoWrite',
   'Agent(chapter-reader)', // четецът на глави в икономичен режим (само чете)
@@ -239,15 +245,16 @@ export function askClaude({ prompt, model, effort, maxTurns = 20, timeoutMs = 30
   return new Promise((resolve) => {
     const bin = findClaude();
     if (!bin) return resolve({ ok: false, kind: 'no-claude', error: $t('Claude Code was not found. Install it and sign in to your account.') });
-    const args = ['-p', '--output-format', 'json', '--model', model, ...(effort ? ['--effort', effort] : []),
+    const eff = effortFor(effort);
+    const args = ['-p', '--output-format', 'json', '--model', model, ...(eff ? ['--effort', eff] : []),
       '--max-turns', String(maxTurns), '--permission-mode', 'dontAsk', '--allowedTools', READ_TOOLS.join(','), ...guardArgs()];
-    const opts = { cwd: ROOT, stdio: ['pipe', 'pipe', 'pipe'], windowsHide: true };
+    const opts = spawnOpts({ stdio: ['pipe', 'pipe', 'pipe'] });
     const child = bin.shell ? spawn([winQuote(bin.cmd), ...args.map(winQuote)].join(' '), { ...opts, shell: true }) : spawn(bin.cmd, args, opts);
     let out = '', err = '', done = false;
     const end = (r) => { if (done) return; done = true; clearTimeout(timer); signal?.removeEventListener?.('abort', onAbort); resolve(r); };
     const kill = () => { try { child.kill(); } catch {} if (IS_WIN) { try { spawnSync('taskkill', ['/pid', String(child.pid), '/t', '/f']); } catch {} } };
     const onAbort = () => { kill(); end({ ok: false, kind: 'cancelled', error: $t('Stopped.') }); };
-    const timer = setTimeout(() => { kill(); end({ ok: false, kind: 'timeout', error: $t('Claude did not respond in {0} min. Try a lighter model or a shorter question.', [Math.round(timeoutMs / 60000)]) }); }, timeoutMs);
+    const timer = setTimeout(() => { kill(); end({ ok: false, kind: 'timeout', error: $t('{ai} did not respond in {0} min. Try a lighter model or a shorter question.', [Math.round(timeoutMs / 60000)]) }); }, timeoutMs);
     if (signal) { if (signal.aborted) return onAbort(); signal.addEventListener('abort', onAbort); }
     child.stdout.setEncoding('utf8'); child.stderr.setEncoding('utf8');
     child.stdout.on('data', (d) => { out += d; });
@@ -257,10 +264,10 @@ export function askClaude({ prompt, model, effort, maxTurns = 20, timeoutMs = 30
       let res = null; try { res = JSON.parse(out.trim().split('\n').filter(Boolean).pop() || ''); } catch {}
       const text = String(res?.result ?? err ?? '');
       if (res && !res.is_error && typeof res.result === 'string' && res.result.trim()) return end({ ok: true, text: res.result, cost: res.total_cost_usd ?? null });
-      if (LIMIT_RE.test(text + err)) return end({ ok: false, kind: 'limit', error: $t('The subscription limit has been reached. Try later or with a lighter model.') });
-      if (AUTH_RE.test(text + err)) return end({ ok: false, kind: 'auth', error: $t('Claude Code is not signed in. Run `claude` once in a terminal and sign in.') });
-      if (res?.subtype === 'error_max_turns') return end({ ok: false, kind: 'turns', error: $t('Claude could not finish within the allowed steps. Try a more powerful level.') });
-      end({ ok: false, kind: 'error', error: $t('Claude returned no answer.'), detail: (text || err).slice(-1500) });
+      if (LIMIT_RE.test(text + err)) return end({ ok: false, kind: 'limit', error: errorText({ kind: 'limit' }) });
+      if (AUTH_RE.test(text + err)) return end({ ok: false, kind: 'auth', error: aiConfig().preset.id === 'claude-code' ? $t('Claude Code is not signed in. Run `claude` once in a terminal and sign in.') : errorText({ kind: 'auth' }) });
+      if (res?.subtype === 'error_max_turns') return end({ ok: false, kind: 'turns', error: $t('{ai} could not finish within the allowed steps. Try a more powerful level.') });
+      end({ ok: false, kind: 'error', error: $t('{ai} returned no answer.'), detail: (text || err).slice(-1500) });
     });
     child.stdin.on('error', () => {});
     child.stdin.end(prompt);
@@ -274,7 +281,8 @@ export function createAgent({ broadcast }) {
     current: null,      // работещата задача
     history: readJSON(HISTORY_FILE, []),
     paused: null,       // { reason, at }
-    settings: { autoIngest: true, autoResume: true, mode: 'economy', synthesisBest: true, lang: 'both', confirmCost: true, ...readJSON(SETTINGS_FILE, {}) },
+    // „ai“ (доставчикът) се чете и пише от providers.js, затова не се пази тук (иначе стара версия би го презаписала)
+    settings: (({ ai, ...rest }) => ({ autoIngest: true, autoResume: true, mode: 'economy', synthesisBest: true, lang: 'both', confirmCost: true, ...rest }))(readJSON(SETTINGS_FILE, {})),
     batch: { total: 0, done: 0 }, // за „файл 2 от 5“
   };
   let child = null, seq = Date.now(), pushTimer = null, retryTimer = null;
@@ -287,8 +295,9 @@ export function createAgent({ broadcast }) {
 
   function snapshot() {
     const c = state.current;
+    const ai = aiPublic();
     return {
-      claude: !!claude(), git: gitInfo(), settings: state.settings, paused: state.paused,
+      claude: ai.engine === 'agent' ? !!claude() : true, ai, git: gitInfo(), settings: state.settings, paused: state.paused,
       queue: state.queue.map(({ id, kind, target, label }) => ({ id, kind, target, label })),
       current: c && {
         id: c.id, kind: c.kind, target: c.target, label: c.label, startedAt: c.startedAt,
@@ -382,8 +391,10 @@ export function createAgent({ broadcast }) {
 
   function next() {
     if (state.current || state.paused || !state.queue.length) return;
-    const c = claude();
-    if (!c) { state.paused = { reason: 'no-claude', at: now() }; push(); return; }
+    const cfg = aiConfig();
+    const c = cfg.engine === 'agent' ? claude() : null;
+    if (cfg.engine === 'agent' && !c) { state.paused = { reason: 'no-claude', at: now() }; push(); return; }
+    if (!readiness(cfg).ok) { state.paused = { reason: 'no-ai', at: now() }; push(); return; }
     const job = {
       ...state.queue.shift(), steps: [], created: new Set(), updated: new Set(), startedAt: now(),
       before: new Set(walk(WIKI).map((f) => rel(f))),
@@ -394,7 +405,30 @@ export function createAgent({ broadcast }) {
     const intro = { chapters: $t('Starting to split into chapters'), upgrade: $t('Starting the upgrade'), synthesis: $t('Starting the synthesis across sources') }[job.kind] || $t('Starting to process “{0}”', [job.label]);
     step(job, { icon: 'sparkle', text: intro });
     if (job.kind === 'upgrade' && !preflight(job)) return;
-    run(job, c);
+    job.provider = cfg.provider;
+    if (cfg.engine === 'agent') run(job, c); else runWithoutTools(job, cfg);
+  }
+
+  /** Обработка без инструменти (pipeline.js): сървърът подава текста на части и пише страниците сам */
+  function runWithoutTools(job, cfg) {
+    const st = { ...state.settings, ...(job.opts || {}) };
+    const eff = effectiveModels(st, job.kind);
+    const tiers = { reader: TIER_OF[eff.reader] || 'light', writer: TIER_OF[eff.writer] || 'medium' };
+    if (cfg.engine === 'manual') { tiers.reader = 'medium'; tiers.writer = 'medium'; }
+    job.mode = eff.mode;
+    job.abort = new AbortController();
+    job.usage = { in: 0, out: 0, cost: 0, calls: 0, costKnown: true };
+    step(job, { icon: 'sparkle', text: cfg.engine === 'manual'
+      ? $t('Without tools: every step is a request that you copy into the chat of {0}', [cfg.name])
+      : $t('Without tools: {0} · writing: {1} · reading: {2}', [cfg.name, cfg.models[tiers.writer], cfg.models[tiers.reader]]) });
+    runPipeline(job.kind, job.target, { job, signal: job.abort.signal, step: (s) => step(job, s), settings: st, tiers, cfg, usage: job.usage })
+      .then((r) => finish(job, { status: 'done', message: r.report }))
+      .catch((e) => {
+        if (job.cancelled || e.kind === 'cancelled') return finish(job, { status: 'cancelled', message: $t('Stopped by you.') });
+        if (e.kind === 'limit') return finish(job, { status: 'limited', message: errorText(e, cfg) + ' ' + $t('The queue is waiting.'), detail: e.message });
+        if (!e.kind) return finish(job, { status: 'error', message: $t('The processing stopped with an error.'), detail: String(e.stack || e).slice(0, 2000) });
+        finish(job, { status: 'error', message: errorText(e, cfg), detail: String(e.detail || e.message || '').slice(0, 2000) });
+      });
   }
 
   /** Преди надграждане: извлича текста наново (с OCR при нужда) и проверява, че има какво да се чете. Не харчи от лимита. */
@@ -431,7 +465,7 @@ export function createAgent({ broadcast }) {
     const mode = modeOf(eff.mode);
     job.mode = eff.mode;
     const model = eff.writer;
-    const effort = job.kind === 'synthesis' && st.synthesisBest ? null : (model === 'opus' ? null : mode.effort || (model === 'sonnet' ? 'medium' : null));
+    const effort = effortFor(job.kind === 'synthesis' && st.synthesisBest ? null : (model === 'opus' ? null : mode.effort || (model === 'sonnet' ? 'medium' : null)));
     const delegateNote = eff.delegate ? modeOf('economy').note.replace(P('“Economy” mode:'), P('Reading chapters:')) : P('You read the chapters yourself, without a subagent.');
     const note = [systemNote(), job.kind !== 'synthesis' && delegateNote, job.kind !== 'synthesis' && LANG_NOTES[st.lang], areaNote(job.kind)].filter(Boolean).join(' ');
     const args = ['-p', prompt, '--output-format', 'stream-json', '--verbose',
@@ -439,10 +473,11 @@ export function createAgent({ broadcast }) {
       '--permission-mode', 'dontAsk', '--allowedTools', ALLOWED_TOOLS.join(','), ...guardArgs(),
       '--append-system-prompt', note];
     if (eff.delegate && eff.reader !== 'haiku') { const aj = readerAgentsJson(eff.reader); if (aj) args.push('--agents', aj); }
-    step(job, { icon: 'sparkle', text: $t('Writing: {0}{1}', [model, eff.delegate ? $t(' · reading chapters: {0}', [eff.reader]) : $t(' · the same model reads the chapters')]) });
+    const cfg = aiConfig(), shown = (m) => (cfg.preset.vendor === 'Anthropic' ? m : cfg.models[TIER_OF[m]] || m);
+    step(job, { icon: 'sparkle', text: $t('Writing: {0}{1}', [shown(model), eff.delegate ? $t(' · reading chapters: {0}', [shown(eff.reader)]) : $t(' · the same model reads the chapters')]) });
     child = bin.shell
-      ? spawn([winQuote(bin.cmd), ...args.map(winQuote)].join(' '), { cwd: ROOT, shell: true, stdio: ['ignore', 'pipe', 'pipe'], windowsHide: true })
-      : spawn(bin.cmd, args, { cwd: ROOT, stdio: ['ignore', 'pipe', 'pipe'], windowsHide: true });
+      ? spawn([winQuote(bin.cmd), ...args.map(winQuote)].join(' '), spawnOpts({ shell: true, stdio: ['ignore', 'pipe', 'pipe'] }))
+      : spawn(bin.cmd, args, spawnOpts({ stdio: ['ignore', 'pipe', 'pipe'] }));
 
     let buf = '', stderr = '', result = null;
     child.stdout.setEncoding('utf8');
@@ -464,8 +499,8 @@ export function createAgent({ broadcast }) {
       if (job.cancelled) return finish(job, { status: 'cancelled', message: $t('Stopped by you.') });
       const text = String(result?.result || stderr || '');
       if (result && !result.is_error && code === 0) return finish(job, { status: 'done', message: text.trim() });
-      if (LIMIT_RE.test(text)) return finish(job, { status: 'limited', message: $t('The subscription limit has been reached. The queue is waiting.'), detail: text });
-      if (AUTH_RE.test(text)) return finish(job, { status: 'error', message: $t('Claude Code is not signed in. Run `claude` once in a terminal and sign in, then try again.'), detail: text });
+      if (LIMIT_RE.test(text)) return finish(job, { status: 'limited', message: cfg.subscription ? $t('The subscription limit has been reached. The queue is waiting.') : errorText({ kind: 'limit' }, cfg) + ' ' + $t('The queue is waiting.'), detail: text });
+      if (AUTH_RE.test(text)) return finish(job, { status: 'error', message: cfg.preset.id === 'claude-code' ? $t('Claude Code is not signed in. Run `claude` once in a terminal and sign in, then try again.') : errorText({ kind: 'auth' }, cfg), detail: text });
       return finish(job, { status: 'error', message: $t('The processing stopped with an error.'), detail: text.slice(-2000) });
     });
   }
@@ -473,7 +508,7 @@ export function createAgent({ broadcast }) {
   function handle(job, ev, setResult) {
     if (ev.type === 'system' && ev.subtype === 'init') { job.sessionId = ev.session_id; return; }
     if (ev.type === 'system' && ev.subtype === 'api_retry') {
-      if (ev.error === 'rate_limit') step(job, { icon: 'clock', text: $t('Limit reached, Claude is waiting…'), warn: true });
+      if (ev.error === 'rate_limit') step(job, { icon: 'clock', text: $t('Limit reached, {ai} is waiting…'), warn: true });
       return;
     }
     if (ev.type === 'system' && /denied/.test(ev.subtype || '')) { step(job, { icon: 'alert', text: $t('Action outside what is allowed was refused'), warn: true }); return; }
@@ -512,7 +547,9 @@ export function createAgent({ broadcast }) {
       id: job.id, kind: job.kind, target: job.target, label: job.label, status, report, detail: detail || null,
       startedAt: job.startedAt, finishedAt: now(), created: titled(job.created), updated: titled(job.updated),
       commitBefore: job.commitBefore, commitAfter, steps: job.steps.length, sessionId: job.sessionId || null, mode: job.mode || null,
-      costUsd: job.usage?.costUsd ?? null, tokens: job.usage ? { in: job.usage.in, out: job.usage.out, cacheRead: job.usage.cacheRead, cacheWrite: job.usage.cacheWrite } : null,
+      provider: job.provider || null,
+      costUsd: job.usage ? (job.usage.costUsd ?? (job.usage.costKnown ? job.usage.cost : null)) : null,
+      tokens: job.usage ? { in: job.usage.in, out: job.usage.out, cacheRead: job.usage.cacheRead ?? null, cacheWrite: job.usage.cacheWrite ?? null, ...(job.usage.calls ? { calls: job.usage.calls } : {}) } : null,
     };
     state.history.unshift(entry); saveHistory();
     state.current = null;
@@ -532,12 +569,17 @@ export function createAgent({ broadcast }) {
     state.queue = [];
     clearTimeout(retryTimer); retryTimer = null;
     if (state.paused?.reason === 'limit') state.paused = null;
-    if (child && state.current) {
+    if (state.current?.abort) {
+      state.current.cancelled = true;
+      step(state.current, { icon: 'alert', text: $t('Stopping…') });
+      state.current.abort.abort();
+    } else if (child && state.current) {
       state.current.cancelled = true;
       step(state.current, { icon: 'alert', text: $t('Stopping…') });
       try { child.kill(IS_WIN ? undefined : 'SIGINT'); } catch {}
       const c = child; setTimeout(() => { try { if (c && c.exitCode === null) c.kill('SIGTERM'); } catch {} }, 8000);
     }
+    if (state.paused?.reason === 'no-ai' || state.paused?.reason === 'no-claude') state.paused = null;
     push();
   }
 
@@ -563,8 +605,11 @@ export function createAgent({ broadcast }) {
   }
 
   function setSettings(s) {
-    state.settings = { ...state.settings, ...s };
-    writeJSON(SETTINGS_FILE, state.settings);
+    const { ai, ...rest } = s || {};
+    state.settings = { ...state.settings, ...rest };
+    delete state.settings.ai;
+    // Слива се с файла: другите модули също пишат в него (contentLang, ai, prices)
+    writeJSON(SETTINGS_FILE, { ...readJSON(SETTINGS_FILE, {}), ...state.settings });
     if ('autoResume' in s) scheduleRetry();
     push();
     return state.settings;

@@ -69,6 +69,7 @@
       .btn-ghost { @apply btn text-ink/80 hover:bg-ink/5 dark:text-night-ink/80 dark:hover:bg-white/5; }
       .btn-soft { @apply btn bg-sage-50 text-sage-700 hover:bg-sage-100 dark:bg-sage-900/40 dark:text-sage-200 dark:hover:bg-sage-900/70; }
       .kbd { @apply rounded-md border border-line bg-paper px-1.5 py-0.5 font-sans text-[10px] font-semibold text-muted dark:border-night-line dark:bg-night dark:text-night-muted; }
+      .field { @apply w-full min-w-0 rounded-xl border border-line bg-paper px-3 py-1.5 text-sm outline-none transition focus:border-sage-400 dark:border-night-line dark:bg-night; }
       .nav-item { @apply flex w-full items-center gap-3 rounded-xl px-3 py-2 text-sm text-ink/75 transition hover:bg-ink/5 hover:text-ink dark:text-night-ink/70 dark:hover:bg-white/5 dark:hover:text-night-ink; }
       .nav-item.active { @apply bg-panel text-ink shadow-soft dark:bg-night-panel dark:text-night-ink; }
 
@@ -174,14 +175,14 @@
        :class="['mx-3 mb-3 flex items-center gap-3 rounded-2xl px-3 py-2.5 text-sm shadow-soft transition', agent.current ? 'bg-sage-600 text-white hover:bg-sage-700' : 'bg-amber-100 text-amber-800 dark:bg-amber-500/15 dark:text-amber-300']">
       <ic :name="agent.current ? 'spinner' : 'clock'" :class="['size-4 shrink-0', agent.current && 'animate-spin']"></ic>
       <span class="min-w-0 flex-1">
-        <span class="block truncate font-medium">{{ agent.current ? $t('Claude is working') : $t('Limit reached') }}</span>
+        <span class="block truncate font-medium">{{ agent.current ? $t('{ai} is working') : $t('Limit reached') }}</span>
         <span class="block truncate text-xs opacity-80">{{ agent.current ? (agent.current.label + (agent.current.total > 1 ? ' · ' + agent.current.index + $t(' of ') + agent.current.total : '')) : (agent.queue.length + $t(' in the queue')) }}</span>
       </span>
     </a>
 
     <div class="flex items-center justify-between border-t border-line/70 px-4 py-3 dark:border-night-line">
       <span v-if="ro" class="text-xs text-muted dark:text-night-muted">{{ $t('Read-only copy') }}</span>
-      <span v-else class="flex items-center gap-2 text-xs text-muted dark:text-night-muted" :title="live ? $t('The page refreshes itself while Claude writes') : $t('No connection to the server')">
+      <span v-else class="flex items-center gap-2 text-xs text-muted dark:text-night-muted" :title="live ? $t('The page refreshes itself while {ai} writes') : $t('No connection to the server')">
         <span class="relative flex size-2">
           <span v-if="live" class="absolute inline-flex size-full animate-ping rounded-full bg-sage-400 opacity-60"></span>
           <span :class="['relative inline-flex size-2 rounded-full', live ? 'bg-sage-500' : 'bg-clay-400']"></span>
@@ -229,7 +230,7 @@
     <div v-if="cost" class="fixed inset-0 z-[60] flex items-center justify-center bg-ink/30 p-4 backdrop-blur-sm" @keydown.esc="costAnswer(false)" @mousedown.self="costAnswer(false)">
       <div class="card w-full max-w-lg animate-rise !shadow-lift" role="dialog" aria-modal="true" aria-labelledby="cost-title">
         <div class="p-6">
-          <p class="eyebrow">{{ $t('Before sending to Claude') }}</p>
+          <p class="eyebrow">{{ $t('Before sending to {ai}') }}</p>
           <h2 id="cost-title" class="mt-1 font-serif text-2xl font-semibold">{{ cost.est?.title || $t('Cost estimate') }}</h2>
 
           <p v-if="cost.loading" class="mt-5 text-sm text-muted dark:text-night-muted">{{ $t('Calculating…') }}</p>
@@ -239,10 +240,16 @@
             <div class="mt-5 grid grid-cols-3 gap-3 text-center">
               <div class="rounded-2xl bg-ink/[.04] p-3 dark:bg-white/5"><p class="text-[11px] uppercase tracking-wide text-muted dark:text-night-muted">{{ $t('You are sending') }}</p><p class="mt-1 text-lg font-semibold tabular-nums">≈ {{ fmtTok(cost.est.input - cost.est.cached) }}</p><p class="text-[11px] text-muted dark:text-night-muted">{{ $t('tokens') }}</p></div>
               <div class="rounded-2xl bg-ink/[.04] p-3 dark:bg-white/5"><p class="text-[11px] uppercase tracking-wide text-muted dark:text-night-muted">{{ $t('Reply') }}</p><p class="mt-1 text-lg font-semibold tabular-nums">≈ {{ fmtTok(cost.est.output) }}</p><p class="text-[11px] text-muted dark:text-night-muted">{{ $t('tokens') }}</p></div>
-              <div class="rounded-2xl bg-sage-50 p-3 dark:bg-sage-900/40"><p class="text-[11px] uppercase tracking-wide text-sage-700 dark:text-sage-200">{{ $t('Cost') }}</p><p class="mt-1 text-lg font-semibold tabular-nums">{{ fmtUsd(cost.est.usd.mid) }}</p><p class="text-[11px] text-muted dark:text-night-muted">{{ $t('{0} to {1}', [fmtUsd(cost.est.usd.low), fmtUsd(cost.est.usd.high)]) }}</p></div>
+              <div class="rounded-2xl bg-sage-50 p-3 dark:bg-sage-900/40"><p class="text-[11px] uppercase tracking-wide text-sage-700 dark:text-sage-200">{{ $t('Cost') }}</p>
+                <template v-if="cost.est.free"><p class="mt-1 text-lg font-semibold">{{ $t('free') }}</p><p class="text-[11px] text-muted dark:text-night-muted">{{ cost.est.local ? $t('on this computer') : cost.est.manual ? $t('copied by hand') : $t('within the limits') }}</p></template>
+                <template v-else-if="cost.est.usd"><p class="mt-1 text-lg font-semibold tabular-nums">{{ fmtUsd(cost.est.usd.mid) }}</p><p class="text-[11px] text-muted dark:text-night-muted">{{ $t('{0} to {1}', [fmtUsd(cost.est.usd.low), fmtUsd(cost.est.usd.high)]) }}</p></template>
+                <template v-else><p class="mt-1 text-lg font-semibold">–</p><p class="text-[11px] text-muted dark:text-night-muted">{{ $t('no prices set') }}</p></template>
+              </div>
             </div>
+            <p v-if="cost.est.manual" class="mt-3 rounded-xl bg-sage-50 p-2 text-xs text-sage-800 dark:bg-sage-900/40 dark:text-sage-200">{{ $t('About {0} requests to copy into the chat and answers to paste back. A window opens for each one.', [cost.est.calls || 1]) }}</p>
             <p class="mt-3 text-xs text-muted dark:text-night-muted">
               {{ $t('Model: {0}.', [cost.est.models.join(' + ')]) }}
+              <template v-if="cost.est.engine && cost.est.engine !== 'agent' && cost.est.calls > 1">{{ $t('{0} requests in total.', [cost.est.calls]) }}</template>
               <template v-if="cost.est.cached > 0">{{ $t('Another ≈ {0} tokens are re-read from the cache in the following steps (cheaper, included in the price).', [fmtTok(cost.est.cached)]) }}</template>
             </p>
 
@@ -250,28 +257,69 @@
               <li v-for="it in cost.est.items" :key="it.name" class="flex items-center gap-2">
                 <span class="min-w-0 flex-1 truncate">{{ it.name }}</span>
                 <span class="text-muted dark:text-night-muted tabular-nums">{{ $t('≈ {0} tokens', [fmtTok(it.tokens)]) }}</span>
-                <span class="w-14 text-right tabular-nums">{{ fmtUsd(it.usd) }}</span>
+                <span class="w-14 text-right tabular-nums">{{ cost.est.free ? '' : it.usd == null ? '–' : fmtUsd(it.usd) }}</span>
               </li>
               <li v-if="cost.est.itemsMore" class="text-muted dark:text-night-muted">{{ $t('and {0} more', [cost.est.itemsMore]) }}</li>
             </ul>
             <p v-if="cost.est.delegate" class="mt-2 text-xs text-muted dark:text-night-muted">{{ $t('Chapters are read by {0}, pages are written by {1}.', [cost.est.reader, cost.est.writer]) }}</p>
-            <p v-if="cost.est.past" class="mt-2 text-xs text-muted dark:text-night-muted">{{ $t('So far such tasks have cost {0} on average (the last {1}, as reported by Claude).', [fmtUsd(cost.est.past.avg), cost.est.past.n]) }}</p>
+            <p v-if="cost.est.past" class="mt-2 text-xs text-muted dark:text-night-muted">{{ $t('So far such tasks have cost {0} on average (the last {1}, as reported by {ai}).', [fmtUsd(cost.est.past.avg), cost.est.past.n]) }}</p>
             <p v-for="w in cost.est.warnings" :key="w" class="mt-2 rounded-xl bg-amber-50 p-2 text-xs text-amber-800 dark:bg-amber-500/10 dark:text-amber-200">{{ w }}</p>
 
-            <p class="mt-4 text-xs leading-relaxed text-muted dark:text-night-muted">
+            <p v-if="cost.est.engine === 'agent' && cost.est.claude !== false" class="mt-4 text-xs leading-relaxed text-muted dark:text-night-muted">
               {{ $t('Approximate: tokens are counted from characters (error about ±30%), and the cost is a range because Claude Code reads in several steps and adds its own system text (≈ {0} tokens per run). The sum uses API prices from {1} (', [fmtTok(cost.est.overhead), cost.est.priceDate.split('-').reverse().join('.')]) }}<a href="https://platform.claude.com/docs/en/about-claude/pricing" target="_blank" rel="noopener" class="underline">platform.claude.com</a>{{ $t('). If you use a subscription you do not pay per token: the sum shows how heavy the action is for your limit.') }}
             </p>
+            <p v-else-if="cost.est.engine === 'agent'" class="mt-4 text-xs leading-relaxed text-muted dark:text-night-muted">{{ $t('Approximate: tokens are counted from characters (error about ±30%), and Claude Code reads in several steps and adds its own system text (≈ {0} tokens per run). The sum uses the prices entered for the model in Settings → Model.', [fmtTok(cost.est.overhead)]) }}</p>
+            <p v-else-if="cost.est.local" class="mt-4 text-xs leading-relaxed text-muted dark:text-night-muted">{{ $t('The model runs on this computer: nothing is paid and nothing leaves the computer. The tokens show how long the work will take.') }}</p>
+            <p v-else-if="cost.est.manual" class="mt-4 text-xs leading-relaxed text-muted dark:text-night-muted">{{ $t('Nothing is sent by itself. The limits are those of your chat account; if a request is too long for the chat, lower “Context” in Settings → Model.') }}</p>
+            <p v-else class="mt-4 text-xs leading-relaxed text-muted dark:text-night-muted">{{ $t('Approximate: tokens are counted from characters (error about ±30%). Without tools the server sends exactly the text of each request, so the range is narrower. The sum uses the prices entered for the model in Settings → Model.') }}</p>
           </template>
 
           <label class="mt-4 flex cursor-pointer items-center gap-2 text-xs text-muted dark:text-night-muted"><input type="checkbox" class="accent-sage-600" v-model="cost.never"> {{ $t('Do not show this estimate again (it comes back in the settings on the home page)') }}</label>
         </div>
         <div class="flex justify-end gap-2 border-t border-line px-6 py-4 dark:border-night-line">
           <button class="btn-ghost" @click="costAnswer(false)">{{ $t('Cancel') }}</button>
-          <button class="btn-primary" :disabled="cost.loading" @click="costAnswer(true)">{{ cost.error ? $t('Continue without estimate') : $t('Send to Claude') }}</button>
+          <button class="btn-primary" :disabled="cost.loading" @click="costAnswer(true)">{{ cost.error ? $t('Continue without estimate') : AI.engine === 'manual' ? $t('Start') : $t('Send to {ai}') }}</button>
         </div>
       </div>
     </div>
   </transition>
+
+  <!-- Ръчен режим: заявка, която чака отговор от чата в браузъра -->
+  <div v-if="!ro && manual.length && !manualHidden" class="fixed inset-0 z-[55] flex items-center justify-center bg-ink/30 p-4 backdrop-blur-sm">
+    <div class="card flex max-h-[92vh] w-full max-w-2xl animate-rise flex-col !shadow-lift" role="dialog" aria-modal="true" aria-labelledby="manual-title">
+      <div class="scrollbar-thin overflow-y-auto p-6">
+        <p class="eyebrow">{{ $t('Copy and paste') }}<template v-if="manual.length > 1"> · {{ $t('{0} requests are waiting', [manual.length]) }}</template></p>
+        <h2 id="manual-title" class="mt-1 font-serif text-2xl font-semibold">{{ manual[0].label || $t('A request is waiting for {ai}') }}</h2>
+        <ol class="mt-4 space-y-4 text-sm">
+          <li>
+            <p class="font-medium">1. {{ $t('Copy the request') }} <span class="text-xs font-normal text-muted dark:text-night-muted">({{ $t('≈ {0} tokens', [fmtTok(Math.ceil(manual[0].text.length / 3.2))]) }})</span></p>
+            <div class="mt-2 flex flex-wrap gap-2">
+              <button class="btn-primary !py-1.5 text-sm" @click="copy(manual[0].text)"><ic name="copy" class="size-4"></ic>{{ $t('Copy') }}</button>
+              <button class="btn-ghost !py-1.5 text-sm" @click="manualShow = !manualShow">{{ manualShow ? $t('Hide the text') : $t('Show the text') }}</button>
+            </div>
+            <pre v-if="manualShow" class="scrollbar-thin mt-2 max-h-48 overflow-auto whitespace-pre-wrap rounded-xl bg-ink/[.04] p-3 font-mono text-[11px] leading-relaxed dark:bg-white/5">{{ manual[0].text }}</pre>
+          </li>
+          <li>
+            <p class="font-medium">2. {{ $t('Paste it into a new chat with {ai} and wait for the whole answer.') }}</p>
+            <p class="mt-1 text-xs text-muted dark:text-night-muted">{{ $t('A new chat for every request is best, so that earlier messages do not mix in.') }}</p>
+          </li>
+          <li>
+            <p class="font-medium">3. {{ $t('Paste the answer here') }}</p>
+            <textarea v-model="manualText" rows="7" spellcheck="false" :placeholder="manual[0].json ? $t('The answer should be JSON: it starts with { and ends with }.') : ''"
+                      class="scrollbar-thin mt-2 w-full resize-y rounded-2xl border border-line bg-paper px-3 py-2 font-mono text-sm leading-relaxed outline-none transition focus:border-sage-400 dark:border-night-line dark:bg-night"></textarea>
+          </li>
+        </ol>
+        <p v-if="manualError" class="mt-2 text-sm text-clay-500">{{ manualError }}</p>
+      </div>
+      <div class="flex flex-wrap items-center gap-2 border-t border-line px-6 py-4 dark:border-night-line">
+        <button class="btn-ghost !py-1.5 text-sm text-clay-500" @click="manualSkip">{{ $t('Stop this request') }}</button>
+        <span class="flex-1"></span>
+        <button class="btn-ghost" @click="manualHidden = true">{{ $t('Later') }}</button>
+        <button class="btn-primary" :disabled="manualBusy || !manualText.trim()" @click="manualSend">{{ $t('Send the answer') }}</button>
+      </div>
+    </div>
+  </div>
+  <button v-if="!ro && manual.length && manualHidden" class="btn-primary fixed bottom-4 right-4 z-[55] !shadow-lift" @click="manualHidden = false"><ic name="clock" class="size-4"></ic>{{ $t('A request is waiting for your answer ({0})', [manual.length]) }}</button>
 
   <!-- Палитра за търсене -->
   <transition enter-from-class="opacity-0" leave-to-class="opacity-0" enter-active-class="transition duration-150" leave-active-class="transition duration-100">
@@ -467,7 +515,7 @@
         <!-- А. Работи -->
         <template v-if="agent?.current">
           <div class="flex items-center justify-between gap-3">
-            <p class="eyebrow flex items-center gap-2"><span class="relative flex size-2"><span class="absolute inline-flex size-full animate-ping rounded-full bg-sage-400 opacity-70"></span><span class="relative inline-flex size-2 rounded-full bg-sage-500"></span></span>{{ $t('Claude is working') }}</p>
+            <p class="eyebrow flex items-center gap-2"><span class="relative flex size-2"><span class="absolute inline-flex size-full animate-ping rounded-full bg-sage-400 opacity-70"></span><span class="relative inline-flex size-2 rounded-full bg-sage-500"></span></span>{{ $t('{ai} is working') }}</p>
             <span v-if="agent.current.total > 1" class="text-xs tabular-nums text-muted">{{ $t('{0} of {1}', [agent.current.index, agent.current.total]) }}</span>
           </div>
           <p class="mt-2 font-serif text-xl font-semibold leading-snug">{{ agent.current.kind==='ingest' ? $t('“{0}”', [agent.current.label]) : agent.current.label }}</p>
@@ -489,7 +537,7 @@
         <!-- Б. Лимит -->
         <template v-else-if="agent?.paused?.reason==='limit'">
           <p class="eyebrow">{{ $t('Pause') }}</p>
-          <p class="mt-2 font-serif text-2xl font-semibold">{{ $t('The subscription limit has been reached') }}</p>
+          <p class="mt-2 font-serif text-2xl font-semibold">{{ AI.subscription ? $t('The subscription limit has been reached') : $t('{ai} has reached its limit') }}</p>
           <p class="mt-2 text-sm text-muted dark:text-night-muted">{{ $t('{0} {1} in the queue. What was started has been rolled back, so there are no half-written pages.', [agent.queue.length, plural(agent.queue.length, $t('task is waiting'), $t('tasks are waiting'))]) }}</p>
           <p v-if="agent.paused.retryAt" class="mt-3 flex items-center gap-2 rounded-2xl bg-sage-50 px-3 py-2 text-sm text-sage-700 dark:bg-sage-900/40 dark:text-sage-200"><ic name="clock" class="size-4 shrink-0"></ic>{{ $t('Next attempt at {0}. Leave the server running.', [clock(agent.paused.retryAt)]) }}</p>
           <div class="mt-5 flex gap-2"><button class="btn-primary" @click="resume"><ic name="play" class="size-4"></ic>{{ $t('Try now') }}</button><button class="btn-ghost" @click="stop">{{ $t('Clear the queue') }}</button></div>
@@ -497,6 +545,14 @@
             <button role="switch" :aria-checked="!!agent.settings.autoResume" @click.prevent="setSetting('autoResume', !agent.settings.autoResume)" :class="['relative h-5 w-9 shrink-0 rounded-full transition', agent.settings.autoResume ? 'bg-sage-500' : 'bg-ink/15 dark:bg-white/15']"><span :class="['absolute top-0.5 size-4 rounded-full bg-white shadow transition-all', agent.settings.autoResume ? 'left-[18px]' : 'left-0.5']"></span></button>
             {{ $t('Retry every 30 minutes') }}
           </label>
+        </template>
+
+        <!-- Б2. Моделът не е настроен (ключ, адрес или модел липсва) -->
+        <template v-else-if="agent?.paused?.reason==='no-ai' || (agent && AI.ready && !AI.ready.ok)">
+          <p class="eyebrow">{{ $t('Processing') }}</p>
+          <p class="mt-2 font-serif text-2xl font-semibold">{{ $t('The model is not set up') }}</p>
+          <p class="mt-2 text-sm text-muted dark:text-night-muted">{{ $t('Choose the provider and enter the key or the address of {ai} in Settings → Model. The queue waits and continues by itself after saving.') }}</p>
+          <a href="#/settings" class="btn-primary mt-5 self-start"><ic name="gear" class="size-4"></ic>{{ $t('Open Settings → Model') }}</a>
         </template>
 
         <!-- В. Няма Claude Code -->
@@ -515,15 +571,15 @@
         <template v-else-if="newInbox.length && !stats.pending?.length">
           <p class="eyebrow">{{ $t('Next step') }}</p>
           <p class="mt-2 font-serif text-2xl font-semibold">{{ $t('Sort the inbox') }}</p>
-          <p class="mt-2 text-sm text-muted dark:text-night-muted">{{ $t('Press “Sort and extract text”.') }}<template v-if="agent?.settings?.autoIngest"> {{ $t('After that Claude starts processing on its own.') }}</template></p>
+          <p class="mt-2 text-sm text-muted dark:text-night-muted">{{ $t('Press “Sort and extract text”.') }}<template v-if="agent?.settings?.autoIngest"> {{ $t('After that {ai} starts processing on its own.') }}</template></p>
         </template>
 
         <!-- Д. Чака обработка -->
         <template v-else-if="stats.pending?.length">
           <p class="eyebrow">{{ $t('Next step') }}</p>
           <p class="mt-2 font-serif text-2xl font-semibold">{{ $t('{0} {1} processing', [stats.pending.length, plural(stats.pending.length, $t('file is waiting'), $t('files are waiting'))]) }}</p>
-          <p class="mt-2 text-sm text-muted dark:text-night-muted">{{ $t('Claude will read them one by one, decide the emphasis of each and write the pages. Books are split into chapters.') }}</p>
-          <button class="btn-primary mt-5 self-start" @click="start"><ic name="sparkle" class="size-4"></ic>{{ $t('Process with Claude') }}</button>
+          <p class="mt-2 text-sm text-muted dark:text-night-muted">{{ $t('{ai} will read them one by one, decide the emphasis of each and write the pages. Books are split into chapters.') }}</p>
+          <button class="btn-primary mt-5 self-start" @click="start"><ic name="sparkle" class="size-4"></ic>{{ $t('Process with {ai}') }}</button>
           <ul class="mt-5 space-y-1.5 border-t border-line pt-4 dark:border-night-line">
             <li v-for="f in stats.pending.slice(0,5)" :key="f.path" class="flex items-center gap-2 text-sm">
               <ic :name="fileIcon(f.name)" class="size-4 shrink-0 text-muted"></ic><span class="min-w-0 flex-1 truncate">{{ f.name }}</span>
@@ -564,11 +620,19 @@
         <template v-else>
           <p class="eyebrow">{{ $t('Next step') }}</p>
           <p class="mt-2 font-serif text-2xl font-semibold">{{ stats.pages ? $t('Everything is processed') : $t('Ready for the first file') }}</p>
-          <p class="mt-2 text-sm text-muted dark:text-night-muted">{{ stats.pages ? $t('Search with Ctrl K, browse chapters or the link map.') : $t('Drop files on the left.') + (agent?.settings?.autoIngest ? $t(' After sorting, Claude processes them on its own.') : '') }}</p>
+          <p class="mt-2 text-sm text-muted dark:text-night-muted">{{ stats.pages ? $t('Search with Ctrl K, browse chapters or the link map.') : $t('Drop files on the left.') + (agent?.settings?.autoIngest ? $t(' After sorting, {ai} processes them on its own.') : '') }}</p>
         </template>
 
         <!-- Режим: кой модел чете -->
         <div v-if="agent?.claude" class="mt-5 border-t border-line pt-4 dark:border-night-line">
+          <!-- Кой модел работи: доставчикът и начинът (агент, без инструменти, ръчно) -->
+          <a href="#/settings" class="mb-3 flex items-center gap-2 rounded-2xl bg-ink/[.04] px-3 py-2 text-xs hover:bg-ink/[.07] dark:bg-white/5" :title="$t('Change the model in Settings → Model')">
+            <ic name="sparkle" class="size-3.5 shrink-0 text-sage-600"></ic>
+            <span class="min-w-0 flex-1 truncate"><b>{{ AI.name }}</b> · {{ AI.engine === 'agent' ? $t('agent with tools') : AI.engine === 'manual' ? $t('copy and paste') : $t('without tools') }}<template v-if="AI.local"> · {{ $t('on this computer') }}</template><template v-else-if="AI.free && AI.engine !== 'manual'"> · {{ $t('free tier') }}</template></span>
+            <ic name="chevron" class="size-3.5 shrink-0 text-muted"></ic>
+          </a>
+          <p v-if="AI.engine === 'manual'" class="text-xs text-muted dark:text-night-muted">{{ $t('Copy and paste: every step of the processing is a request that you copy into the chat of {ai} and whose answer you paste back. A window opens by itself when a request is waiting.') }}</p>
+          <template v-else>
           <div class="flex items-center justify-between gap-3">
             <span class="text-sm font-medium">{{ $t('Mode') }}</span>
             <div class="flex rounded-full bg-ink/5 p-0.5 text-xs dark:bg-white/5">
@@ -577,7 +641,8 @@
             </div>
           </div>
           <p class="mt-2 text-xs text-muted dark:text-night-muted">{{ (MODES.find(m => m.id===agent.settings.mode) || MODES[0]).hint }}</p>
-          <div class="mt-3 grid grid-cols-2 gap-3 text-xs">
+          </template>
+          <div v-if="AI.engine !== 'manual'" class="mt-3 grid grid-cols-2 gap-3 text-xs">
             <label class="block"><span class="mb-1 block font-medium">{{ $t('Reads chapters') }}</span>
               <select :value="readerNow" @change="setSetting('reader', $event.target.value)" class="w-full rounded-full border border-line bg-panel px-3 py-1.5 outline-none dark:border-night-line dark:bg-night-panel">
                 <option v-for="m in MODEL_OPTS" :key="m.id" :value="m.id">{{ m.label }}</option>
@@ -588,7 +653,7 @@
               </select></label>
           </div>
           <label class="mt-3 flex cursor-pointer items-center gap-2 text-xs text-muted dark:text-night-muted">
-            <input type="checkbox" class="accent-sage-600" :checked="agent.settings.confirmCost !== false" @change="setSetting('confirmCost', $event.target.checked)"> {{ $t('Show tokens and cost and ask before every action with Claude') }}
+            <input type="checkbox" class="accent-sage-600" :checked="agent.settings.confirmCost !== false" @change="setSetting('confirmCost', $event.target.checked)"> {{ $t('Show tokens and cost and ask before every action with {ai}') }}
           </label>
           <label class="mt-3 block text-xs"><span class="mb-1 block font-medium">{{ $t('Indexing language') }}</span>
             <select :value="agent.settings.lang || 'both'" @change="setSetting('lang', $event.target.value)" class="w-full rounded-full border border-line bg-panel px-3 py-1.5 outline-none dark:border-night-line dark:bg-night-panel">
@@ -597,9 +662,10 @@
               <option value="original">{{ $t('Pages in the language of the source') }}</option>
             </select></label>
           <p class="mt-1 text-[11px] text-muted dark:text-night-muted">{{ $t('Applies to new sources and to upgrading old ones. Sources already processed to the current standard are not touched.') }}</p>
-          <p class="mt-1.5 text-[11px] text-muted dark:text-night-muted">{{ $t('The choice of models applies to new sources and to upgrades. If they differ, chapters are read by a separate subagent; if they are the same, the same model reads them.') }}</p>
-          <label class="mt-2 flex cursor-pointer items-center gap-2 text-xs text-muted dark:text-night-muted">
-            <input type="checkbox" class="accent-sage-600" :checked="agent.settings.synthesisBest" @change="setSetting('synthesisBest', $event.target.checked)"> {{ $t('Always run the synthesis with the strongest model (Opus)') }}
+          <p v-if="AI.engine === 'agent'" class="mt-1.5 text-[11px] text-muted dark:text-night-muted">{{ $t('The choice of models applies to new sources and to upgrades. If they differ, chapters are read by a separate subagent; if they are the same, the same model reads them.') }}</p>
+          <p v-else-if="AI.engine === 'api'" class="mt-1.5 text-[11px] text-muted dark:text-night-muted">{{ $t('Without tools the server gives the model the text chapter by chapter: the model for reading makes the notes, the model for writing writes the pages from them.') }}</p>
+          <label v-if="AI.engine !== 'manual'" class="mt-2 flex cursor-pointer items-center gap-2 text-xs text-muted dark:text-night-muted">
+            <input type="checkbox" class="accent-sage-600" :checked="agent.settings.synthesisBest" @change="setSetting('synthesisBest', $event.target.checked)"> {{ $t('Always run the synthesis with the strongest model ({0})', [TN.strong]) }}
           </label>
         </div>
 
@@ -677,8 +743,8 @@
 <div v-if="error" class="mx-auto max-w-2xl px-6 py-24 text-center">
   <span class="mx-auto grid size-16 place-items-center rounded-3xl bg-clay-100 text-clay-500 dark:bg-clay-500/15"><ic name="ghost" class="size-7"></ic></span>
   <h1 class="mt-6 font-serif text-3xl font-semibold">{{ $t('This page does not exist yet') }}</h1>
-  <p class="mt-3 text-muted dark:text-night-muted">{{ $t('A page links to') }} <code class="rounded bg-ink/5 px-1.5 dark:bg-white/10">[[{{ slug }}]]</code>{{ $t(', but it has not been written yet. Claude will create it when it processes a source on the topic, or you can ask it explicitly.') }}</p>
-  <button class="btn-soft mt-6" @click="$root.copy($t('Create the page [[') + slug + $t(']] from the available sources'))"><ic name="copy" class="size-4"></ic>{{ $t('Copy a request for Claude') }}</button>
+  <p class="mt-3 text-muted dark:text-night-muted">{{ $t('A page links to') }} <code class="rounded bg-ink/5 px-1.5 dark:bg-white/10">[[{{ slug }}]]</code>{{ $t(', but it has not been written yet. {ai} will create it when it processes a source on the topic, or you can ask it explicitly.') }}</p>
+  <button class="btn-soft mt-6" @click="$root.copy($t('Create the page [[') + slug + $t(']] from the available sources'))"><ic name="copy" class="size-4"></ic>{{ $t('Copy a request for {ai}') }}</button>
 </div>
 
 <div v-else-if="page" :class="['mx-auto flex gap-10 px-5 py-8 sm:px-8 lg:py-12', focus ? 'max-w-3xl' : 'max-w-6xl']">
@@ -847,7 +913,7 @@
     <button type="button" class="btn-ghost !px-3 !py-1.5 text-sm" @mousedown.prevent @click="openManual"><ic name="pen" class="size-4"></ic>{{ $t('Edit') }}</button>
     <button type="button" class="btn-ghost !px-3 !py-1.5 text-sm" @mousedown.prevent @click="openLink" :title="$t('Makes the selected text a link to a page of the library')"><ic name="link" class="size-4"></ic>{{ $t('Link') }}</button>
     <button type="button" class="btn-ghost !px-3 !py-1.5 text-sm" @mousedown.prevent @click="deleteParagraph" :title="$t('Removes the paragraph together with the links in it')"><ic name="trash" class="size-4"></ic>{{ $t('Remove') }}</button>
-    <button type="button" class="btn-primary !px-3 !py-1.5 text-sm" @mousedown.prevent @click="openAi('edit')" :title="$t('Claude proposes a change, you confirm it')"><ic name="sparkle" class="size-4"></ic>{{ $t('With Claude') }}</button>
+    <button type="button" class="btn-primary !px-3 !py-1.5 text-sm" @mousedown.prevent @click="openAi('edit')" :title="$t('{ai} proposes a change, you confirm it')"><ic name="sparkle" class="size-4"></ic>{{ $t('With {ai}') }}</button>
   </div>
 
   <!-- Ръчна редакция на избрания абзац -->
@@ -886,12 +952,12 @@
       <div class="mt-4 flex justify-end"><button type="button" class="btn-ghost" @click="lk.open=false">{{ $t('Cancel') }}</button></div>
     </div>
   </div>
-  <button v-if="canAsk && !ai.open" type="button" class="btn-primary fixed bottom-5 right-5 z-30 !rounded-full !px-4 !py-3 shadow-lift" @click="openAi('ask')" :title="$t('Ask Claude about this page')"><ic name="sparkle" class="size-4"></ic>{{ $t('Ask Claude') }}</button>
+  <button v-if="canAsk && !ai.open" type="button" class="btn-primary fixed bottom-5 right-5 z-30 !rounded-full !px-4 !py-3 shadow-lift" @click="openAi('ask')" :title="$t('Ask {ai} about this page')"><ic name="sparkle" class="size-4"></ic>{{ $t('Ask {ai}') }}</button>
 
   <aside v-if="ai.open" class="fixed inset-y-0 right-0 z-50 flex w-full max-w-md flex-col border-l border-line bg-panel shadow-lift dark:border-night-line dark:bg-night-panel" :aria-label="$t('Page assistant')" data-ai="1">
     <header class="flex items-center gap-2 border-b border-line px-4 py-3 dark:border-night-line">
       <span class="grid size-8 place-items-center rounded-xl bg-sage-50 text-sage-600 dark:bg-sage-900/40 dark:text-sage-200"><ic name="sparkle" class="size-4"></ic></span>
-      <div class="min-w-0 flex-1"><p class="text-sm font-semibold leading-tight">{{ $t('Ask Claude') }}</p><p class="truncate text-xs text-muted dark:text-night-muted">{{ page.title }}</p></div>
+      <div class="min-w-0 flex-1"><p class="text-sm font-semibold leading-tight">{{ $t('Ask {ai}') }}</p><p class="truncate text-xs text-muted dark:text-night-muted">{{ page.title }}</p></div>
       <button class="btn-ghost !p-2" @click="closeAi" :aria-label="$t('Close')"><ic name="x" class="size-4"></ic></button>
     </header>
 
@@ -910,14 +976,14 @@
                   :class="['chip border px-2.5 py-0.5 text-xs transition', ai.level===l.id ? 'border-sage-500 bg-sage-50 text-sage-700 dark:bg-sage-900/40 dark:text-sage-200' : 'border-line text-ink/70 hover:border-sage-200 dark:border-night-line dark:text-night-ink/70']">{{ l.label }}</button>
           <span class="flex-1"></span>
           <button class="btn-soft !py-1.5 text-sm" :disabled="ai.busy || ai.question.trim().length<3" @click="askAi"><ic name="help" class="size-4"></ic>{{ $t('Ask') }}</button>
-          <button v-if="!ai.sel" class="btn-soft !py-1.5 text-sm" :disabled="ai.busy" @click="askConspect" :title="$t('A connected text based on the source’s original, without Claude’s opinion')"><ic name="list" class="size-4"></ic>{{ $t('Outline') }}</button>
+          <button v-if="!ai.sel" class="btn-soft !py-1.5 text-sm" :disabled="ai.busy" @click="askConspect" :title="$t('A connected text based on the source’s original, without {ai}’s opinion')"><ic name="list" class="size-4"></ic>{{ $t('Outline') }}</button>
           <button v-if="ai.sel" class="btn-primary !py-1.5 text-sm" :disabled="ai.busy || ai.question.trim().length<3" @click="proposeAi('selection')"><ic name="pen" class="size-4"></ic>{{ $t('Suggest a change') }}</button>
         </div>
       </div>
 
       <div v-if="ai.busy" class="rounded-2xl bg-ink/[.03] p-4 text-center dark:bg-white/5">
         <ic name="spinner" class="mx-auto size-5 animate-spin text-sage-600"></ic>
-        <p class="mt-2 text-sm">{{ $t('Claude ({0} model) is reading the page and the original… {1} s', [levelLabel(ai.level).toLowerCase(), ai.waited]) }}</p>
+        <p class="mt-2 text-sm">{{ $t('{ai} ({0} model) is reading the page and the original… {1} s', [levelLabel(ai.level).toLowerCase(), ai.waited]) }}</p>
         <button class="btn-soft mt-3 !py-1" @click="cancelAi"><ic name="x" class="size-4"></ic>{{ $t('Cancel') }}</button>
       </div>
       <div v-if="ai.error" class="rounded-2xl bg-clay-100 p-3 text-sm text-clay-500 dark:bg-clay-500/15"><p class="flex gap-2"><ic name="alert" class="mt-0.5 size-4 shrink-0"></ic>{{ ai.error }}</p></div>
@@ -927,7 +993,7 @@
         <p class="eyebrow">{{ $t('Reply') }}</p>
         <div class="reading !text-[15.5px] mt-2" v-html="aiHtml" @click="onClick"></div>
         <div class="mt-4 flex flex-wrap gap-2">
-          <button v-if="!ai.proposal && !ai.applied" class="btn-primary !py-1.5 text-sm" :disabled="ai.busy2" @click="replaceAi" :title="$t('Without calling Claude again: you first see “before, after”')"><ic name="pen" class="size-4"></ic>{{ ai.sel ? $t('Replace the selected passage with this text') : $t('Replace the page text with this') }}</button>
+          <button v-if="!ai.proposal && !ai.applied" class="btn-primary !py-1.5 text-sm" :disabled="ai.busy2" @click="replaceAi" :title="$t('Without calling {ai} again: you first see “before, after”')"><ic name="pen" class="size-4"></ic>{{ ai.sel ? $t('Replace the selected passage with this text') : $t('Replace the page text with this') }}</button>
           <button v-if="!ai.proposal && !ai.applied" class="btn-soft !py-1.5 text-sm" @click="proposeAi('answer')"><ic name="pen" class="size-4"></ic>{{ $t('Improve the page with this answer') }}</button>
           <button class="btn-soft !py-1.5 text-sm" :disabled="ai.saved" @click="saveAi"><ic :name="ai.saved ? 'check' : 'bookmark'" class="size-4"></ic>{{ ai.saved ? $t('Saved as a question') : $t('Save as a question') }}</button>
           <button class="btn-ghost !py-1.5 text-sm" @click="$root.copy(ai.answer)"><ic name="copy" class="size-4"></ic>{{ $t('Copy') }}</button>
@@ -951,7 +1017,7 @@
           <p v-if="ai.proposal.meta.related.length">{{ $t('Links to: {0}', [ai.proposal.meta.related.join(', ')]) }}</p>
           <p v-if="ai.proposal.meta.indexLine">{{ $t('Description in the index: {0}', [ai.proposal.meta.indexLine]) }}</p>
         </div>
-        <p v-if="ai.proposal.lostCount" class="mt-2 rounded-xl bg-amber-50 p-2 text-xs text-amber-800 dark:bg-amber-500/10 dark:text-amber-200">{{ $t('The new text is missing {0} {1} to other pages: {2}{3}. If you need them, cancel and ask Claude to keep them.', [ai.proposal.lostCount, plural(ai.proposal.lostCount, $t('link'), $t('links')), ai.proposal.lostLinks.join(', '), ai.proposal.lostCount > ai.proposal.lostLinks.length ? '…' : '']) }}</p>
+        <p v-if="ai.proposal.lostCount" class="mt-2 rounded-xl bg-amber-50 p-2 text-xs text-amber-800 dark:bg-amber-500/10 dark:text-amber-200">{{ $t('The new text is missing {0} {1} to other pages: {2}{3}. If you need them, cancel and ask {ai} to keep them.', [ai.proposal.lostCount, plural(ai.proposal.lostCount, $t('link'), $t('links')), ai.proposal.lostLinks.join(', '), ai.proposal.lostCount > ai.proposal.lostLinks.length ? '…' : '']) }}</p>
         <p v-if="ai.proposal.skipped || ai.proposal.linkFixes" class="mt-2 text-xs text-amber-700 dark:text-amber-300">
           <template v-if="ai.proposal.skipped">{{ $t('{0} {1} with the text and {2}.', [ai.proposal.skipped, plural(ai.proposal.skipped, $t('suggested fix did not match'), $t('suggested fixes did not match')), plural(ai.proposal.skipped, $t('was skipped'), $t('were skipped'))]) }} </template>
           <template v-if="ai.proposal.linkFixes">{{ $t('{0} {1} into plain text.', [ai.proposal.linkFixes, plural(ai.proposal.linkFixes, $t('link to a non-existent page was turned'), $t('links to non-existent pages were turned'))]) }}</template>
@@ -968,7 +1034,7 @@
         <button v-if="ai.applied.undoId" class="btn-soft mt-3 !py-1 text-sm" @click="undoAi"><ic name="undo" class="size-4"></ic>{{ $t('Undo') }}</button>
       </section>
     </div>
-    <footer class="border-t border-line px-4 py-2 text-[11px] leading-snug text-muted dark:border-night-line dark:text-night-muted">{{ $t('Claude reads the page and the original text of the source (sent to Anthropic through your subscription). Nothing changes without your confirmation; “Undo” reverts the last change.') }}</footer>
+    <footer class="border-t border-line px-4 py-2 text-[11px] leading-snug text-muted dark:border-night-line dark:text-night-muted">{{ $t('{ai} reads the page and the original text of the source ({0}). Nothing changes without your confirmation; “Undo” reverts the last change.', [dataNote()]) }}</footer>
   </aside>
 
   <!-- Дясна колона -->
@@ -1023,7 +1089,7 @@
   <section class="animate-rise">
     <p class="eyebrow">{{ $t('Read-only archive') }}</p>
     <h1 class="mt-2 font-serif text-4xl font-semibold tracking-tight">{{ $t('Library') }}</h1>
-    <p class="mt-3 max-w-2xl text-muted dark:text-night-muted">{{ $t('A copy of the library made on {0}, with {1} pages. You can read, search and learn from it. Claude does not change it, and the original files are not included.', [meta.created || '', stats.pages || 0]) }}</p>
+    <p class="mt-3 max-w-2xl text-muted dark:text-night-muted">{{ $t('A copy of the library made on {0}, with {1} pages. You can read, search and learn from it. {ai} does not change it, and the original files are not included.', [meta.created || '', stats.pages || 0]) }}</p>
   </section>
 
   <section class="mt-8 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
@@ -1230,7 +1296,7 @@
   <div v-else class="card mt-8 flex flex-col items-center px-6 py-16 text-center">
     <span :class="['grid size-14 place-items-center rounded-3xl', T.soft]"><ic :name="T.icon" class="size-6"></ic></span>
     <p class="mt-5 font-serif text-xl font-semibold">{{ filter ? $t('Nothing matches the filter') : $t('Nothing here yet') }}</p>
-    <p class="mt-2 max-w-md text-sm text-muted dark:text-night-muted">{{ filter ? $t('Try another word.') : $t('Pages of this kind appear when Claude processes sources. Upload files from the home page.') }}</p>
+    <p class="mt-2 max-w-md text-sm text-muted dark:text-night-muted">{{ filter ? $t('Try another word.') : $t('Pages of this kind appear when {ai} processes sources. Upload files from the home page.') }}</p>
     <a v-if="!filter" href="#/" class="btn-soft mt-6"><ic name="upload" class="size-4"></ic>{{ $t('Go to uploading') }}</a>
   </div>
 </div>
@@ -1258,7 +1324,7 @@
         <ic name="route" class="pointer-events-none absolute left-4 top-1/2 size-4 -translate-y-1/2 text-muted"></ic>
         <input v-model="input" :placeholder="$t('E.g. how the double message forms in a family')" class="w-full rounded-full border border-line bg-panel py-3 pl-11 pr-4 text-base outline-none transition focus:border-sage-400 dark:border-night-line dark:bg-night-panel">
       </div>
-      <button class="btn-primary !py-3" :disabled="!input.trim() || loading"><ic :name="loading ? 'spinner' : (level==='local' ? 'arrowRight' : 'sparkle')" :class="['size-4', loading && 'animate-spin']"></ic>{{ level==='local' ? $t('Arrange the path') : $t('Compose with Claude') }}</button>
+      <button class="btn-primary !py-3" :disabled="!input.trim() || loading"><ic :name="loading ? 'spinner' : (level==='local' ? 'arrowRight' : 'sparkle')" :class="['size-4', loading && 'animate-spin']"></ic>{{ level==='local' ? $t('Arrange the path') : $t('Compose with {ai}') }}</button>
     </form>
     <div class="mt-3 flex max-w-3xl flex-wrap items-center gap-2" role="radiogroup" :aria-label="$t('Who arranges the path')">
       <button v-for="l in LEVELS" :key="l.id" type="button" role="radio" :aria-checked="level===l.id" :title="l.hint" @click="setLevel(l.id)"
@@ -1282,7 +1348,7 @@
       </ul>
     </div>
     <div v-if="saved.length" :class="['max-w-3xl', recent.length && 'mt-8']">
-      <p class="eyebrow">{{ $t('Composed with Claude') }}</p>
+      <p class="eyebrow">{{ $t('Composed with {ai}') }}</p>
       <ul class="mt-3 space-y-1.5">
         <li v-for="r in saved" :key="r.level+r.q+scopeLabel(r)" class="group flex items-center gap-2">
           <a :href="'#/path/'+encodeURIComponent(r.q)+'?m='+r.level" @click="applyScope(r)" class="card card-hover flex min-w-0 flex-1 items-center gap-3 !rounded-2xl px-4 py-3"><ic name="sparkle" class="size-4 shrink-0 text-sage-600"></ic><span class="min-w-0 flex-1 truncate">{{ r.q }}<span v-if="scopeLabel(r)" class="ml-2 text-xs text-muted">{{ scopeLabel(r) }}</span></span><span class="chip shrink-0 bg-sage-50 text-sage-700 dark:bg-sage-900/40 dark:text-sage-200">{{ levelLabel(r.level) }}</span><span class="hidden shrink-0 text-xs text-muted sm:block">{{ relDate(r.at) }}</span></a>
@@ -1301,7 +1367,7 @@
     <span class="mx-auto grid size-14 place-items-center rounded-3xl bg-sage-50 text-sage-600 dark:bg-sage-900/40 dark:text-sage-200"><ic name="spinner" class="size-6 animate-spin"></ic></span>
     <template v-if="level==='local'"><p class="mt-4 text-sm text-muted">{{ $t('Sorting…') }}</p></template>
     <template v-else>
-      <p class="mt-4 font-serif text-xl font-semibold">{{ $t('Claude ({0} model) is composing the path', [levelLabel(level).toLowerCase()]) }}</p>
+      <p class="mt-4 font-serif text-xl font-semibold">{{ $t('{ai} ({0} model) is composing the path', [levelLabel(level).toLowerCase()]) }}</p>
       <p class="mt-2 text-sm text-muted dark:text-night-muted">{{ $t('Reads the index and the pages of the library to arrange them for learning. {0} s{1}', [waited, level==='strong' ? $t('. The powerful model can take several minutes.') : '.']) }}</p>
       <button class="btn-soft mt-5" @click="cancel"><ic name="x" class="size-4"></ic>{{ $t('Cancel') }}</button>
     </template>
@@ -1309,12 +1375,12 @@
 
   <div v-else-if="error" class="card mt-8 max-w-3xl p-8 text-center">
     <span class="mx-auto grid size-14 place-items-center rounded-3xl bg-clay-100 text-clay-500 dark:bg-clay-500/15"><ic name="alert" class="size-6"></ic></span>
-    <p class="mt-4 font-serif text-xl font-semibold">{{ $t('Claude could not compose the path') }}</p>
+    <p class="mt-4 font-serif text-xl font-semibold">{{ $t('{ai} could not compose the path') }}</p>
     <p class="mt-2 text-sm text-muted dark:text-night-muted">{{ error }}</p>
     <div class="mt-5 flex flex-wrap justify-center gap-2">
       <button class="btn-primary" @click="generate()"><ic name="sparkle" class="size-4"></ic>{{ $t('Try again') }}</button>
       <button v-if="level!=='light'" class="btn-soft" @click="setLevel('light', true)">{{ $t('With a light model') }}</button>
-      <button class="btn-ghost" @click="setLevel('local', true)">{{ $t('Quick, without Claude') }}</button>
+      <button class="btn-ghost" @click="setLevel('local', true)">{{ $t('Quick, without {ai}') }}</button>
     </div>
   </div>
 
@@ -1333,12 +1399,12 @@
           </button>
         </li>
       </ul>
-      <p class="mt-5 text-sm text-muted dark:text-night-muted">{{ $t('Or compose a new path for the current choice. Composing uses part of Claude’s limit.') }}</p>
-      <button class="btn-soft mt-3" @click="generate()"><ic name="sparkle" class="size-4"></ic>{{ $t('Compose with Claude') }}</button>
+      <p class="mt-5 text-sm text-muted dark:text-night-muted">{{ $t('Or compose a new path for the current choice. Composing uses part of {ai}’s limit.') }}</p>
+      <button class="btn-soft mt-3" @click="generate()"><ic name="sparkle" class="size-4"></ic>{{ $t('Compose with {ai}') }}</button>
     </template>
     <template v-else>
-      <p class="mt-2 text-sm text-muted dark:text-night-muted">{{ $t('Composing uses part of Claude’s limit. The result is saved, so opening it next time is free.') }}</p>
-      <button class="btn-primary mt-5" @click="generate()"><ic name="sparkle" class="size-4"></ic>{{ $t('Compose with Claude') }}</button>
+      <p class="mt-2 text-sm text-muted dark:text-night-muted">{{ $t('Composing uses part of {ai}’s limit. The result is saved, so opening it next time is free.') }}</p>
+      <button class="btn-primary mt-5" @click="generate()"><ic name="sparkle" class="size-4"></ic>{{ $t('Compose with {ai}') }}</button>
     </template>
   </div>
 
@@ -1448,7 +1514,7 @@
 <div class="mx-auto max-w-3xl px-5 py-8 sm:px-8 lg:py-12">
   <p class="eyebrow">{{ $t('Add an article') }}</p>
   <h1 class="mt-1 font-serif text-3xl font-semibold">{{ $t('By DOI or address') }}</h1>
-  <p class="mt-2 text-sm text-muted dark:text-night-muted">{{ $t('Paste a DOI or an address starting with https:// (an article page or a direct PDF). The library downloads the PDF, or, if there is no free one, the page text; it puts it in the inbox and shows you how to process it. Nothing goes to Claude until you confirm.') }}</p>
+  <p class="mt-2 text-sm text-muted dark:text-night-muted">{{ $t('Paste a DOI or an address starting with https:// (an article page or a direct PDF). The library downloads the PDF, or, if there is no free one, the page text; it puts it in the inbox and shows you how to process it. Nothing goes to {ai} until you confirm.') }}</p>
 
   <form class="mt-6 flex flex-col gap-2 sm:flex-row" @submit.prevent="fetchIt">
     <div class="relative min-w-0 flex-1">
@@ -1493,7 +1559,7 @@
         </div>
 
         <div class="mt-4 flex flex-wrap items-center gap-2">
-          <button class="btn-primary" :disabled="a.busy" @click="process(a)"><ic name="sparkle" class="size-4"></ic>{{ $t('Process with Claude') }}</button>
+          <button class="btn-primary" :disabled="a.busy" @click="process(a)"><ic name="sparkle" class="size-4"></ic>{{ $t('Process with {ai}') }}</button>
           <button class="btn-ghost" :disabled="a.busy" @click="a.state='later'; a.extra=$t('The file is waiting to be processed on the home page.')">{{ $t('Leave for later') }}</button>
           <span class="text-xs text-muted dark:text-night-muted">{{ $t('Before the start you will see tokens and cost.') }}</span>
         </div>
@@ -1582,18 +1648,128 @@
 </div>
 </script>
 
+<script type="text/x-template" id="tpl-ai">
+<section class="card mt-6 p-5" id="model">
+  <h2 class="font-serif text-xl font-semibold">{{ $t('Model') }}</h2>
+  <p class="mt-1 text-sm text-muted dark:text-night-muted">{{ $t('Which model processes the library, answers and writes. Claude Code works as an agent with tools. The other models get the text in parts from the server, so a small local model or a free chat in the browser can work too.') }}</p>
+  <p v-if="!s" class="mt-4 text-sm text-muted">{{ $t('Loading…') }}</p>
+  <template v-else>
+    <p class="mt-3 rounded-xl bg-sage-50 px-3 py-2 text-sm text-sage-800 dark:bg-sage-900/40 dark:text-sage-200">
+      {{ $t('In use: {0}', [s.current.name]) }} · {{ engineText(s.current.engine) }}<template v-if="!s.current.ready.ok"> · <b>{{ $t('not set up yet') }}</b></template>
+    </p>
+
+    <div class="mt-4 space-y-4">
+      <div v-for="g in groups" :key="g.id">
+        <p class="eyebrow">{{ g.label }}</p>
+        <div class="mt-2 grid gap-2 sm:grid-cols-2" role="radiogroup" :aria-label="g.label">
+          <button v-for="p in g.items" :key="p.id" type="button" role="radio" :aria-checked="sel===p.id" @click="pick(p.id)"
+                  :class="['rounded-2xl border px-3 py-2 text-left text-sm transition', sel===p.id ? 'border-sage-400 bg-sage-50 dark:border-sage-500 dark:bg-sage-900/40' : 'border-line hover:border-sage-200 dark:border-night-line']">
+            <span class="flex flex-wrap items-center gap-2 font-medium">{{ p.label }}<span v-if="p.id===s.current.provider" class="chip bg-sage-100 text-[10px] text-sage-700 dark:bg-sage-900 dark:text-sage-200">{{ $t('in use') }}</span></span>
+            <span class="mt-0.5 block text-xs text-muted dark:text-night-muted">{{ engineText(p.engine) }}<template v-if="p.local"> · {{ $t('on this computer') }}</template><template v-else-if="p.free"> · {{ $t('free') }}</template><template v-if="p.hasKey"> · {{ $t('key saved') }}</template></span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div v-if="preset && form" class="mt-5 rounded-2xl border border-line p-4 dark:border-night-line">
+      <p class="font-medium">{{ preset.label }}</p>
+      <p class="mt-1 text-sm text-muted dark:text-night-muted">{{ preset.hint }}</p>
+      <p v-if="preset.docs || preset.keyUrl" class="mt-1 text-xs">
+        <a v-if="preset.docs" :href="preset.docs" target="_blank" rel="noopener" class="underline">{{ $t('Documentation') }}</a>
+        <template v-if="preset.keyUrl"><template v-if="preset.docs"> · </template><a :href="preset.keyUrl" target="_blank" rel="noopener" class="underline">{{ $t('Get a key') }}</a></template>
+      </p>
+
+      <div class="mt-4 grid gap-3 sm:grid-cols-2">
+        <label v-if="show.url" class="block text-sm sm:col-span-2"><span class="mb-1 block font-medium">{{ $t('Address') }}</span>
+          <input v-model.trim="form.baseUrl" :placeholder="preset.defaults.baseUrl || 'https://…'" spellcheck="false" class="field"></label>
+        <div v-if="show.key" class="text-sm sm:col-span-2">
+          <span class="mb-1 block font-medium">{{ $t('API key') }}<span v-if="!preset.needsKey" class="font-normal text-muted dark:text-night-muted"> ({{ $t('optional') }})</span></span>
+          <p v-if="preset.keySource==='env'" class="mb-1 text-xs text-muted dark:text-night-muted">{{ $t('The key comes from the environment variable {0} and is not stored by the library.', [preset.envKey || 'LIB_AI_KEY']) }}</p>
+          <div class="flex gap-2">
+            <input v-model.trim="key" :type="showKey ? 'text' : 'password'" autocomplete="off" spellcheck="false" :placeholder="preset.hasKey ? $t('saved: {0}', [preset.keyMasked]) : $t('paste the key')" class="field flex-1">
+            <button class="btn-ghost !py-1.5 text-sm" type="button" @click="showKey=!showKey">{{ showKey ? $t('Hide') : $t('Show') }}</button>
+            <button v-if="preset.hasKey && preset.keySource==='file'" class="btn-ghost !py-1.5 text-sm text-clay-500" type="button" @click="removeKey">{{ $t('Remove') }}</button>
+          </div>
+          <p class="mt-1 text-xs text-muted dark:text-night-muted">{{ $t('The key is kept in .library-secrets.json in the project folder: outside git, readable only by you, and closed to the agent.') }}</p>
+        </div>
+        <template v-if="show.models">
+          <label v-for="t in tiers" :key="t" class="block text-sm"><span class="mb-1 block font-medium">{{ tierLabel(t) }}</span>
+            <input v-model.trim="form.models[t]" list="ai-models" spellcheck="false" :placeholder="preset.defaults.models[t] || (t==='medium' ? $t('required') : $t('the same as the medium one'))" class="field"></label>
+          <div class="flex items-end">
+            <button class="btn-soft !py-1.5 text-sm" type="button" :disabled="loadingModels" @click="loadModels"><ic :name="loadingModels ? 'spinner' : 'list'" :class="['size-4', loadingModels && 'animate-spin']"></ic>{{ $t('Load the models') }}</button>
+          </div>
+          <datalist id="ai-models"><option v-for="m in models" :key="m" :value="m"></option></datalist>
+          <p v-if="modelsMsg" class="text-xs text-muted sm:col-span-2 dark:text-night-muted">{{ modelsMsg }}</p>
+        </template>
+        <label v-if="show.context" class="block text-sm"><span class="mb-1 block font-medium">{{ preset.engine==='manual' ? $t('Size of one request (tokens)') : $t('Context of the model (tokens)') }}</span>
+          <input v-model.number="form.context" type="number" min="2000" step="1000" :placeholder="String(preset.defaults.context)" class="field"></label>
+        <label v-if="show.rpm" class="block text-sm"><span class="mb-1 block font-medium">{{ $t('Requests per minute (0 = no pause)') }}</span>
+          <input v-model="form.rpm" type="number" min="0" :placeholder="String(preset.defaults.rpm || 0)" class="field"></label>
+        <label v-if="show.vision" class="flex cursor-pointer items-center gap-2 text-sm sm:col-span-2"><input type="checkbox" v-model="form.vision" class="accent-sage-600"> {{ $t('Reads images (the model accepts pictures)') }}</label>
+      </div>
+      <p v-if="show.context" class="mt-2 text-xs text-muted dark:text-night-muted">{{ preset.engine==='manual' ? $t('How much text goes into one request to copy. Lower it if the chat refuses long messages.') : $t('Set it to the real size of the model: the server cuts the text into parts that fit. For a local model, a bigger context also needs more memory.') }}</p>
+
+      <details v-if="show.prices" class="mt-4 text-sm">
+        <summary class="cursor-pointer font-medium">{{ $t('Prices (USD per million tokens)') }}</summary>
+        <p class="mt-1 text-xs text-muted dark:text-night-muted">{{ $t('Optional. With them the estimate before each action shows the cost; without them it shows only the tokens.') }}</p>
+        <div class="mt-2 grid grid-cols-[1fr_6rem_6rem] items-center gap-2 text-xs">
+          <span></span><span class="font-medium">{{ $t('input') }}</span><span class="font-medium">{{ $t('output') }}</span>
+          <template v-for="t in tiers" :key="t">
+            <span class="truncate">{{ tierLabel(t) }}</span>
+            <input v-model="form.prices[t].in" type="number" min="0" step="0.01" class="field !py-1 !text-xs">
+            <input v-model="form.prices[t].out" type="number" min="0" step="0.01" class="field !py-1 !text-xs">
+          </template>
+        </div>
+      </details>
+
+      <div class="mt-5 border-t border-line pt-4 dark:border-night-line">
+        <p class="font-medium">{{ $t('Name and labels for this model') }}</p>
+        <p class="mt-1 text-xs text-muted dark:text-night-muted">{{ $t('They apply only while this model is in use. The name goes into the buttons and texts, for example “{0}” and “{1}”.', [preview('Ask {ai}'), preview('Process with {ai}')]) }}</p>
+        <label class="mt-3 block text-sm"><span class="mb-1 block font-medium">{{ $t('Name in the interface') }}</span>
+          <input v-model.trim="form.name" maxlength="40" :placeholder="preset.name" class="field sm:max-w-xs"></label>
+        <p class="mt-4 text-sm font-medium">{{ $t('Labels of buttons and windows') }}</p>
+        <input v-model="labelQuery" :placeholder="$t('Search all texts of the interface…')" class="field mt-2">
+        <ul class="scrollbar-thin mt-2 max-h-72 space-y-2 overflow-y-auto pr-1">
+          <li v-for="k in labelKeys" :key="k" class="grid gap-1 sm:grid-cols-2 sm:items-center">
+            <span class="text-xs text-muted dark:text-night-muted">{{ preview(k, true) }}</span>
+            <div class="flex gap-1">
+              <input :value="form.labels[k] || ''" @input="setLabel(k, $event.target.value)" :placeholder="preview(k, true)" :aria-label="preview(k, true)" class="field flex-1 !py-1 !text-xs">
+              <button v-if="form.labels[k]" type="button" class="btn-ghost !p-1.5" :title="$t('Reset')" :aria-label="$t('Reset')" @click="setLabel(k, '')"><ic name="undo" class="size-3.5"></ic></button>
+            </div>
+          </li>
+          <li v-if="!labelKeys.length" class="text-xs text-muted">{{ $t('Nothing found.') }}</li>
+        </ul>
+        <p v-if="changedLabels" class="mt-1 text-xs text-muted dark:text-night-muted">{{ $t('Changed labels: {0}', [changedLabels]) }}</p>
+      </div>
+
+      <p v-if="msg" :class="['mt-4 text-sm', bad ? 'text-clay-500' : 'text-sage-700 dark:text-sage-200']">{{ msg }}</p>
+      <div class="mt-4 flex flex-wrap items-center gap-2">
+        <button class="btn-primary" :disabled="busy" @click="save(false)"><ic :name="busy ? 'spinner' : 'check'" :class="['size-4', busy && 'animate-spin']"></ic>{{ sel===s.current.provider ? $t('Save') : $t('Use this model') }}</button>
+        <button v-if="preset.engine!=='manual'" class="btn-soft" :disabled="busy || testing" @click="test"><ic :name="testing ? 'spinner' : 'sparkle'" :class="['size-4', testing && 'animate-spin']"></ic>{{ $t('Test the connection') }}</button>
+      </div>
+      <p v-if="preset.engine!=='manual'" class="mt-1 text-xs text-muted dark:text-night-muted">{{ $t('The test saves the settings and sends one word to the light model (a tiny cost). After saving, the page reloads with the new names.') }}</p>
+      <p v-else class="mt-1 text-xs text-muted dark:text-night-muted">{{ $t('After saving, the page reloads with the new names.') }}</p>
+      <p v-if="testMsg" :class="['mt-2 text-sm', testOk ? 'text-sage-700 dark:text-sage-200' : 'text-clay-500']">{{ testMsg }}</p>
+    </div>
+  </template>
+</section>
+</script>
+
 <script type="text/x-template" id="tpl-settings">
 <div class="mx-auto max-w-3xl px-5 py-8 sm:px-8 lg:py-12">
   <p class="eyebrow">{{ $t('Settings') }}</p>
-  <h1 class="mt-1 font-serif text-3xl font-semibold">{{ $t('Updates, data and tests') }}</h1>
+  <h1 class="mt-1 font-serif text-3xl font-semibold">{{ $t('Model, updates, data and tests') }}</h1>
   <p class="mt-2 max-w-2xl text-sm text-muted dark:text-night-muted">{{ $t('Nothing here leaves your computer until you press a button, and nothing is installed by itself. You see the result and decide.') }}</p>
+
+  <!-- Модел: доставчик, ключ, модели, име и надписи -->
+  <ai-settings v-if="!ro"></ai-settings>
 
   <p v-if="!info" class="mt-8 text-sm text-muted">{{ $t('Loading…') }}</p>
   <template v-else>
     <!-- Архив за четене -->
     <section v-if="!ro" class="card mt-6 p-5">
       <h2 class="font-serif text-xl font-semibold">{{ $t('Archive for reading') }}</h2>
-      <p class="mt-1 text-sm text-muted dark:text-night-muted">{{ $t('A copy of the library in one ZIP file, for reading on another computer. It has the pages with their links and tags, and the markdown files. The original files from raw/ are not included, and the copy cannot be changed by Claude.') }}</p>
+      <p class="mt-1 text-sm text-muted dark:text-night-muted">{{ $t('A copy of the library in one ZIP file, for reading on another computer. It has the pages with their links and tags, and the markdown files. The original files from raw/ are not included, and the copy cannot be changed by {ai}.') }}</p>
       <button class="btn-primary mt-4 !py-1.5 text-sm" :disabled="archive.busy" @click="makeArchive"><ic :name="archive.busy ? 'spinner' : 'upload'" :class="['size-4', archive.busy && 'animate-spin']"></ic>{{ archive.busy ? $t('Making the archive…') : $t('Make the archive') }}</button>
       <p v-if="archive.error" class="mt-3 text-sm text-clay-500">{{ archive.error }}</p>
       <p v-if="archive.result" class="mt-3 text-sm">
@@ -1610,7 +1786,7 @@
         </li>
       </ul>
       <p v-else class="mt-2 text-xs text-muted dark:text-night-muted">{{ $t('No archives yet.') }}</p>
-      <p class="mt-2 text-xs text-muted dark:text-night-muted">{{ $t('To open it: unzip the file and open index.html in any browser. It works without internet and without Claude.') }}</p>
+      <p class="mt-2 text-xs text-muted dark:text-night-muted">{{ $t('To open it: unzip the file and open index.html in any browser. It works without internet and without {ai}.') }}</p>
     </section>
 
     <!-- Версия -->
@@ -1681,8 +1857,18 @@
       </div>
     </section>
 
-    <!-- Данни -->
-    <section class="card mt-5 p-5">
+    <!-- Данни: друг доставчик, локален модел или ръчен режим -->
+    <section v-if="!AI.claude" class="card mt-5 p-5">
+      <h2 class="font-serif text-xl font-semibold">{{ $t('Your data and {ai}') }}</h2>
+      <div :class="['mt-3 rounded-xl px-4 py-3 text-sm', ['local','commercial'].includes(info.account.terms) ? 'bg-sage-50 text-sage-700 dark:bg-sage-900/40 dark:text-sage-200' : 'bg-amber-50 text-amber-800 dark:bg-amber-500/10 dark:text-amber-300']">
+        <p v-if="info.account.terms==='local'">{{ $t('The model runs on this computer: the texts of the sources, the pages and your questions do not leave it.') }}</p>
+        <p v-else-if="info.account.terms==='manual'">{{ $t('Nothing is sent by itself: you copy every request into the chat yourself. The terms of your chat account apply, including whether conversations are used to train models. Check its privacy settings.') }}</p>
+        <p v-else-if="info.account.terms==='free-tier'">{{ $t('Whatever {ai} processes goes to {0}. On free tiers providers often use the content to improve their models: do not process private material with a free key.', [info.account.vendor || AI.vendor]) }}</p>
+        <p v-else>{{ $t('Whatever {ai} processes goes to {0}. With paid API access providers usually do not train on the data by default, but check their terms.', [info.account.vendor || AI.vendor]) }}</p>
+      </div>
+      <p class="mt-3 text-sm">{{ $t('Reading, searching and the local modes stay on this computer with every model.') }}</p>
+    </section>
+    <section v-else class="card mt-5 p-5">
       <h2 class="font-serif text-xl font-semibold">{{ $t('Your data and Anthropic') }}</h2>
       <p class="mt-1 text-sm">{{ $t('Whatever Claude processes (the text of a source, the pages and your question) goes to Anthropic through Claude Code. Reading, searching and local modes stay on this computer.') }}</p>
       <div :class="['mt-3 rounded-xl px-4 py-3 text-sm', info.account.terms==='commercial' ? 'bg-sage-50 text-sage-700 dark:bg-sage-900/40 dark:text-sage-200' : 'bg-amber-50 text-amber-800 dark:bg-amber-500/10 dark:text-amber-300']">
@@ -1765,13 +1951,13 @@
     <!-- източници без област -->
     <section v-if="data.unassigned.length || prop" class="card mt-6 p-5">
       <p class="font-semibold">{{ data.unassigned.length }} {{ plural(data.unassigned.length, $t('source has no area'), $t('sources have no area')) }}</p>
-      <p class="mt-1 text-sm text-muted dark:text-night-muted">{{ $t('Claude can determine them from the title, authors, tags and emphasis, without reading the books. You see the suggestion and correct it before it is saved.') }}</p>
+      <p class="mt-1 text-sm text-muted dark:text-night-muted">{{ $t('{ai} can determine them from the title, authors, tags and emphasis, without reading the books. You see the suggestion and correct it before it is saved.') }}</p>
       <div v-if="!prop" class="mt-3 flex flex-wrap items-center gap-2">
         <div class="flex items-center gap-1.5" role="radiogroup" :aria-label="$t('Model')">
           <button v-for="l in classifyLevels" :key="l.id" type="button" role="radio" :aria-checked="cls.level===l.id" :title="l.hint" @click="cls.level=l.id"
                   :class="['chip border px-2.5 py-0.5 text-xs transition', cls.level===l.id ? 'border-sage-500 bg-sage-50 text-sage-700 dark:bg-sage-900/40 dark:text-sage-200' : 'border-line text-ink/70 hover:border-sage-200 dark:border-night-line dark:text-night-ink/70']">{{ l.label }}</button>
         </div>
-        <button class="btn-primary !py-1.5 text-sm" :disabled="cls.busy || !data.unassigned.length" @click="classify"><ic :name="cls.busy ? 'spinner' : 'sparkle'" :class="['size-4', cls.busy && 'animate-spin']"></ic>{{ $t('Determine with Claude') }}</button>
+        <button class="btn-primary !py-1.5 text-sm" :disabled="cls.busy || !data.unassigned.length" @click="classify"><ic :name="cls.busy ? 'spinner' : 'sparkle'" :class="['size-4', cls.busy && 'animate-spin']"></ic>{{ $t('Determine with {ai}') }}</button>
         <button v-if="cls.busy" class="btn-soft !py-1.5 text-sm" @click="cancelClassify"><ic name="x" class="size-4"></ic>{{ $t('Cancel') }}</button>
         <span v-if="cls.busy" class="text-xs text-muted">{{ $t('{0} s', [cls.waited]) }}</span>
       </div>
@@ -1804,7 +1990,7 @@
             </select>
           </li>
         </ul>
-        <p class="mt-2 text-xs text-muted">{{ $t('A new area is created this way: determine one source with Claude or rename an existing area.') }}</p>
+        <p class="mt-2 text-xs text-muted">{{ $t('A new area is created this way: determine one source with {ai} or rename an existing area.') }}</p>
       </details>
     </section>
 
@@ -1872,16 +2058,16 @@
         </div>
         <div>
           <label class="text-sm font-medium" for="voice">{{ $t('How the text should sound') }} <span class="font-normal text-muted">{{ $t('(optional)') }}</span></label>
-          <textarea id="voice" v-model="voice" rows="3" @input="saveVoice" :placeholder="$t('Paste 3 or 4 sentences of your own: Claude will follow their tone and rhythm without copying them. They are remembered for next time.')"
+          <textarea id="voice" v-model="voice" rows="3" @input="saveVoice" :placeholder="$t('Paste 3 or 4 sentences of your own: {ai} will follow their tone and rhythm without copying them. They are remembered for next time.')"
                     class="mt-1.5 w-full resize-y rounded-2xl border border-line bg-paper px-3 py-2 text-sm outline-none transition focus:border-sage-400 dark:border-night-line dark:bg-night"></textarea>
         </div>
       </div>
 
       <p v-if="langNote" class="mt-4 flex gap-2 rounded-2xl bg-clay-100 px-3 py-2 text-sm text-clay-500 dark:bg-clay-500/15"><ic name="alert" class="mt-0.5 size-4 shrink-0"></ic>{{ langNote }}</p>
       <div class="mt-4 flex flex-wrap items-center gap-2">
-        <button class="btn-primary !py-3" :disabled="topic.trim().length < 4 || loading"><ic :name="loading ? 'spinner' : (level==='local' ? 'pen' : 'sparkle')" :class="['size-4', loading && 'animate-spin']"></ic>{{ level==='local' ? $t('Compose a draft') : $t('Write with Claude') }}</button>
+        <button class="btn-primary !py-3" :disabled="topic.trim().length < 4 || loading"><ic :name="loading ? 'spinner' : (level==='local' ? 'pen' : 'sparkle')" :class="['size-4', loading && 'animate-spin']"></ic>{{ level==='local' ? $t('Compose a draft') : $t('Write with {ai}') }}</button>
         <button v-if="loading && level!=='local'" type="button" class="btn-soft !py-3" @click="cancel"><ic name="x" class="size-4"></ic>{{ $t('Cancel') }}</button>
-        <span v-if="loading && level!=='local'" class="text-sm text-muted dark:text-night-muted">{{ $t('Claude ({0} model) is reading the library and writing… {1} s', [levelLabel(level).toLowerCase(), waited]) }}</span>
+        <span v-if="loading && level!=='local'" class="text-sm text-muted dark:text-night-muted">{{ $t('{ai} ({0} model) is reading the library and writing… {1} s', [levelLabel(level).toLowerCase(), waited]) }}</span>
       </div>
       <p v-if="error" class="mt-3 flex gap-2 rounded-2xl bg-clay-100 px-3 py-2 text-sm text-clay-500 dark:bg-clay-500/15"><ic name="alert" class="mt-0.5 size-4 shrink-0"></ic>{{ error }}</p>
       <p class="mt-3 text-xs text-muted dark:text-night-muted">{{ $t('Structure: abstract, keywords, introduction, theoretical framework, analysis, discussion, conclusion and a bibliography in APA 7. Citations are converted automatically, and the bibliography contains only the sources actually cited. The text is saved as an .md file in the project’s drafts/ folder.') }}</p>
@@ -1944,16 +2130,16 @@
 
       <!-- Дописване с Claude -->
       <section class="card mt-4 max-w-3xl p-4">
-        <button type="button" class="flex w-full items-center gap-2 text-left text-sm font-semibold" :aria-expanded="cont.open" @click="cont.open=!cont.open"><ic name="sparkle" class="size-4 text-sage-600"></ic>{{ $t('Continue with Claude') }}<span class="flex-1"></span><ic :name="cont.open ? 'x' : 'pen'" class="size-4 text-muted"></ic></button>
+        <button type="button" class="flex w-full items-center gap-2 text-left text-sm font-semibold" :aria-expanded="cont.open" @click="cont.open=!cont.open"><ic name="sparkle" class="size-4 text-sage-600"></ic>{{ $t('Continue with {ai}') }}<span class="flex-1"></span><ic :name="cont.open ? 'x' : 'pen'" class="size-4 text-muted"></ic></button>
         <div v-if="cont.open" class="mt-3">
-          <label class="text-xs text-muted dark:text-night-muted" for="cont-ins">{{ $t('What should it add? (optional; without guidance Claude adds the most valuable thing that is missing)') }}</label>
+          <label class="text-xs text-muted dark:text-night-muted" for="cont-ins">{{ $t('What should it add? (optional; without guidance {ai} adds the most valuable thing that is missing)') }}</label>
           <textarea id="cont-ins" v-model="cont.instruction" rows="3" maxlength="1000" :placeholder="$t('E.g. add a section on the role of the alliance system')" class="mt-1 w-full resize-y rounded-2xl border border-line bg-paper px-3 py-2 text-sm outline-none transition focus:border-sage-400 dark:border-night-line dark:bg-night"></textarea>
           <div class="mt-3 flex flex-wrap items-center gap-2">
             <div class="flex rounded-full border border-line p-0.5 dark:border-night-line" role="group" :aria-label="$t('Length of the addition')">
               <button v-for="w in [{n:300,l:$t('Brief')},{n:600,l:$t('Moderate')},{n:1200,l:$t('Long')}]" :key="w.n" type="button" @click="cont.words=w.n" :aria-pressed="cont.words===w.n"
                       :class="['rounded-full px-3 py-1 text-sm transition', cont.words===w.n ? 'bg-sage-600 text-white shadow-soft' : 'text-muted hover:text-ink dark:hover:text-night-ink']">{{ w.l }}</button>
             </div>
-            <div class="flex rounded-full border border-line p-0.5 dark:border-night-line" role="group" :aria-label="$t('Claude level')">
+            <div class="flex rounded-full border border-line p-0.5 dark:border-night-line" role="group" :aria-label="$t('{ai} level')">
               <button v-for="l in LEVELS.filter(x => x.id !== 'local')" :key="l.id" type="button" @click="cont.level=l.id" :aria-pressed="cont.level===l.id"
                       :class="['rounded-full px-3 py-1 text-sm transition', cont.level===l.id ? 'bg-sage-600 text-white shadow-soft' : 'text-muted hover:text-ink dark:hover:text-night-ink']">{{ l.label }}</button>
             </div>

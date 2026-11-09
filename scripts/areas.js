@@ -163,7 +163,7 @@ export async function proposeClassification(ask) {
   const r = await ask(text);
   if (!r.ok) return r;
   const j = parseJson(r.text);
-  if (!j || !Array.isArray(j.assignments)) return { ok: false, kind: 'format', error: $t('Claude returned an answer in an unexpected form. Try again or with a more powerful level.'), detail: String(r.text).slice(0, 500) };
+  if (!j || !Array.isArray(j.assignments)) return { ok: false, kind: 'format', error: $t('{ai} returned an answer in an unexpected form. Try again or with a more powerful level.'), detail: String(r.text).slice(0, 500) };
   const bySlug = new Map(unassignedSources(pages).map((p) => [p.slug, p]));
   const known = areaNames(pages);
   const items = [];
@@ -173,7 +173,7 @@ export async function proposeClassification(ask) {
     const existing = known.find((n) => areaKey(n) === areaKey(area));
     items.push({ slug, title: String(p.data.title || slug), area: existing || area, isNew: !existing });
   }
-  if (!items.length) return { ok: false, kind: 'format', error: $t('Claude did not determine an area for any source.') };
+  if (!items.length) return { ok: false, kind: 'format', error: $t('{ai} did not determine an area for any source.') };
   return { ok: true, items, remaining: Math.max(0, total - count), known };
 }
 

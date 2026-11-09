@@ -14,7 +14,12 @@ if (args[0] === 'auth') {
 const format = args[args.indexOf('--output-format') + 1];
 let stdin = '';
 if (format === 'json') { try { stdin = fs.readFileSync(0, 'utf8'); } catch { /* няма вход */ } }
-log({ args, stdin });
+// Само дали има ключ/адрес и кои модели, без самите ключове: така тестът вижда, накъде е насочен Claude Code
+const env = {
+  baseUrl: process.env.ANTHROPIC_BASE_URL || null, hasToken: !!process.env.ANTHROPIC_AUTH_TOKEN, hasApiKey: !!process.env.ANTHROPIC_API_KEY,
+  haiku: process.env.ANTHROPIC_DEFAULT_HAIKU_MODEL || null, sonnet: process.env.ANTHROPIC_DEFAULT_SONNET_MODEL || null, opus: process.env.ANTHROPIC_DEFAULT_OPUS_MODEL || null,
+};
+log({ args, stdin, env });
 
 const mode = process.env.FAKE_CLAUDE_MODE || 'ok';
 if (mode === 'auth') { console.error('Invalid API key. Please run /login'); process.exit(1); }

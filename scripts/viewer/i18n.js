@@ -19,7 +19,14 @@
       return r;
     },
   };
-  window.$t = (key, args) => fmt(D.messages[key] ?? key, args);
+  // Моделът: името замества {ai} („Попитай {ai}“ → „Попитай Gemini“), а надписите от „Настройки → Модел“
+  // заменят цели текстове по английския ключ.
+  const AI = D.ai || { name: 'Claude', labels: {} };
+  window.AI = AI;
+  window.$t = (key, args) => {
+    const s = fmt((AI.labels && AI.labels[key]) || (D.messages[key] ?? key), args);
+    return s.indexOf('{ai}') >= 0 ? s.replace(/\{ai\}/g, AI.name || 'AI') : s;
+  };
   document.documentElement.lang = D.lang;
   document.title = window.$t('Library');
 })();

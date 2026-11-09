@@ -6,8 +6,8 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-// В проекта, но не за четене: история с лични страници, настройки и паролата на интерфейса.
-const PRIVATE = /(^|\/)(\.git|\.library-git)(\/|$)|(^|\/)(\.library-auth\.json|library\.config\.json|\.env(\.[^/]*)?)$/;
+// В проекта, но не за четене: история с лични страници, настройки, паролата на интерфейса и ключовете за API.
+const PRIVATE = /(^|\/)(\.git|\.library-git)(\/|$)|(^|\/)(\.library-auth\.json|\.library-secrets\.json(\.tmp)?|library\.config\.json|\.env(\.[^/]*)?)$/;
 
 const refuse = (why) => { process.stderr.write(`Blocked by the library: ${why}\n`); process.exit(2); };
 
@@ -26,7 +26,7 @@ export function reasonToBlock(input, root = ROOT) {
   const pattern = tool === 'Glob' ? args.pattern : tool === 'Grep' ? args.glob : '';
   const p = String(pattern || '').replace(/\\/g, '/');
   if (p.startsWith('/') || p.startsWith('~') || /^[a-z]:/i.test(p) || p.split('/').includes('..')) return 'the pattern points outside the project folder';
-  if (/(^|[/{,])(\.git|\.library-git|\.library-auth)/.test(p)) return 'this file is private';
+  if (/(^|[/{,])(\.git|\.library-git|\.library-auth|\.library-secrets)/.test(p)) return 'this file is private';
   return null;
 }
 

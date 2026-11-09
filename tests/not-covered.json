@@ -1,5 +1,10 @@
 [
   {
+    "en": "Real providers other than Claude (OpenAI, Gemini, Groq, OpenRouter, DeepSeek, Mistral, Ollama, LM Studio) and the quality of pages written by small models",
+    "bg": "Истинските доставчици освен Claude (OpenAI, Gemini, Groq, OpenRouter, DeepSeek, Mistral, Ollama, LM Studio) и качеството на страниците от малки модели",
+    "why": { "en": "The tests use a simulated server that follows the documented formats. A real provider can differ in details (limits, model names, JSON). Try the connection in Settings → Model and check the first processed source.", "bg": "Тестовете ползват симулиран сървър по документираните формати. Истинският доставчик може да се различава в детайли (лимити, имена на модели, JSON). Опитай връзката в Настройки → Модел и провери първия обработен източник." }
+  },
+  {
     "en": "Quality of what the real Claude writes (accuracy of summaries, citations, page numbers)",
     "bg": "Качеството на написаното от истинския Claude (точност на обобщенията, цитатите и страниците)",
     "why": { "en": "Tests use a simulated Claude so that they cost nothing. Always check important claims against the source.", "bg": "Тестовете ползват симулиран Claude, за да не струват нищо. Важните твърдения винаги се проверяват в източника." }

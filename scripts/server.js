@@ -6,7 +6,10 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { spawn } from 'node:child_process';
 import { ensureStarter, ROOT, RAW, WIKI, OUTPUTS, rawFiles, rel, wikiPages, extractLinks, walk, sha256, loadManifest, ingestState, normRaw } from './lib.js';
-import { createAgent, legacySources, askClaude, PATH_LEVELS } from './agent.js';
+import { createAgent, legacySources, PATH_LEVELS } from './agent.js';
+import { askAI } from './ai.js';
+import { aiConfig, aiPublic, aiSettings, saveAiConfig, setKey, PRESETS } from './providers.js';
+import { listModels, manualList, manualAnswer, manualCancel, onManual, clipTokens, errorText } from './llm.js';
 import { buildLocal, writeWithClaude, continueWithClaude,saveDraft, listDrafts, readDraft, updateDraft, trashDraft, LENGTHS } from './write.js';
 import { askAboutPage, planConspect, proposeChange, applyProposal, saveAnswer, proposeReplace, locateForEdit, applyManualEdit, applyParagraphDelete, applyLink, renamePage } from './improve.js';
 import { fold, findDupes, planMerge, applyMerge, ignorePair, normalizeAuthors } from './merge.js';
@@ -15,7 +18,7 @@ import { planRemoval, applyRemoval } from './remove.js';
 import { rebuildAll } from './index.js';
 import { importPaper } from './discover.js';
 import { estimate } from './estimate.js';
-import { checkSetup, testClaude, accountTerms } from './setup.js';
+import { checkSetup, testAI, accountTerms } from './setup.js';
 import { versionInfo, checkCode, checkPackages, latestResults, runTests, testsBusy } from './updates.js';
 import { authEnabled, isLocked, verifyPassword, setPassword, clearPassword, validPassword, hasSession, startSession, endSession, MIN_PASSWORD } from './auth.js';
 import { areaMap, areaKey, listAreas, setArea, renameArea, proposeClassification, applyAssignments, scopeFilter } from './areas.js';
@@ -275,15 +278,29 @@ const DEPTH = lazy(() => ({
   strong: P('Work thoroughly: read the key pages, follow the links and the citations to the chapters, search with Grep for the words and synonyms from the question and the other spellings of the names, check for contradictions between the sources and mark them in look. Up to 14 steps.'),
 }));
 
-function claudePathPrompt(q, level, hints) {
+/** За модел без инструменти: индексът и най-близките до въпроса страници (повече на по-силното ниво) */
+const PATH_PAGES = { light: 4, medium: 8, strong: 14 };
+function pathMaterial(level, ranked, budget) {
+  let index = '';
+  try { index = fs.readFileSync(path.join(WIKI, 'index.md'), 'utf8').replace(/^---[\s\S]*?\n---\s*/, ''); } catch {}
+  const pages = ranked.slice(0, PATH_PAGES[level] || 8);
+  const share = pages.length ? Math.floor((budget * 0.6) / pages.length) : 0;
+  return [P('INDEX OF THE LIBRARY:'), clipTokens(index, Math.floor(budget * 0.4)), '',
+    ...pages.map((p) => `### [[${p.slug}]] (${p.data.type}) ${p.data.title || p.slug}\n${clipTokens(p.content, share)}`)].join('\n');
+}
+
+function claudePathPrompt(q, level, hints, material) {
+  const text = material != null;
   return [
     P('You are a learning mentor. The human wants to learn something from THEIR OWN library (the wiki/ folder in the current directory). Compose a learning path for their question.'),
     '',
     P('QUESTION: {0}', [q]),
     '',
     P('HOW TO WORK'),
-    P('- Start with wiki/index.md. The pages are in wiki/concepts, entities, topics, comparisons, questions, sources and sources/chapters. The identifier (slug) of a page is the file name without .md.'),
-    `- ${DEPTH[level]}`,
+    ...(text ? [P('- Use ONLY the pages in MATERIAL below (the index of the library and the pages closest to the question). The identifier (slug) of a page is in [[…]] or at the start of the line in the index.')] : [
+      P('- Start with wiki/index.md. The pages are in wiki/concepts, entities, topics, comparisons, questions, sources and sources/chapters. The identifier (slug) of a page is the file name without .md.'),
+      `- ${DEPTH[level]}`,
+    ]),
     P('- Include ONLY pages that really exist. Do not invent slugs, pages, citations and page numbers.'),
     P('- Names of people and concepts may be written in different ways (Tchaikovsky, Chaikovsky, Čajkovskij). Treat them as the same and include the pages that describe them.'),
     P('- Order from the general to the particular: first the framework and the basic concepts that the others depend on; then the finer concepts; then where the authors differ (comparisons); finally the chapters and primary sources where the claims stand. Do not put a step whose understanding depends on a later step.'),
@@ -296,6 +313,7 @@ function claudePathPrompt(q, level, hints) {
     '',
     P('HINTS from a rough word-based searcher (they may be incomplete or wrong, check them):'),
     hints || P('(none)'),
+    ...(text ? ['', P('MATERIAL:'), material] : []),
     '',
     P('FORMAT OF THE ANSWER: only one JSON object, with no text before or after it and no ```:'),
     P('{"goal":"1-2 sentences on what the human will understand at the end","stages":[{"label":"short name of the stage","hint":"one phrase on what is achieved","steps":[{"slug":"...","why":"...","look":"..."}]}],"gaps":"or an empty string"}'),
@@ -373,15 +391,20 @@ app.post('/api/path/claude', async (req, res) => {
   const sc = scopeOf(req.body), ctx = snapshot(), cache = readPaths(), key = pathKey(q, level, sc);
   if (!req.body?.fresh && cache[key]) return res.json({ ...buildClaudePath(cache[key].plan, q, level, ctx), cached: true, savedAt: cache[key].at });
 
-  const hints = [scopeNote(sc, ctx.pages), rank(q, sc).scored.slice(0, 30).map((s) => `${s.p.slug} | ${s.p.data.type} | ${String(s.p.data.title || s.p.slug)}`).join('\n')].filter(Boolean).join('\n\n');
-  const L = PATH_LEVELS[level], ac = new AbortController();
-  res.on('close', () => { if (!res.writableEnded) ac.abort(); }); // затвори ли страницата, спираме Claude
-  const r = await askClaude({ prompt: claudePathPrompt(q, level, hints), model: L.model, effort: L.effort, maxTurns: L.maxTurns, timeoutMs: L.timeoutMs, signal: ac.signal });
+  const scored = rank(q, sc).scored;
+  const hints = [scopeNote(sc, ctx.pages), scored.slice(0, 30).map((s) => `${s.p.slug} | ${s.p.data.type} | ${String(s.p.data.title || s.p.slug)}`).join('\n')].filter(Boolean).join('\n\n');
+  const ac = new AbortController();
+  res.on('close', () => { if (!res.writableEnded) ac.abort(); }); // затвори ли страницата, спираме модела
+  const r = await askAI({
+    level, json: true, maxTokens: 3500, signal: ac.signal, label: $t('Learning path'),
+    agentPrompt: claudePathPrompt(q, level, hints),
+    textPrompt: (budget) => claudePathPrompt(q, level, hints, pathMaterial(level, scored.map((s) => s.p), budget - 1200)),
+  });
   if (res.writableEnded || res.destroyed) return;
   if (!r.ok) return res.status(r.kind === 'cancelled' ? 499 : 502).json({ error: r.error, kind: r.kind, detail: r.detail });
   const plan = parsePlan(r.text);
   const built = plan && buildClaudePath(plan, q, level, snapshot());
-  if (!built || built.steps.length < 2) return res.status(502).json({ error: $t('Claude did not return a usable path. Try again or with a more powerful level.'), kind: 'format', detail: String(r.text).slice(0, 600) });
+  if (!built || built.steps.length < 2) return res.status(502).json({ error: $t('{ai} did not return a usable path. Try again or with a more powerful level.'), kind: 'format', detail: String(r.text).slice(0, 600) });
   const at = new Date().toISOString();
   const keep = Object.entries({ ...cache, [key]: { at, q, plan, areas: sc.areas, focus: sc.focus } }).sort((a, b) => String(b[1].at).localeCompare(String(a[1].at))).slice(0, 80);
   try { fs.mkdirSync(OUTPUTS, { recursive: true }); fs.writeFileSync(PATHS_FILE, JSON.stringify(Object.fromEntries(keep))); } catch {}
@@ -489,9 +512,10 @@ app.post('/api/areas/rename', (req, res) => manual(res, $t('area renaming'), () 
 app.post('/api/areas/set', (req, res) => manual(res, $t('area change'), () => setArea(String(req.body?.slug || ''), String(req.body?.area ?? ''))));
 app.post('/api/areas/apply', (req, res) => manual(res, $t('area detection'), () => applyAssignments(Array.isArray(req.body?.items) ? req.body.items.slice(0, 200) : [])));
 app.post('/api/areas/classify', async (req, res) => {
-  const L = PATH_LEVELS[req.body?.level] || PATH_LEVELS.light, ac = new AbortController();
+  const level = PATH_LEVELS[req.body?.level] ? req.body.level : 'light', ac = new AbortController();
   res.on('close', () => { if (!res.writableEnded) ac.abort(); });
-  const r = await proposeClassification((prompt) => askClaude({ prompt, model: L.model, effort: L.effort, maxTurns: 4, timeoutMs: L.timeoutMs, signal: ac.signal }));
+  // Подреждането не чете файлове: един и същ текст и за агента, и без инструменти
+  const r = await proposeClassification((prompt) => askAI({ level, agentPrompt: prompt, textPrompt: prompt, json: true, maxTokens: 4000, maxTurns: 4, signal: ac.signal, label: $t('Areas') }));
   if (res.writableEnded || res.destroyed) return;
   r.ok ? res.json(r) : fail(res, r);
 });
@@ -523,7 +547,7 @@ app.post('/api/write', async (req, res) => {
     const ac = new AbortController();
     res.on('close', () => { if (!res.writableEnded) ac.abort(); });
     const hints = [scopeNote(sc, ctx.pages), scored.slice(0, 30).map((s) => `${s.p.slug} | ${s.p.data.type} | ${String(s.p.data.title || s.p.slug)}`).join('\n')].filter(Boolean).join('\n\n');
-    r = await writeWithClaude({ topic, level, length, voice: clipText(b.voice, 1500).trim(), hints, pages: ctx.pages, signal: ac.signal });
+    r = await writeWithClaude({ topic, level, length, voice: clipText(b.voice, 1500).trim(), hints, ranked: scored.slice(0, 30).map((s) => s.p), pages: ctx.pages, signal: ac.signal });
     if (res.writableEnded || res.destroyed) return;
     if (!r.ok) return fail(res, r);
   }
@@ -533,14 +557,14 @@ app.post('/api/write', async (req, res) => {
 app.post('/api/drafts/:id/continue', async (req, res) => {
   const b = req.body || {}, d = readDraft(req.params.id);
   if (!d) return res.status(404).json({ error: $t('There is no such text') });
-  if (!PATH_LEVELS[b.level]) return res.status(400).json({ error: $t('Choose a Claude level.') });
+  if (!PATH_LEVELS[b.level]) return res.status(400).json({ error: $t('Choose a {ai} level.') });
   const body = clipText(b.body, 200000) || d.body, instruction = clipText(b.instruction, 1000).trim();
   const n = Math.min(1500, Math.max(200, Number(b.words) || 600));
   const sc = scopeOf(b), { scored, ctx } = rank(instruction || d.topic || d.title, sc);
   const ac = new AbortController();
   res.on('close', () => { if (!res.writableEnded) ac.abort(); });
   const hints = [scopeNote(sc, ctx.pages), scored.slice(0, 30).map((s) => `${s.p.slug} | ${s.p.data.type} | ${String(s.p.data.title || s.p.slug)}`).join('\n')].filter(Boolean).join('\n\n');
-  const r = await continueWithClaude({ body, title: d.title, instruction, level: b.level, words: n, hints, pages: ctx.pages, signal: ac.signal });
+  const r = await continueWithClaude({ body, title: d.title, instruction, level: b.level, words: n, hints, ranked: scored.slice(0, 30).map((s) => s.p), pages: ctx.pages, signal: ac.signal });
   if (res.writableEnded || res.destroyed) return;
   r.ok ? res.json(r) : fail(res, r);
 });
@@ -660,6 +684,7 @@ const broadcast = (obj) => { const msg = `data: ${JSON.stringify(obj)}\n\n`; cli
 // ---------- Обработка с Claude Code ----------
 ensureStarter();
 const agent = createAgent({ broadcast });
+onManual((items) => broadcast({ type: 'manual', items }));
 app.use('/api/agent', express.json({ limit: '64kb' }));
 // Смяна на езика: интерфейсът следва бисквитката, а езикът на съдържанието (CLAUDE.md, скилове, шаблони, промптове)
 // се сменя тук, за да са на един език. Без пакет за този език се ползва английският.
@@ -727,7 +752,45 @@ app.post('/api/remove', (req, res) => {
   res.json(r);
 });
 app.get('/api/setup', (_req, res) => res.json(checkSetup()));
-app.post('/api/setup/test', async (_req, res) => res.json(await testClaude()));
+app.post('/api/setup/test', async (_req, res) => res.json(await testAI()));
+
+// ---------- Модел: доставчик, ключ, модели, имена в интерфейса ----------
+// Ключът никога не се връща към страницата: само дали го има и последните 4 знака.
+app.use('/api/ai', express.json({ limit: '64kb' }));
+function aiSettingsTranslated() {
+  const s = aiSettings();
+  return { ...s, presets: s.presets.map((p) => ({ ...p, label: $t(p.label), hint: $t(p.hint) })), groups: s.groups.map((g) => ({ ...g, label: $t(g.label) })) };
+}
+app.get('/api/ai', (_req, res) => res.json(aiSettingsTranslated()));
+app.post('/api/ai', (req, res) => {
+  const b = req.body || {};
+  if (agent.isBusy()) return res.json({ ok: false, error: $t('Wait for the processing to finish.') });
+  if (b.provider && !PRESETS.some((p) => p.id === b.provider)) return res.status(400).json({ ok: false, error: $t('Unknown provider.') });
+  const r = saveAiConfig({ provider: b.provider, activate: b.activate !== false, ...(b.profile ? { profile: b.profile } : {}) });
+  if (!r.ok) return res.json({ ok: false, error: r.error === 'bad-url' ? $t('The address must start with http:// or https://.') : r.error });
+  if (typeof b.key === 'string' || b.removeKey) {
+    const k = setKey(b.provider || aiConfig().provider, b.removeKey ? '' : b.key);
+    if (!k.ok) return res.json({ ok: false, error: $t('The key looks wrong (it has spaces or is too long).') });
+  }
+  agent.resume(); // опашка, спряла заради ненастроен модел, тръгва отново
+  res.json({ ok: true, ...aiSettingsTranslated() });
+});
+app.post('/api/ai/models', async (req, res) => {
+  const id = String(req.body?.provider || aiConfig().provider);
+  let raw = {}; try { raw = JSON.parse(fs.readFileSync(path.join(ROOT, 'library.config.json'), 'utf8')).ai || {}; } catch {}
+  const cfg = aiConfig({ ...raw, provider: id });
+  const r = await listModels(cfg);
+  res.json(r.ok ? r : { ok: false, error: errorText({ kind: r.kind || 'error', error: r.error }, cfg) });
+});
+
+// ---------- Ръчен режим: заявки, които чакат отговор от чата ----------
+app.use('/api/manual', express.json({ limit: '2mb' }));
+app.get('/api/manual', (_req, res) => res.json(manualList()));
+app.post('/api/manual/:id', (req, res) => {
+  const r = manualAnswer(req.params.id, req.body?.text);
+  res.json(r.ok ? { ok: true } : { ok: false, error: r.empty ? $t('Paste the answer first.') : $t('This request is no longer waiting.') });
+});
+app.post('/api/manual/:id/cancel', (req, res) => res.json(manualCancel(req.params.id)));
 
 // Страница „Настройки“. GET не излиза от компютъра; POST маршрутите се пускат само с бутон.
 app.get('/api/settings', (_req, res) => res.json({ ...versionInfo(), contentLang: contentLang(), account: accountTerms(), tests: latestResults(), testsRunning: testsBusy(), auth: authEnabled() }));
@@ -857,7 +920,7 @@ app.get('/raw/*splat', (req, res) => {
 app.get('/locale.js', (req, res) => {
   const lang = pickLang(req);
   res.set({ 'Content-Type': 'application/javascript; charset=utf-8', 'Cache-Control': 'no-store', Vary: 'Cookie, Accept-Language' });
-  res.send(`window.__I18N = ${JSON.stringify({ lang, locales: locales(), messages: messagesFor(lang), pageUnits: pageUnits().slice(3, -1), contentLang: contentLang() }).replace(/</g, '\\u003c')};`);
+  res.send(`window.__I18N = ${JSON.stringify({ lang, locales: locales(), messages: messagesFor(lang), pageUnits: pageUnits().slice(3, -1), contentLang: contentLang(), ai: aiPublic() }).replace(/</g, '\\u003c')};`);
 });
 app.get('/vendor/:file', (req, res) => {
   const f = VENDOR[req.params.file];

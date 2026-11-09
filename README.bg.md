@@ -89,6 +89,18 @@ npm run serve   # http://localhost:4321
 - Документацията не дава точно колко лимит спестява всеки модел, така че провери сам: **пилот с една книга**. Обработи я в Икономичен, натисни „Върни“, обработи я в Най-добър и сравни двете версии на страниците (глави, ключови идеи със страници, понятия). Ако Икономичният пропуска нюанси, мини на Балансиран.
 - Четецът е в `.claude/agents/chapter-reader.md`; можеш да смениш модела му (`model: haiku`) с `sonnet`.
 
+### Други модели: API, локален модел, безплатен чат
+
+**Настройки → Модел** избира кой обработва библиотеката. Бутоните и текстовете следват името на модела („Попитай Gemini“, „Обработи с Ollama“), а всеки надпис може да се смени отделно за всеки модел.
+
+| Начин | Доставчици | Как работи |
+|---|---|---|
+| **Агент с инструменти** | абонамент за Claude, API ключ на Claude, DeepSeek, локален Ollama 0.14+, всеки адрес, съвместим с Anthropic | Claude Code както досега; за друг доставчик получава `ANTHROPIC_BASE_URL` и трите модела (Anthropic, n.d.; DeepSeek, n.d.; Ollama, n.d.) |
+| **Без инструменти** | OpenAI, Google Gemini (безплатен ключ), Groq, OpenRouter, DeepSeek, Mistral, Claude API, Ollama, LM Studio, всеки адрес с `/chat/completions` | Сървърът подава текста на модела глава по глава и сам пише страниците по шаблоните, затова работят и малки локални модели (Google, n.d.) |
+| **Копиране и поставяне** | всеки чат в браузъра, включително безплатен акаунт | Всяка стъпка е заявка, която копираш в чата; отговора поставяш обратно |
+
+Ключовете се пазят в `.library-secrets.json` (извън git, четим само от теб, затворен за агента) или идват от променлива на средата. Безплатните нива може да ползват съдържанието за обучение: не пращай там лични материали. Страница, обработена от слаб модел, може да се надгради по-късно с по-силен („Надгради“).
+
 ### Ако индексът, дневникът или обзорът са празни или загубени
 
 `wiki/index.md`, `log.md` и `overview.md` могат да се изградят наново по всяко време от страниците, без да се чете нищо от книгите и без да се харчи от лимита. Страниците „Индекс“, „Дневник“ и „Обзор“ имат бутон **„Изгради наново“**; от терминала `npm run index` (`-- --only index|log|overview`, `-- --dry` за проба).
@@ -270,6 +282,14 @@ Anthropic. (2026b). *Subagents*. Claude Code Docs. https://code.claude.com/docs/
 Boudro, D. (2026, April 9). *How to build Karpathy's LLM Wiki: The complete guide to AI-maintained knowledge bases*. Starmorph. https://blog.starmorph.com/blog/karpathy-llm-wiki-knowledge-base-guide
 
 Anthropic. (2026). *Data usage*. Claude Code Docs. Извлечено на 4 ноември 2026 г. от https://code.claude.com/docs/en/data-usage
+
+Anthropic. (n.d.). *Environment variables*. Claude Code Docs. https://code.claude.com/docs/en/env-vars
+
+DeepSeek. (n.d.). *Anthropic API*. DeepSeek API Docs. https://api-docs.deepseek.com/guides/anthropic_api
+
+Google. (n.d.). *OpenAI compatibility*. Gemini API. https://ai.google.dev/gemini-api/docs/openai
+
+Ollama. (n.d.). *Anthropic compatibility*. Ollama Docs. https://docs.ollama.com/api/anthropic-compatibility
 
 Karpathy, A. (2026). *LLM Wiki* [GitHub Gist]. https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f
 

@@ -27,6 +27,7 @@ node_modules/
 # Local settings and personal files
 /library.config.json
 /.library-auth.json
+/.library-secrets.json
 /.wiki-launch
 /CLAUDE.local.md
 /.claude/settings.local.json

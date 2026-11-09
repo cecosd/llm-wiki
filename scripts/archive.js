@@ -10,6 +10,7 @@ import { ROOT, WIKI, OUTPUTS, walk, ingestState, extractLinks } from './lib.js';
 import { snapshot, pagesList, pageDetail, contentStats, graphData } from './pages-data.js';
 import { readUnits, extractedFile } from './reader-data.js';
 import { messagesFor, locales, contentLang, pickLang } from './i18n.js';
+import { aiConfig } from './providers.js';
 import { pageUnits } from './vocab.js';
 import { NM, VENDOR } from './vendor.js';
 
@@ -37,7 +38,9 @@ const inlineJs = (code) => code.replace(/<\/script/gi, '<\\/script');
 const jsonForScript = (value) => JSON.stringify(value).replace(/</g, '\\u003c');
 
 function localeScript(lang) {
-  return `window.__I18N = ${jsonForScript({ lang, locales: locales(), messages: messagesFor(lang), pageUnits: pageUnits().slice(3, -1), contentLang: contentLang() })};`;
+  // От доставчика влизат само името и надписите (за „{ai}“ в текстовете), без настройки на модела
+  const { name, labels } = aiConfig();
+  return `window.__I18N = ${jsonForScript({ lang, locales: locales(), messages: messagesFor(lang), pageUnits: pageUnits().slice(3, -1), contentLang: contentLang(), ai: { name, labels } })};`;
 }
 
 const localDate = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;

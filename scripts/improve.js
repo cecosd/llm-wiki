@@ -8,7 +8,10 @@ import path from 'node:path';
 import crypto from 'node:crypto';
 import matter from 'gray-matter';
 import { WIKI, rel, today, extractedPathOf, wikiPages, extractLinks } from './lib.js';
-import { askClaude, PATH_LEVELS } from './agent.js';
+import { PATH_LEVELS } from './agent.js';
+import { askAI } from './ai.js';
+import { clipTokens } from './llm.js';
+import { readUnits } from './reader-data.js';
 import { $t } from './i18n.js';
 import { V, any, anyP, P, pageUnits, lazy } from './vocab.js';
 
@@ -79,6 +82,49 @@ export function groundingOf(page, pages) {
   return out;
 }
 
+/**
+ * За модел без инструменти: откъсите от оригиналния текст, на които стъпва страницата, с маркерите за страници.
+ * Глава: целият ѝ обхват; източник: началото; понятие и други: страниците около всеки цитат (N-1 до N+1).
+ * Над всеки откъс стои [[slug]], за да цитира моделът правилната страница от библиотеката.
+ */
+export function groundingExcerpt(page, pages, tokens) {
+  const bySlug = new Map(pages.map((p) => [p.slug, p]));
+  const holderOf = (p) => (p?.data?.type === 'chapter' && !p.data.raw_path ? bySlug.get(extractLinks(String(p.data.book || ''))[0]) : p);
+  const parts = [], seen = new Set();
+  const add = (slug, holder, a, z) => { const k = `${slug}|${a}|${z}`; if (!seen.has(k) && holder) { seen.add(k); parts.push({ slug, holder, a, z }); } };
+  const t = page.data.type;
+  if (t === 'chapter') { const [a, z] = String(page.data.pages || '').split(/[-–]/).map(Number); add(page.slug, holderOf(page), a || null, z || a || null); }
+  else if (t === 'source') add(page.slug, page, null, null);
+  else {
+    let m; CITE_RE.lastIndex = 0;
+    while ((m = CITE_RE.exec(page.content)) && parts.length < 6) {
+      const s = m[1].trim().split('/').pop(), src = bySlug.get(s), n = Number(m[2]);
+      if (src && ['chapter', 'source'].includes(src.data.type)) add(s, holderOf(src), n - 1, n + 1);
+    }
+  }
+  if (!parts.length) return '';
+  const share = Math.max(400, Math.floor(tokens / parts.length));
+  return parts.map((pt) => {
+    const f = extractedPathOf(pt.holder?.data?.raw_path);
+    if (!f || !fs.existsSync(f)) return '';
+    const u = readUnits(f);
+    const mk = (n) => (u.unit === 'разд.' ? `<!-- раздел ${n} -->` : `<!-- стр. ${n} -->`);
+    const text = u.order.length ? u.order.filter((n) => pt.a == null || (n >= pt.a && n <= pt.z)).map((n) => `${mk(n)}\n${u.units.get(n)}`).join('\n\n') : (u.whole || '');
+    return text.trim() ? `### [[${pt.slug}]]\n${clipTokens(text, share)}` : '';
+  }).filter(Boolean).join('\n\n');
+}
+/** Материалът за модел без инструменти: самата страница и откъсите от оригинала */
+function material(page, pages, budget, { withPage = true } = {}) {
+  const ex = groundingExcerpt(page, pages, Math.floor(budget * (withPage ? 0.6 : 0.95)));
+  return [
+    ...(withPage ? [P('\nTHE PAGE “{0}” ({1}), in Markdown:', [page.data.title || page.slug, page.rel]), '<<<', clipTokens(page.content, Math.floor(budget * 0.35)), '>>>'] : []),
+    P('\nTHE ORIGINAL TEXT (excerpts with page markers <!-- стр. N -->; above each excerpt is the [[slug]] to cite):'),
+    '<<<', ex || P('(no original text is available: rely only on the page and say clearly that you did not check it against the source)'), '>>>',
+  ];
+}
+// Правилата за цитиране без първото (Grep и Read са само за агента)
+const TEXT_RULES = () => [...READ_RULES].slice(1);
+
 const groundingText = (g) => (g.length
   ? g.map((x) => `- ${x.label}: ${x.file}${x.pages ? P(' (PDF pages {0})', [x.pages]) : ''}`).join('\n')
   : P('- (no original text is available: rely only on the pages in wiki/ and say clearly that you did not check it against the source)'));
@@ -99,20 +145,26 @@ const READ_RULES = lazy(() => [
 export async function askAboutPage({ slug, question, selection, level, signal }) {
   const pages = wikiPages(), page = pages.find((p) => p.slug === slug);
   if (!page) return { ok: false, kind: 'error', error: $t('There is no such page.') };
-  const L = PATH_LEVELS[level] || PATH_LEVELS.medium;
-  const prompt = [
+  const head = [
     P('You are a reading assistant. The human is reading the page “{0}” ({1}) of their personal library and wants an explanation.', [page.data.title || slug, page.rel]),
     selection ? P('\nSELECTED PASSAGE (the question is about it):\n«{0}»', [selection.slice(0, 2000)]) : '',
     P('\nQUESTION: {0}', [question]),
+  ];
+  const unclear = P('- If the page is unclear, inaccurate or incomplete, say so directly and explain what the source actually says. Distinguish “according to the source” from “my explanation”.');
+  const tail = P('- Answer to the point, in about 250 words. Exception: if you are asked to retell, rewrite or improve a text, return the WHOLE new text (without shortening), ready to replace the original, in the same Markdown format and with the same [[links]]. Only Markdown, no introduction and no JSON.');
+  const prompt = [
+    ...head,
     P('\nHOW TO WORK'),
     P('- Read {0}. {1}', [page.rel, DEPTH[level] || DEPTH.medium]),
     P('- The original text the page was written from:'),
     groundingText(groundingOf(page, pages)),
-    P('- If the page is unclear, inaccurate or incomplete, say so directly and explain what the source actually says. Distinguish “according to the source” from “my explanation”.'),
-    ...READ_RULES,
-    P('- Answer to the point, in about 250 words. Exception: if you are asked to retell, rewrite or improve a text, return the WHOLE new text (without shortening), ready to replace the original, in the same Markdown format and with the same [[links]]. Only Markdown, no introduction and no JSON.'),
+    unclear, ...READ_RULES, tail,
   ].filter(Boolean).join('\n');
-  const r = await askClaude({ prompt, model: L.model, effort: L.effort, maxTurns: L.maxTurns, timeoutMs: L.timeoutMs, signal });
+  const rewrite = /retell|rewrite|rephrase|improve|преразкаж|пренапиш|подобри|редактирай/i.test(question);
+  const r = await askAI({
+    level, agentPrompt: prompt, maxTokens: rewrite ? 5000 : 1500, signal, label: $t('Question to {ai}'),
+    textPrompt: (budget) => [...head, ...material(page, pages, budget), P('\nHOW TO ANSWER'), unclear, ...TEXT_RULES(), tail].filter(Boolean).join('\n'),
+  });
   return r.ok ? { ok: true, answer: noDash(r.text).trim() } : r;
 }
 
@@ -126,27 +178,46 @@ const CONSPECT_DEPTH = lazy(() => ({
 export async function planConspect({ slug, level, signal }) {
   const pages = wikiPages(), page = pages.find((p) => p.slug === slug);
   if (!page) return { ok: false, kind: 'error', error: $t('There is no such page.') };
-  const L = PATH_LEVELS[level] || PATH_LEVELS.medium;
   const grounding = groundingOf(page, pages);
-  const prompt = [
-    P('Prepare an outline of “{0}” ({1}) from the ORIGINAL text of the source, not from the wiki page that is already written.', [page.data.title || slug, page.rel]),
-    P('\nORIGINAL TEXT:'),
-    groundingText(grounding),
-    `\n${CONSPECT_DEPTH[level] || CONSPECT_DEPTH.medium}`,
+  const how = [
     P('\nHOW TO WRITE'),
     P('- A connected, meaningful text (not a list of bullet points) that follows the order and logic of the original: its main theses, arguments and examples.'),
     P('- Write only what the source says. Nowhere, in no paragraph, add your own opinion, evaluation or comment.'),
     P('- Clear, simple English following good writing practice: short sentences, logical transitions between paragraphs, no repetition.'),
     P('- When translating terms from the original: an accurate, established translation, no invented or non-standard words in English. If there is no established translation, keep the original term in parentheses at first use, then use it again.'),
-    P('- The files of the original texts have markers <!-- стр. N -->. Find the range with Grep (-n) and read only it (Read with offset and limit), not the whole file.'),
+  ];
+  const rules = [
     P('- Do not copy long passages: paraphrase; a direct quote of at most 1 to 2 sentences, in quotation marks, with a page.'),
     P('- Do not invent facts, figures or citations that are not in the text.'),
+  ];
+  const linkRule = P('- Link each ordinary term or name only once, at its first mention, and only where the link fits the sentence. A citation such as ([[slug]], p. N) keeps its link every time it appears. A link adds no statement: the text still says only what the source says.');
+  const end = P('\nReturn only the finished Markdown of the outline (subheadings with ## where naturally needed), without an introduction before it, without JSON and without repeating the title “{0}” at the beginning.', [page.data.title || slug]);
+  const prompt = [
+    P('Prepare an outline of “{0}” ({1}) from the ORIGINAL text of the source, not from the wiki page that is already written.', [page.data.title || slug, page.rel]),
+    P('\nORIGINAL TEXT:'),
+    groundingText(grounding),
+    `\n${CONSPECT_DEPTH[level] || CONSPECT_DEPTH.medium}`,
+    ...how,
+    P('- The files of the original texts have markers <!-- стр. N -->. Find the range with Grep (-n) and read only it (Read with offset and limit), not the whole file.'),
+    ...rules,
     P('- Where a term, a person, a topic, a book chapter or a comparison has its own page in wiki/, link it at its first mention: [[slug|the word as it stands in the outline]]. Read wiki/index.md first and use only the slugs listed there; a chapter is a page in wiki/sources/chapters/ (check with Glob). Do not invent slugs: if there is no such page, write the word without a link.'),
-    P('- Link each ordinary term or name only once, at its first mention, and only where the link fits the sentence. A citation such as ([[slug]], p. N) keeps its link every time it appears. A link adds no statement: the text still says only what the source says.'),
+    linkRule,
     P('- No em dash (—).'),
-    P('\nReturn only the finished Markdown of the outline (subheadings with ## where naturally needed), without an introduction before it, without JSON and without repeating the title “{0}” at the beginning.', [page.data.title || slug]),
+    end,
   ].filter(Boolean).join('\n');
-  const r = await askClaude({ prompt, model: L.model, effort: L.effort, maxTurns: L.maxTurns, timeoutMs: L.timeoutMs, signal });
+  // Без инструменти: оригиналът и списъкът на страниците (за връзките) влизат в самата заявка
+  const textPrompt = (budget) => {
+    const list = pages.filter((p) => !SPECIAL.has(p.slug) && p.data.type !== 'question').map((p) => `${p.slug} | ${p.data.title || p.slug}`).join('\n');
+    return [
+      P('Prepare an outline of “{0}” ({1}) from the ORIGINAL text of the source, not from the wiki page that is already written.', [page.data.title || slug, page.rel]),
+      ...material(page, pages, Math.floor(budget * 0.8), { withPage: false }),
+      ...how, ...rules,
+      P('- Where a term, a person, a topic, a book chapter or a comparison has its own page, link it at its first mention: [[slug|the word as it stands in the outline]], using ONLY the slugs from the list below. If there is no such page, write the word without a link.'),
+      linkRule, P('- No em dash (—).'), end,
+      P('\nPAGES OF THE LIBRARY (slug | title):'), clipTokens(list, Math.floor(budget * 0.15)),
+    ].filter(Boolean).join('\n');
+  };
+  const r = await askAI({ level, agentPrompt: prompt, textPrompt, maxTokens: 5000, signal, label: $t('Outline of the original') });
   if (!r.ok) return r;
   // Връзка само към съществуваща страница (без индекса, дневника и обзора; собствените цитати остават).
   const known = new Set(pages.filter((p) => !SPECIAL.has(p.slug)).map((p) => p.slug));
@@ -189,35 +260,32 @@ export async function proposeChange({ slug, mode, question, answer, selection, i
     target = body.slice(range.start, range.end);
   }
 
-  const common = [
+  // budget == null: за агента (чете файловете сам); иначе материалът влиза в заявката, колкото позволява контекстът
+  const commonFor = (budget) => [
     P('You are editing a page of the human\'s personal library (Markdown in wiki/). The page is “{0}” ({1}, type {2}).', [page.data.title || slug, page.rel, page.data.type]),
     '',
-    P('ORIGINAL TEXT you must rely on when checking and correcting:'),
-    grounding,
+    ...(budget == null ? [P('ORIGINAL TEXT you must rely on when checking and correcting:'), grounding] : material(page, pages, budget, { withPage: false })),
     '',
     P('RULES'),
-    `- ${DEPTH[level] || DEPTH.medium}`,
-    ...READ_RULES,
-    P('- Include [[links]] only to pages that really exist in wiki/ (check with Glob). Do not touch the section “## My notes”.'),
+    ...(budget == null
+      ? [`- ${DEPTH[level] || DEPTH.medium}`, ...READ_RULES, P('- Include [[links]] only to pages that really exist in wiki/ (check with Glob). Do not touch the section “## My notes”.')]
+      : [...TEXT_RULES(), P('- Include [[links]] only to pages that already appear in the page or in the material. Do not touch the section “## My notes”.')]),
     P('- Keep the style and structure of the page; change only what is necessary.'),
   ];
-
-  let prompt;
-  if (mode === 'selection') {
-    prompt = [...common, '',
+  const build = (common, bodyText) => (mode === 'selection'
+    ? [...common, '',
       P('TASK: change ONLY the passage below according to the instruction. Return the new version of the whole passage, in the same Markdown format.'),
       P('INSTRUCTION: {0}', [instruction]),
       '',
       P('PASSAGE (exact Markdown from the page):'), '<<<', target, '>>>', '',
       P('FORMAT: only one JSON object, with no text before or after it and no ```:'),
       P('{"summary":"one sentence on what you changed and why","replacement":"the new Markdown of the whole passage"}'),
-    ].join('\n');
-  } else {
-    prompt = [...common, '',
+    ].join('\n')
+    : [...common, '',
       P('TASK: the human asked a question about this page and got an answer. Improve the page so that the next reader gets this explanation directly, and so that the page is easier to find.'),
       P('QUESTION: {0}', [question]),
       P('ANSWER (already checked or accepted by the human):'), '<<<', answer, '>>>', '',
-      P('CURRENT CONTENT OF THE PAGE (copy “find” EXACTLY from here):'), '<<<', body.slice(0, 40000), '>>>', '',
+      P('CURRENT CONTENT OF THE PAGE (copy “find” EXACTLY from here):'), '<<<', bodyText, '>>>', '',
       P('HOW TO IMPROVE'),
       P('- Rework the unclear or inaccurate places with edits: each is {"find":"exact continuous text from the page that occurs only once","replace":"the new text"}. Prefer several small, precise changes to rewriting everything.'),
       P('- If a whole meaning is missing, add it in "append": {"heading":"section heading","text":"Markdown"} (otherwise null).'),
@@ -226,13 +294,16 @@ export async function proposeChange({ slug, mode, question, answer, selection, i
       '',
       P('FORMAT: only one JSON object, with no text before or after it and no ```:'),
       P('{"summary":"what you improve and why, 1-2 sentences","edits":[{"find":"","replace":""}],"append":null,"aliases":[],"tags":[],"related":[],"index_line":""}'),
-    ].join('\n');
-  }
+    ].join('\n'));
 
-  const r = await askClaude({ prompt, model: L.model, effort: L.effort, maxTurns: L.maxTurns, timeoutMs: L.timeoutMs, signal });
+  const r = await askAI({
+    level, json: true, maxTokens: mode === 'selection' ? 3000 : 4000, signal, label: $t('Suggestion for a change'),
+    agentPrompt: build(commonFor(null), body.slice(0, 40000)),
+    textPrompt: (budget) => build(commonFor(Math.floor(budget * 0.45)), mode === 'selection' ? '' : clipTokens(body, Math.floor(budget * 0.4))),
+  });
   if (!r.ok) return r;
   const j = parseJson(r.text);
-  if (!j) return { ok: false, kind: 'format', error: $t('Claude returned an answer in an unexpected form. Try again or with a more powerful level.'), detail: String(r.text).slice(0, 500) };
+  if (!j) return { ok: false, kind: 'format', error: $t('{ai} returned an answer in an unexpected form. Try again or with a more powerful level.'), detail: String(r.text).slice(0, 500) };
 
   const notesAt = body.search(NOTES_RE);
   const inNotes = (idx) => notesAt >= 0 && idx >= notesAt;
@@ -245,8 +316,8 @@ export async function proposeChange({ slug, mode, question, answer, selection, i
 
   if (mode === 'selection') {
     const rep = String(j.replacement ?? '');
-    if (!rep.trim() || rep.length > target.length * 6 + 2000) return { ok: false, kind: 'format', error: $t('Claude did not return a usable new text. Try another instruction.') };
-    if (inNotes(range.start)) return { ok: false, kind: 'notes', error: $t('The “My notes” section is yours alone and is not changed by Claude.') };
+    if (!rep.trim() || rep.length > target.length * 6 + 2000) return { ok: false, kind: 'format', error: $t('{ai} did not return a usable new text. Try another instruction.') };
+    if (inNotes(range.start)) return { ok: false, kind: 'notes', error: $t('The “My notes” section is yours alone and is not changed by {ai}.') };
     addEdit(target, rep);
   } else {
     for (const e of [].concat(j.edits || [])) {
@@ -277,7 +348,7 @@ export async function proposeChange({ slug, mode, question, answer, selection, i
   meta.related = meta.related.filter((s) => !list(page.data.related).some((v) => extractLinks(v).includes(s)));
 
   if (!edits.length && !append && !meta.aliases.length && !meta.tags.length && !meta.related.length && !meta.indexLine) {
-    return { ok: false, kind: 'empty', error: $t('Claude did not suggest a change that can be applied.') + (skipped ? ' ' + $t('({0} of the suggested changes did not match the text.)', [skipped]) : '') };
+    return { ok: false, kind: 'empty', error: $t('{ai} did not suggest a change that can be applied.') + (skipped ? ' ' + $t('({0} of the suggested changes did not match the text.)', [skipped]) : '') };
   }
   const id = crypto.randomUUID();
   proposals.set(id, { slug, hash: sha(fs.readFileSync(page.file, 'utf8')), edits, append, meta, summary: noDash(j.summary || ''), question: mode === 'selection' ? instruction : question, mode, at: Date.now() });
@@ -560,7 +631,7 @@ export function proposeReplace({ slug, answer, selection }) {
   if (sel) {
     const range = locateRange(body, sel, titles);
     if (!range) return { ok: false, kind: 'locate', error: $t('I could not find the selected passage in the page text. Remove the selection and replace the whole page, or select less text within one paragraph.') };
-    if (NOTES_RE.test(body.slice(range.start)) && body.search(NOTES_RE) <= range.start) return { ok: false, kind: 'notes', error: $t('The “My notes” section is yours alone and is not changed by Claude.') };
+    if (NOTES_RE.test(body.slice(range.start)) && body.search(NOTES_RE) <= range.start) return { ok: false, kind: 'notes', error: $t('The “My notes” section is yours alone and is not changed by {ai}.') };
     before = body.slice(range.start, range.end);
     after = text;
   } else {

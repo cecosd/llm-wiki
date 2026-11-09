@@ -30,7 +30,7 @@ Three layers: `raw/` (originals), `wiki/` (generated pages), `CLAUDE.md` (the sc
 ## Requirements
 
 - Node.js 20 or newer
-- [Claude Code](https://code.claude.com), signed in once (run `claude` in a terminal). The app runs it in the background (`claude -p`) with your own subscription.
+- A model. By default [Claude Code](https://code.claude.com), signed in once (run `claude` in a terminal); the app runs it in the background (`claude -p`) with your own subscription. Other models are chosen in **Settings → Model** (see “Other models” below), and then Claude Code is needed only for the agent.
 - Optional: Git (gives the “Undo” button), `pdftotext` from poppler (better PDF text; without it the built-in `unpdf` is used), Obsidian.
 
 > **Privacy.** Everything runs on your machine and the server accepts requests only from `localhost`. When you ask Claude to process a source, the text of that source is sent to Anthropic through Claude Code. Nothing is sent before you confirm; the app shows an estimate of tokens and cost first.
@@ -99,6 +99,18 @@ A pull request with a new locale file is welcome.
 | **Best** | Opus | Opus | key books |
 
 Before every action with Claude the app shows approximate tokens and cost (it can be turned off on the home page). Before each processing a Git checkpoint is made, and “Undo” restores the wiki to how it was.
+
+### Other models
+
+**Settings → Model** chooses who processes the library. The buttons and texts follow the name of the model (“Ask Gemini”, “Process with Ollama”), and each label can be renamed for each model.
+
+| Way of working | Providers | How it works |
+|---|---|---|
+| **Agent with tools** | Claude subscription, Claude API key, DeepSeek, local Ollama 0.14+, any endpoint compatible with Anthropic | Claude Code as usual; for another provider it gets `ANTHROPIC_BASE_URL` and the three models (Anthropic, n.d.; DeepSeek, n.d.; Ollama, n.d.) |
+| **Without tools** | OpenAI, Google Gemini (free key), Groq, OpenRouter, DeepSeek, Mistral, Claude API, Ollama, LM Studio, any `/chat/completions` endpoint | The server gives the model the text chapter by chapter and writes the pages itself from the templates, so small and local models work too (Google, n.d.) |
+| **Copy and paste** | any chat in the browser, including free accounts | Each step is a request you copy into the chat; you paste the answer back |
+
+Keys are stored in `.library-secrets.json` (outside git, readable only by you, closed to the agent) or come from an environment variable. Free tiers may use your content for training: do not send private material there.
 
 ### Claude Code commands
 
@@ -189,6 +201,14 @@ Karpathy, A. (2026). *LLM Wiki* [GitHub Gist]. https://gist.github.com/karpathy/
 Anthropic. (2026). *Claude Code documentation*. https://code.claude.com/docs
 
 Anthropic. (2026). *Data usage*. Claude Code Docs. Retrieved November 4, 2026, from https://code.claude.com/docs/en/data-usage
+
+Anthropic. (n.d.). *Environment variables*. Claude Code Docs. https://code.claude.com/docs/en/env-vars
+
+DeepSeek. (n.d.). *Anthropic API*. DeepSeek API Docs. https://api-docs.deepseek.com/guides/anthropic_api
+
+Google. (n.d.). *OpenAI compatibility*. Gemini API. https://ai.google.dev/gemini-api/docs/openai
+
+Ollama. (n.d.). *Anthropic compatibility*. Ollama Docs. https://docs.ollama.com/api/anthropic-compatibility
 
 ## License
 

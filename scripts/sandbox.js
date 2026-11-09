@@ -34,12 +34,14 @@ const IPC_INSIDE = '/run/llm-wiki';
 
 /** Само тук може да се пише отвътре (данните на библиотеката). Всичко друго в проекта е само за четене. */
 export const WRITABLE_DIRS = ['raw', 'wiki', 'drafts', 'outputs', '.library-git', '.ocr-data'];
-export const WRITABLE_FILES = ['library.config.json', '.library-auth.json'];
+export const WRITABLE_FILES = ['library.config.json', '.library-auth.json', '.library-secrets.json'];
 /** В .library-git настройките и куките остават само за четене: git ги изпълнява. */
 const LOCKED = ['.library-git/config', '.library-git/hooks'];
 /** Променливите, които минават в клетката. Всичко друго се маха: ключове, SSH агент, сокетите на WSL (WSL_INTEROP). */
 export const PASS_ENV = ['PORT', 'WIKI_HOST', 'LIB_LANG', 'LANG', 'LC_ALL', 'LC_MESSAGES', 'TERM', 'NO_COLOR', 'FORCE_COLOR',
-  'LIBRARY_MAILTO', 'LIBRARY_OCR', 'LIBRARY_RETRY_MS', 'ANTHROPIC_API_KEY', 'CLAUDE_CODE_OAUTH_TOKEN'];
+  'LIBRARY_MAILTO', 'LIBRARY_OCR', 'LIBRARY_RETRY_MS', 'ANTHROPIC_API_KEY', 'CLAUDE_CODE_OAUTH_TOKEN',
+  // ключовете на другите доставчици (providers.js), ако са зададени в средата вместо в .library-secrets.json
+  'LIB_AI_KEY', 'OPENAI_API_KEY', 'GEMINI_API_KEY', 'GROQ_API_KEY', 'OPENROUTER_API_KEY', 'DEEPSEEK_API_KEY', 'MISTRAL_API_KEY'];
 const SYSTEM_DIRS = ['/bin', '/sbin', '/lib', '/lib32', '/lib64', '/libx32'];
 
 // ---------- Преводи без i18n.js (той зарежда пакети, а тук не бива) ----------
@@ -101,6 +103,7 @@ function prepareProject(root) {
   const touch = (f, text) => { if (!fs.existsSync(f)) fs.writeFileSync(f, text, { mode: 0o600 }); };
   touch(path.join(root, 'library.config.json'), '{}\n');
   touch(path.join(root, '.library-auth.json'), ''); // празен файл = без парола (auth.js)
+  touch(path.join(root, '.library-secrets.json'), ''); // празен файл = без ключове (providers.js)
 }
 
 /** Отделно ~/.claude и ~/.claude.json за клетката. Вторият е само с данните за акаунта, не с другите ти проекти. */
@@ -247,7 +250,7 @@ const LABELS = {
   'data-writable': () => $t('The library data (raw/, wiki/, outputs/) can be written'),
   claude: () => $t('Claude Code starts'),
   'claude-auth': () => $t('Claude Code is signed in'),
-  network: () => $t('The network works (Claude and “Add an article” need it)'),
+  network: () => $t('The network works ({ai} and “Add an article” need it)'),
 };
 
 /** Файловете, които не бива да се виждат отвътре. Сравнява се по inode, защото личното копие вътре е друг файл. */
