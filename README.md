@@ -90,6 +90,13 @@ A pull request with a new locale file is welcome.
 4. **Browse:** pages appear on their own. Search with `Ctrl K`, follow the link map, open the original page of a book from any “p. N” citation.
 5. **Learn and write:** “Learn by question” builds an ordered reading path; “Write with the wiki” drafts an article with APA 7 citations from the library.
 
+### Menu, collections and the log
+
+- **Menu.** The sidebar is split into groups that fold: Learn and write, Library, Collections, Tags and System. The app remembers which groups are folded.
+- **Collections.** The page types come from the wiki itself, so “Chapters” and any new type appear without code changes. A **smart collection** fills itself from conditions: type, tag, area, format, confidence, reading status, author, years and a word in the title (AND between fields, OR within one field). A **list** is filled by hand with the “List” button on any page and ordered with arrows. The Collections screen (the gear next to “Collections” in the menu) orders and hides them. They are stored in `outputs/collections.json`; the pages themselves are not changed.
+- **Log.** The Log screen shows the entries of `log.md` newest first, grouped by day, with a filter by kind (processing, upgrade, synthesis, check, restructuring…) and a search.
+- **Settings.** A submenu on the left: Model, Updates, Data, Password, Archive and Tests. Each section has its own address (`#/settings/updates`).
+
 ### Processing modes
 
 | Mode | Who reads | Who edits | For |
@@ -184,7 +191,14 @@ Duplicates (same content, different name) are detected by SHA-256 and stay in th
 
 ## Updates and maintenance
 
-The product works well, but it stands on Node.js libraries, and they have their own dependencies. These change independently of it, so check versions and vulnerabilities regularly. The **Settings** page (`#/settings`) checks with one button whether GitHub has a newer version of the code and which packages are out of date. Nothing is installed by itself.
+The product works well, but it stands on Node.js libraries, and they have their own dependencies. These change independently of it, so check versions and vulnerabilities regularly. **Settings → Updates** (`#/settings/updates`) checks with one button whether GitHub has a newer version of the code and which packages are out of date. Nothing is installed by itself.
+
+- **“Update to X”** next to a package and **“Update all safe ones”** run `npm update` with `--ignore-scripts`, only for the packages in `package.json` and only to the versions its ranges allow. Then the library restarts by itself and the page reloads.
+- **Major versions** (for example 2.x when 1.x is allowed) are not installed by the button. They are shown as a command to copy, because they can change behavior and need `npm test` afterwards.
+- **In the isolation** (`npm run serve:safe`, the shortcut in WSL) `node_modules/` is read-only, so the launcher outside runs npm. If the library does not start with the new versions within 30 seconds, the launcher reinstalls the previous ones (`npm ci`). Details are in [SECURITY.md](SECURITY.md).
+- **Without the isolation** the restart is automatic only when the library was started with the shortcut or `scripts/launch/wsl-start.sh`. With `npm run serve` in a terminal the page asks you to stop the library (`Ctrl+C`) and start it again, so that the new versions load.
+
+By hand:
 
 ```bash
 npm outdated && npm audit     # what is out of date, known vulnerabilities

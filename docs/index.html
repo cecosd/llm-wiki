@@ -671,6 +671,22 @@
             </div>
             <h3>{{ t.feat.archive[0] }}</h3><p>{{ t.feat.archive[1] }}</p>
           </div>
+          <div class="feat glow-card w3 reveal" @mousemove="glow">
+            <div class="flex flex-wrap gap-1.5">
+              <span class="chip"><span class="dot" style="--c:var(--t-source)"></span>{{ t.types.source[1] }} · 6</span>
+              <span class="chip"><span class="dot" style="--c:var(--t-chapter)"></span>{{ t.types.chapter[1] }} · 4</span>
+              <span class="chip" style="color:var(--gold)">▽ {{ t.exp.col.smart }}</span>
+              <span class="chip" style="color:var(--sage)">▢ {{ t.exp.col.list }}</span>
+            </div>
+            <h3>{{ t.feat.cols[0] }}</h3><p>{{ t.feat.cols[1] }}</p>
+          </div>
+          <div class="feat glow-card w3 reveal d1" @mousemove="glow">
+            <div class="grid gap-1.5 text-xs">
+              <div class="faint font-semibold uppercase tracking-wider" style="font-size:10px">{{ t.feat.log.today }}</div>
+              <div v-for="(e, i) in t.feat.log.items" :key="i" class="flex items-center gap-2 min-w-0"><span class="dot" :style="{ '--c': e[0] }"></span><span class="chip" style="font-size:.66rem;flex:none">{{ e[1] }}</span><span class="truncate muted">{{ e[2] }}</span></div>
+            </div>
+            <h3>{{ t.feat.log.title }}</h3><p>{{ t.feat.log.text }}</p>
+          </div>
           <div class="feat glow-card reveal" @mousemove="glow">
             <div class="flex flex-wrap gap-1.5"><span class="chip mono">/wiki-ingest</span><span class="chip mono">/wiki-query</span><span class="chip mono">/wiki-lint</span></div>
             <h3>{{ t.feat.skills[0] }}</h3><p>{{ t.feat.skills[1] }}</p>
@@ -1011,9 +1027,15 @@
           <button v-for="k in typeKeys" :key="k" class="coll" :class="{ on: coll === k }" :style="{ '--c': typeColor(k) }" @click="coll = k">
             <span class="dot" :style="{ '--c': typeColor(k) }"></span><span class="flex-1 whitespace-nowrap">{{ t.types[k][1] }}</span><span class="text-xs faint ml-2">{{ count(k) }}</span>
           </button>
+          <div class="hidden lg:block mt-3 mb-1 px-2 text-[11px] font-semibold uppercase tracking-wider faint">{{ t.exp.col.h }}</div>
+          <button v-for="c in cols" :key="c.id" class="coll" :class="{ on: coll === c.id }" :style="{ '--c': c.color }" @click="coll = c.id" :title="c.hint">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" :style="{ color: c.color, flex: 'none' }" v-html="c.icon"></svg><span class="flex-1 whitespace-nowrap lg:truncate">{{ c.name }}</span><span class="text-xs faint ml-2">{{ c.pages.length }}</span>
+          </button>
         </div>
+        <p v-if="curCol" class="mt-2 px-2 text-xs muted">{{ curCol.hint }}</p>
         <div class="plist mt-3 pt-3 grid gap-0.5" style="border-top:1px solid var(--line);max-height:330px;overflow:auto">
           <button v-for="p in collPages" :key="p.slug" :class="{ on: p.slug === page.slug }" @click="go(p.slug)" :title="p.title">{{ p.title }}</button>
+          <p v-if="!collPages.length" class="px-2 text-xs faint">{{ t.exp.col.empty }}</p>
         </div>
       </aside>
 
@@ -1024,6 +1046,7 @@
             <span v-if="area" class="chip">{{ area }}</span>
             <span class="chip" :title="t.exp.confTip"><span class="dot" :style="{ '--c': page.confidence === 'high' ? 'var(--sage)' : page.confidence === 'medium' ? 'var(--gold)' : 'var(--rose)' }"></span>{{ t.exp.conf[page.confidence] }}</span>
             <span v-if="page.lang" class="chip mono" :title="t.exp.langTip">{{ page.lang }}</span>
+            <button type="button" class="chip" style="cursor:pointer" :style="inList ? 'color:var(--sage);border-color:var(--sage)' : ''" :aria-pressed="inList" :title="t.exp.col.addTip" @click="toggleList">{{ inList ? '✓ ' + t.exp.col.added : '+ ' + t.exp.col.add }}</button>
           </div>
           <h3 class="serif mt-4" style="font-size:clamp(1.7rem,3.4vw,2.4rem);font-weight:650;line-height:1.15;letter-spacing:-.015em">{{ page.title }}</h3>
           <div v-if="page.aliases && page.aliases.length" class="mt-2 text-sm muted">{{ t.exp.also }} {{ page.aliases.join(', ') }}</div>
@@ -1722,8 +1745,28 @@
           <div v-if="pkg.done" class="mt-4 grid gap-4" style="animation:slidein .35s ease both">
             <div>
               <div class="text-xs font-semibold uppercase tracking-wider faint">{{ S.upd.newH }}</div>
-              <div class="scrollx mt-2"><table class="setx-table"><thead><tr><th v-for="c in S.upd.cols" :key="c">{{ c }}</th></tr></thead>
-                <tbody><tr v-for="p in TESTS.outdated" :key="p.name"><td class="mono">{{ p.name }}</td><td class="mono">{{ p.current }}</td><td class="mono">{{ p.wanted }}</td><td class="mono">{{ p.latest }} <span v-if="p.major" class="chip" style="color:var(--gold);font-size:.66rem">{{ S.upd.major }}</span></td></tr></tbody></table></div>
+              <p class="mt-1 text-xs muted">{{ S.upd.example(TESTS.outdatedFrom) }}</p>
+              <div class="scrollx mt-2"><table class="setx-table"><thead><tr><th v-for="c in S.upd.cols" :key="c">{{ c }}</th><th><span class="sr-only">{{ S.upd.actH }}</span></th></tr></thead>
+                <tbody><tr v-for="p in TESTS.outdated" :key="p.name"><td class="mono">{{ p.name }}</td><td class="mono">{{ pkg.updated.includes(p.name) ? p.wanted : p.current }}</td><td class="mono">{{ p.wanted }}</td><td class="mono">{{ p.latest }} <span v-if="p.major" class="chip" style="color:var(--gold);font-size:.66rem">{{ S.upd.major }}</span></td>
+                  <td class="whitespace-nowrap">
+                    <span v-if="pkg.updated.includes(p.name)" class="text-xs" style="color:var(--sage)">✓ {{ S.upd.done }}</span>
+                    <button v-else-if="p.wanted !== p.current" type="button" class="btn btn-ghost btn-sm" style="padding:.2rem .6rem" :disabled="!!pkg.act || pkg.restarting" @click="updatePkg(p.name)"><span v-if="pkg.act === p.name" class="spin" style="width:12px;height:12px"></span>{{ S.upd.updTo(p.wanted) }}</button>
+                    <span v-else class="text-xs faint">{{ S.upd.manual }}</span>
+                  </td></tr></tbody></table></div>
+              <div v-if="safeLeft.length" class="mt-3 flex flex-wrap items-center gap-3">
+                <button type="button" class="btn btn-primary btn-sm" :disabled="!!pkg.act || pkg.restarting" @click="updatePkg()"><span v-if="pkg.act === '*'" class="spin" style="width:12px;height:12px"></span>{{ pkg.act ? S.upd.updating : S.upd.all(safeLeft.length) }}</button>
+                <span v-if="pkg.act" class="mono text-xs muted">npm update --ignore-scripts</span>
+              </div>
+              <p class="mt-2 text-xs muted" style="max-width:42rem">{{ S.upd.safe }}</p>
+              <div v-if="pkg.restarting" class="mt-3 card-soft px-4 py-3 text-sm flex items-center gap-3" role="status" style="animation:slidein .35s ease both"><span class="spin" style="width:14px;height:14px"></span>{{ S.upd.restarting }}</div>
+              <p v-else-if="pkg.msg" class="mt-3 text-sm" style="color:var(--sage)" role="status">✓ {{ pkg.msg }}</p>
+              <div v-if="majorOnly.length" class="mt-3 rounded-xl px-3 py-2 text-xs" style="background:color-mix(in srgb, var(--gold) 12%, transparent)">
+                <p>{{ S.upd.majorP }}</p>
+                <div v-for="p in majorOnly" :key="p.name" class="mt-1.5 flex items-center gap-2 rounded-lg px-2 py-1" style="background:var(--panel2)">
+                  <code class="mono min-w-0 flex-1" style="word-break:break-all">npm install {{ p.name }}@{{ p.latest }} &amp;&amp; npm test</code>
+                  <button type="button" class="btn btn-ghost btn-sm" style="padding:.2rem .6rem" @click="copy('npm install ' + p.name + '@' + p.latest + ' && npm test')">{{ S.upd.copy }}</button>
+                </div>
+              </div>
               <p class="mt-2 text-xs muted">{{ S.upd.why }}</p>
             </div>
             <div><div class="text-xs font-semibold uppercase tracking-wider faint">{{ S.upd.auditH }}</div><p class="mt-1 text-sm" style="color:var(--sage)">✓ {{ S.upd.auditOk }}</p></div>

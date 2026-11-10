@@ -1,11 +1,15 @@
 // Страница „Настройки“: нова версия на кода в GitHub, остарели пакети, уязвимости и резултати от тестовете.
 // Нищо не излиза от компютъра, докато човекът не натисне бутон: проверките тръгват само при POST заявка.
-// Нищо не се инсталира автоматично: страницата показва командите, човекът решава кога да ги пусне.
+// Нищо не се инсталира автоматично: пакетите се обновяват само с бутона „Обнови“ и само в рамките на package.json.
 import fs from 'node:fs';
 import path from 'node:path';
 import { spawn } from 'node:child_process';
 import { ROOT, OUTPUTS } from './lib.js';
 import { $t } from './i18n.js';
+import { askOutside } from './sandbox-ipc.js';
+import { updatePackages, RESTART_CODE } from './npm-update.js';
+
+export { RESTART_CODE };
 
 const IS_WIN = process.platform === 'win32';
 // Само за тестовете (локален фалшив GitHub). Идва от средата, никога от заявка, затова не отваря SSRF.
@@ -108,6 +112,37 @@ export async function checkPackages() {
     outdated: o.ok ? { ok: true, items: parseOutdated(o.data) } : { ok: false, error: o.error },
     audit: a.ok && a.data?.metadata ? { ok: true, ...parseAudit(a.data) } : { ok: false, error: a.error || $t('npm returned no answer.') },
   };
+}
+
+/**
+ * Кой ще пусне сървъра отново след обновяване: стартерът на изолацията (sandbox.js) или wsl-start.sh (LIB_SUPERVISED).
+ * При `npm run serve` от терминала няма кой: тогава човекът спира и пуска библиотеката сам.
+ */
+export const supervised = () => !!process.env.LIB_SANDBOX_IPC || process.env.LIB_SUPERVISED === '1';
+
+const UPDATE_ERRORS = {
+  'unknown-package': () => $t('Only the packages listed in package.json can be updated from here.'),
+  busy: () => $t('An update is already running.'),
+};
+
+/**
+ * Обновява пакетите до безопасните версии (npm update). В изолацията node_modules е само за четене, затова
+ * обновяването го прави стартерът отвън (sandbox.js, действие „npm-update“). restart: сървърът трябва да се пусне отново,
+ * за да зареди новите версии; извикващият излиза с RESTART_CODE, след като е отговорил на страницата.
+ */
+export async function applyUpdates(names) {
+  let r;
+  if (process.env.LIB_SANDBOX_IPC) {
+    r = await askOutside('npm-update', { names }, { timeoutMs: 11 * 60 * 1000 });
+    if (!r) return { ok: false, error: $t('The launcher outside the isolation did not answer. Stop the library and run in the project folder: npm update') };
+  } else {
+    const { backup, ...rest } = await updatePackages(ROOT, names); // извън изолацията няма кой да върне старите версии сам
+    r = rest;
+  }
+  if (!r.ok) return { ok: false, error: UPDATE_ERRORS[r.error]?.() || $t('npm could not update the packages: {0}', [String(r.error || '').slice(0, 300)]) };
+  const changed = Array.isArray(r.changed) ? r.changed : [];
+  const restart = (changed.length > 0 || !!r.lockChanged) && supervised();
+  return { ok: true, changed, lockChanged: !!r.lockChanged, restart, supervised: supervised(), isolated: !!process.env.LIB_SANDBOX_IPC };
 }
 
 // ---------- Резултати от тестовете ----------

@@ -65,7 +65,7 @@ export function summary(p, backlinks) {
     slug: p.slug, path: p.rel, title: p.data.title || p.slug, type: p.data.type || 'other',
     tags: [].concat(p.data.tags || []).map(String), updated: p.data.updated || null,
     confidence: p.data.confidence || null, format: p.data.format || null, kind: p.data.kind || null,
-    authors: p.data.authors || null, year: p.data.year || null,
+    authors: p.data.authors || null, year: p.data.year || null, status: p.data.status || null,
     book: p.data.type === 'chapter' ? extractLinks(String(p.data.book || ''))[0] || null : null,
     chapter: p.data.chapter ?? null, pages: p.data.pages ? String(p.data.pages) : null,
     emphasis: p.data.emphasis || null,
@@ -75,15 +75,25 @@ export function summary(p, backlinks) {
   };
 }
 
-export function lastLogEntries(n = 6) {
+/**
+ * Всички записи от wiki/log.md, най-новите първи. Файлът расте отдолу (новото се добавя в края), а частта преди
+ * първия „## “ (frontmatter и бележки) не е запис. Подреждат се по дата, а в един ден по реда във файла (по-късното
+ * първо), така че запис, вмъкнат на друго място (напр. възстановен от npm run index), застава при своя ден.
+ */
+export function logEntries() {
   const f = path.join(WIKI, 'log.md');
   if (!fs.existsSync(f)) return [];
-  const blocks = fs.readFileSync(f, 'utf8').split(/^## /m).slice(1);
-  return blocks.slice(-n).reverse().map((b) => {
+  const blocks = fs.readFileSync(f, 'utf8').replace(/\r\n/g, '\n').split(/^## /m).slice(1);
+  return blocks.map((b, n) => {
     const [head, ...rest] = b.split('\n');
-    const m = head.match(/^(\d{4}-\d{2}-\d{2})\s+(\w+):\s*(.*)$/);
-    return m ? { date: m[1], kind: m[2], title: m[3], body: rest.join('\n').trim() } : { date: '', kind: '', title: head, body: rest.join('\n').trim() };
-  });
+    const body = rest.join('\n').trim();
+    const m = head.match(/^(\d{4}-\d{2}-\d{2})\s+([\w-]+):\s*(.*)$/);
+    return m ? { n, date: m[1], kind: m[2], title: m[3].trim(), body } : { n, date: '', kind: '', title: head.trim(), body };
+  }).sort((a, b) => b.date.localeCompare(a.date) || b.n - a.n);
+}
+
+export function lastLogEntries(n = 6) {
+  return logEntries().slice(0, n);
 }
 
 /** Всички страници, в обобщен вид (за списъците) */

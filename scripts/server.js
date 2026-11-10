@@ -19,14 +19,15 @@ import { rebuildAll } from './index.js';
 import { importPaper } from './discover.js';
 import { estimate } from './estimate.js';
 import { checkSetup, testAI, accountTerms } from './setup.js';
-import { versionInfo, checkCode, checkPackages, latestResults, runTests, testsBusy } from './updates.js';
+import { versionInfo, checkCode, checkPackages, latestResults, runTests, testsBusy, applyUpdates, supervised, RESTART_CODE } from './updates.js';
+import { readCollections, saveCollection, deleteCollection, changeList, saveMenu } from './collections.js';
 import { authEnabled, isLocked, verifyPassword, setPassword, clearPassword, validPassword, hasSession, startSession, endSession, MIN_PASSWORD } from './auth.js';
 import { areaMap, areaKey, listAreas, setArea, renameArea, proposeClassification, applyAssignments, scopeFilter } from './areas.js';
 import { $t, pickLang, runWithLang, locales, messagesFor, hasLocale, contentLang } from './i18n.js';
 import { packs, installPack, canWrite } from './content-pack.js';
 import { askOutside } from './sandbox-ipc.js';
 import { P, lazy, pageUnits } from './vocab.js';
-import { SPECIAL, snapshot, summary, plain, excerpt, AREAS, pagesList, pageDetail, searchHits, contentStats, graphData } from './pages-data.js';
+import { SPECIAL, snapshot, summary, plain, excerpt, AREAS, pagesList, pageDetail, searchHits, contentStats, graphData, logEntries } from './pages-data.js';
 import { NM, VENDOR } from './vendor.js';
 import { writeArchive, listArchives, isArchiveName, archiveFile, deleteArchive } from './archive.js';
 import { readUnits } from './reader-data.js';
@@ -636,6 +637,17 @@ app.get('/api/stats', (_req, res) => {
 
 app.get('/api/graph', (_req, res) => res.json(graphData()));
 
+// Дневникът: всички записи от wiki/log.md, най-новите първи (страницата филтрира и групира по дни)
+app.get('/api/log', (_req, res) => res.json({ entries: logEntries() }));
+
+// ---------- Колекции на човека: умни (по филтър), ръчни списъци, ред и скриване на видовете в менюто ----------
+app.get('/api/collections', (_req, res) => res.json(readCollections()));
+app.use('/api/collections', express.json({ limit: '256kb' }));
+app.post('/api/collections', (req, res) => res.json(saveCollection(req.body || {})));
+app.post('/api/collections/menu', (req, res) => res.json(saveMenu(req.body || {})));
+app.post('/api/collections/:id/pages', (req, res) => res.json(changeList(String(req.params.id), req.body || {})));
+app.delete('/api/collections/:id', (req, res) => res.json(deleteCollection(String(req.params.id))));
+
 // ---------- Статичен архив за четене: ZIP с index.html и markdown файловете на wiki/ (без raw/) ----------
 app.post('/api/archive', (req, res) => {
   try { res.json({ ok: true, ...writeArchive({ lang: pickLang(req) }) }); }
@@ -793,9 +805,22 @@ app.post('/api/manual/:id', (req, res) => {
 app.post('/api/manual/:id/cancel', (req, res) => res.json(manualCancel(req.params.id)));
 
 // Страница „Настройки“. GET не излиза от компютъра; POST маршрутите се пускат само с бутон.
-app.get('/api/settings', (_req, res) => res.json({ ...versionInfo(), contentLang: contentLang(), account: accountTerms(), tests: latestResults(), testsRunning: testsBusy(), auth: authEnabled() }));
+app.get('/api/settings', (_req, res) => res.json({ ...versionInfo(), contentLang: contentLang(), account: accountTerms(), tests: latestResults(), testsRunning: testsBusy(), auth: authEnabled(), supervised: supervised(), isolated: !!process.env.LIB_SANDBOX_IPC }));
 app.post('/api/updates/code', async (_req, res) => res.json(await checkCode()));
 app.post('/api/updates/packages', async (_req, res) => res.json(await checkPackages()));
+// Обновяване до безопасните версии (npm update). После сървърът излиза с RESTART_CODE и стартерът го пуска отново.
+let updating = false;
+app.post('/api/updates/apply', express.json({ limit: '8kb' }), async (req, res) => {
+  if (agent.isBusy()) return res.json({ ok: false, error: $t('Wait for the processing to finish.') });
+  if (testsBusy()) return res.json({ ok: false, error: $t('Wait for the tests to finish.') });
+  if (updating) return res.json({ ok: false, error: $t('An update is already running.') });
+  const names = Array.isArray(req.body?.names) ? req.body.names.slice(0, 200).map(String) : [];
+  updating = true;
+  let r;
+  try { r = await applyUpdates(names); } finally { updating = false; }
+  res.json(r);
+  if (r.ok && r.restart) setTimeout(() => process.exit(RESTART_CODE), 600);
+});
 app.post('/api/tests/run', async (_req, res) => res.json(await runTests()));
 
 app.post('/api/agent/settings', (req, res) => {

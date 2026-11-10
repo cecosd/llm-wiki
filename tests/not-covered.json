@@ -43,5 +43,10 @@
     "en": "Isolation (npm run serve:safe) on macOS and Windows without WSL",
     "bg": "Изолацията (npm run serve:safe) в macOS и Windows без WSL",
     "why": { "en": "It uses bubblewrap, which exists only on Linux. There the packages of the program run with all your rights.", "bg": "Ползва bubblewrap, който го има само в Linux. Там пакетите на програмата работят с всичките ви права." }
+  },
+  {
+    "en": "Updating real packages from Settings → Updates and the restart with the new versions",
+    "bg": "Обновяването на истински пакети от „Настройки → Обновления“ и рестартът с новите версии",
+    "why": { "en": "The tests use a simulated npm, because a real update would change the node_modules that the test copy shares with the project. The restart through the isolation launcher was checked by hand (2026-11-10); the rollback when the new versions do not start was not.", "bg": "Тестовете ползват симулиран npm, защото истинско обновяване би сменило node_modules, които тестовото копие споделя с проекта. Рестартът през стартера на изолацията е проверен на ръка (2026-11-10); връщането, ако новите версии не тръгнат, не е." }
   }
 ]

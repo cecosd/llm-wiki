@@ -461,14 +461,24 @@ function yamlOf(p) {
 }
 const WikiExplorer = defineComponent({
   template: '#tpl-explorer',
-  data() { return { store, coll: PBY.bg[store.page].type, raw: false, focus: false, bubble: null, panel: null, linkQ: '', typeKeys: TYPE_KEYS }; },
+  data() { return { store, coll: PBY.bg[store.page].type, raw: false, focus: false, bubble: null, panel: null, linkQ: '', typeKeys: TYPE_KEYS, list: ['ahrens-2017-smart-notes', 'zettelkasten', 'why-we-forget'] }; },
   computed: {
     page() { return BY[store.page]; },
+    /* Колекции като в приложението: умна (по условие за етикет, пълни се сама) и ръчен списък (бутонът „Списък“) */
+    cols() {
+      const C = this.t.exp.col, tags = C.smartTags;
+      return [
+        { id: 'smart', name: C.smart, hint: C.smartHint, color: 'var(--gold)', icon: '<path d="M3 4h18l-7 8v6l-4 2v-8z"/>', pages: sortedPages().filter(p => (p.tags || []).some(g => tags.includes(g))) },
+        { id: 'list', name: C.list, hint: C.listHint, color: 'var(--sage)', icon: '<path d="M6 3h12v18l-6-4-6 4z"/>', pages: this.list.map(s => BY[s]).filter(Boolean) },
+      ];
+    },
+    curCol() { return this.cols.find(c => c.id === this.coll); },
+    inList() { return this.list.includes(store.page); },
     body() { return bodyOf(store.page); },
     html() { return md(this.body, this.page); },
     folder() { return TYPE_META[this.page.type][1]; },
     area() { return areaOf(this.page); },
-    collPages() { return sortedPages().filter(p => p.type === this.coll); },
+    collPages() { return this.curCol ? this.curCol.pages : sortedPages().filter(p => p.type === this.coll); },
     backlinks() { const s = store.page; return pages().filter(p => p.slug !== s && (linksOf(bodyOf(p.slug)).includes(s) || p.book === s || (p.chapters || []).includes(s))).map(p => p.slug); },
     related() { const o = linksOf(this.body).filter(s => s !== store.page); if (this.page.book && !o.includes(this.page.book)) o.push(this.page.book); return o; },
     rawHtml() { return yamlOf(this.page); },
@@ -482,7 +492,8 @@ const WikiExplorer = defineComponent({
   },
   watch: {
     'store.page'(s) {
-      this.coll = PBY.bg[s].type; this.bubble = null; this.panel = null;
+      if (!(this.curCol && this.curCol.pages.some(p => p.slug === s))) this.coll = PBY.bg[s].type; // в колекция остава, ако страницата е в нея
+      this.bubble = null; this.panel = null;
       nextTick(() => { const b = this.$refs.box; if (b && b.getBoundingClientRect().top < 0) b.scrollIntoView({ behavior: REDUCED ? 'auto' : 'smooth', block: 'start' }); });
     },
     L() { this.bubble = null; this.panel = null; },
@@ -491,6 +502,10 @@ const WikiExplorer = defineComponent({
     typeColor, count: typeCount, apa: apaHtml,
     get: s => BY[s], title: s => (BY[s] ? BY[s].title : s),
     go(s) { go(s); }, openSearch() { store.search = true; },
+    toggleList() {
+      const s = store.page, C = this.t.exp.col;
+      if (this.list.includes(s)) { this.list = this.list.filter(x => x !== s); toast(C.removedToast); } else { this.list = [...this.list, s]; toast(C.addedToast); }
+    },
     back() { const p = store.history.pop(); if (p) store.page = p; },
     onClick(e) { const a = e.target.closest('[data-go]'); if (a) { e.preventDefault(); go(a.dataset.go); return; } const b = e.target.closest('[data-reader]'); if (b) openReader(b.dataset.reader, b.dataset.page); },
     neighbour(d) { const S = sortedPages(), i = S.findIndex(p => p.slug === store.page), n = S.length; return S[(i + d + n) % n]; },
@@ -823,7 +838,7 @@ const SettingsDemo = defineComponent({
       mdl: { sel: 'claude', step: -1, busy: false, done: false, test: { busy: false, ok: false, s: '' } },
       pw: { set: '', next: '', cur: '', msg: '', bad: false }, login: { open: false, pw: '', msg: '', ok: false, fails: 0, wait: 0 },
       arc: { busy: false, done: false, step: -1, name: archName(), list: [] }, chk: { busy: false, at: 99 }, conn: { busy: false, ok: false, s: '' },
-      ver: { busy: false, done: false }, pkg: { busy: false, done: false }, run: { busy: false, done: false, n: 0 },
+      ver: { busy: false, done: false }, pkg: { busy: false, done: false, act: '', restarting: false, updated: [], msg: '' }, run: { busy: false, done: false, n: 0 },
     };
   },
   computed: {
@@ -835,6 +850,9 @@ const SettingsDemo = defineComponent({
     dateStr() { return new Date(TESTS.date + 'T12:00:00').toLocaleDateString(this.loc, { day: 'numeric', month: 'long', year: 'numeric' }); },
     groups() { return TESTS.groups.map(([id, bg, en]) => { const items = TESTS.tests.filter(x => x[0] === id); return { id, name: this.L === 'bg' ? bg : en, items, pass: items.filter(x => x[1] === 'pass').length, known: items.some(x => x[1] === 'known') }; }); },
     curTest() { const x = TESTS.tests[Math.max(0, Math.min(this.run.n, TESTS.tests.length) - 1)]; return x ? x[this.L === 'bg' ? 2 : 3] : ''; },
+    /* Обновяване на пакети: както в приложението, бутонът е само за версиите, които package.json позволява */
+    safeLeft() { return TESTS.outdated.filter(p => p.wanted !== p.current && !this.pkg.updated.includes(p.name)); },
+    majorOnly() { return TESTS.outdated.filter(p => p.major && p.wanted === p.current); },
   },
   watch: { 'store.setTab'(v) { if (!v) return; this.setTab(v); this.pulseTests = v === 'tests'; store.setTab = null; } },
   beforeUnmount() { clearInterval(this.lockT); },
@@ -881,6 +899,16 @@ const SettingsDemo = defineComponent({
     async testConn() { if (this.conn.busy) return; this.conn.busy = true; this.conn.ok = false; await sleep(REDUCED ? 100 : 1400); this.conn.busy = false; this.conn.ok = true; this.conn.s = (1.4).toLocaleString(this.loc); this.mark(); },
     async checkVer() { if (this.ver.busy) return; this.ver.busy = true; this.ver.done = false; await sleep(REDUCED ? 100 : 1100); this.ver.busy = false; this.ver.done = true; this.mark(); },
     async checkPkg() { if (this.pkg.busy) return; this.pkg.busy = true; this.pkg.done = false; await sleep(REDUCED ? 100 : 1800); this.pkg.busy = false; this.pkg.done = true; this.mark(); },
+    async updatePkg(name) {
+      const P = this.pkg; if (P.act || P.restarting) return;
+      const list = this.safeLeft.filter(p => !name || p.name === name); if (!list.length) return;
+      P.act = name || '*'; P.msg = '';
+      await sleep(REDUCED ? 100 : 1500); // npm update --ignore-scripts
+      P.act = ''; P.restarting = true;
+      await sleep(REDUCED ? 100 : 1800); // библиотеката се пуска отново с новите версии
+      P.restarting = false; P.updated = [...P.updated, ...list.map(p => p.name)];
+      P.msg = this.S.upd.updated(list.map(p => `${p.name} ${p.current} → ${p.wanted}`).join(', ')); this.mark();
+    },
     async runTests() {
       const R = this.run; if (R.busy) return; R.busy = true; R.done = false; R.n = 0; this.pulseTests = false;
       for (let i = 1; i <= TESTS.tests.length; i++) { R.n = i; await sleep(REDUCED ? 4 : 65); }

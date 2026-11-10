@@ -14,6 +14,69 @@ const TYPES = {
   other:      { label: $t('Page'),  plural: $t('Other'),     icon: 'file',    hex: '#9d958a', soft: 'bg-ink/5 text-muted dark:bg-white/10', desc: '' },
 };
 const typeOrder = ['source', 'concept', 'entity', 'topic', 'comparison', 'question'];
+// Редът на видовете в менюто, докато човекът не го смени (непознатите видове отиват след тях по азбучен ред)
+const NAV_ORDER = ['source', 'chapter', 'concept', 'entity', 'topic', 'comparison', 'question'];
+/** Описанието на вида. Вид, който го няма в TYPES (нов вид в wiki/), се показва със собственото си име. */
+const typeInfo = (t) => {
+  if (TYPES[t]) return TYPES[t];
+  const name = t ? String(t)[0].toUpperCase() + String(t).slice(1) : TYPES.other.label;
+  return { ...TYPES.other, label: name, plural: name };
+};
+// Колекциите на човека (outputs/collections.json): умни (по филтър) и ръчни списъци
+const COL_STYLE = {
+  smart: { icon: 'filter', soft: 'bg-amber-50 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300' },
+  list: { icon: 'bookmark', soft: 'bg-teal-50 text-teal-700 dark:bg-teal-500/15 dark:text-teal-300' },
+};
+/** Дали страницата влиза в умна колекция: И между полетата, ИЛИ между стойностите в едно поле. */
+function matchFilter(p, f = {}) {
+  if (!p || p.special) return false;
+  const any = (a) => Array.isArray(a) && a.length > 0;
+  if (any(f.types) && !f.types.includes(p.type)) return false;
+  if (any(f.tags) && !f.tags.some((t) => (p.tags || []).includes(t))) return false;
+  if (any(f.areas) && !f.areas.includes(p.area)) return false;
+  if (any(f.formats) && !f.formats.includes(p.format)) return false;
+  if (any(f.confidence) && !f.confidence.includes(p.confidence)) return false;
+  if (any(f.status) && !f.status.includes(p.status)) return false;
+  if (f.author && ![].concat(p.authors || []).join('; ').toLowerCase().includes(String(f.author).toLowerCase())) return false;
+  if (f.yearFrom || f.yearTo) {
+    const y = Number(String(p.year ?? '').match(/\d{4}/)?.[0]);
+    if (!y || (f.yearFrom && y < f.yearFrom) || (f.yearTo && y > f.yearTo)) return false;
+  }
+  if (f.q) {
+    const q = String(f.q).toLowerCase();
+    if (![p.title, ...(p.aliases || [])].some((s) => String(s || '').toLowerCase().includes(q))) return false;
+  }
+  return true;
+}
+/** Филтърът с думи, за подзаглавието на умна колекция */
+function filterSummary(f = {}) {
+  const bits = [];
+  const join = (a) => a.join(', ');
+  if (f.types?.length) bits.push(join(f.types.map((t) => typeInfo(t).plural)));
+  if (f.tags?.length) bits.push($t('tag: {0}', [join(f.tags.map((t) => '#' + t))]));
+  if (f.areas?.length) bits.push($t('area: {0}', [join(f.areas)]));
+  if (f.formats?.length) bits.push(join(f.formats.map((x) => FORMATS[x] || x)));
+  if (f.confidence?.length) bits.push($t('confidence: {0}', [join(f.confidence.map((x) => CONF[x]?.label || x))]));
+  if (f.status?.length) bits.push(join(f.status.map((x) => STATUS[x] || x)));
+  if (f.author) bits.push($t('author: {0}', [f.author]));
+  if (f.yearFrom && f.yearTo) bits.push($t('years {0} to {1}', [f.yearFrom, f.yearTo]));
+  else if (f.yearFrom) bits.push($t('from {0}', [f.yearFrom]));
+  else if (f.yearTo) bits.push($t('until {0}', [f.yearTo]));
+  if (f.q) bits.push($t('title contains “{0}”', [f.q]));
+  return bits.length ? bits.join(' · ') : $t('all pages');
+}
+// Видовете записи в дневника (wiki/log.md)
+const LOG_KINDS = {
+  ingest: { label: $t('processing'), dot: 'bg-clay-400' },
+  upgrade: { label: $t('upgrade'), dot: 'bg-amber-400' },
+  synthesis: { label: $t('synthesis'), dot: 'bg-sky-500' },
+  query: { label: $t('question'), dot: 'bg-lime-500' },
+  lint: { label: $t('check'), dot: 'bg-teal-500' },
+  refactor: { label: $t('restructuring'), dot: 'bg-violet-400' },
+  inbox: { label: $t('inbox'), dot: 'bg-sage-400' },
+};
+const logLabel = (k) => LOG_KINDS[k]?.label || k || $t('other');
+const logColor = (k) => LOG_KINDS[k]?.dot || 'bg-muted';
 const KINDS = { person: $t('Person'), organization: $t('Organization'), tool: $t('Tool'), work: $t('Work'), place: $t('Place'), school: $t('School') };
 const FORMATS = { book: $t('Book'), paper: $t('Scientific paper'), article: $t('Article'), web: $t('Web'), dataset: $t('Table'), note: $t('Note'), image: $t('Image') };
 const FORMAT_ICON = { book: 'book', paper: 'paper', article: 'file', web: 'globe', dataset: 'table', note: 'pen', image: 'image' };
@@ -90,7 +153,7 @@ const readerOk = (type, slug) => ['source', 'chapter'].includes(type) && (!windo
 
 // Общи помощници, достъпни във всички шаблони
 // ro: архивът за четене (виж archive.js). Там няма записи, Claude и пътища към raw/.
-const shared = { MODEL_OPTS, MODES, TYPES, typeOrder, KINDS, FORMATS, FORMAT_ICON, FORMAT_BG, STATUS, CONF, relDate, size, plural, fileIcon, ro: !!window.LIB_STATIC, AI, TN, dataNote };
+const shared = { MODEL_OPTS, MODES, TYPES, typeOrder, typeInfo, COL_STYLE, filterSummary, logLabel, logColor, KINDS, FORMATS, FORMAT_ICON, FORMAT_BG, STATUS, CONF, relDate, size, plural, fileIcon, ro: !!window.LIB_STATIC, AI, TN, dataNote };
 
 // ---------- Иконки (линейни, 24×24) ----------
 const ICONS = {
@@ -139,6 +202,16 @@ const ICONS = {
   route: 'M6 20a2 2 0 1 0 0-4 2 2 0 0 0 0 4zM18 8a2 2 0 1 0 0-4 2 2 0 0 0 0 4zM8 18h7a3.5 3.5 0 0 0 0-7H9a3.5 3.5 0 0 1 0-7h7',
   alert: 'M12 9v4M12 17h.01M10.3 3.9L2 18a2 2 0 0 0 1.7 3h16.6a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z',
   focus: 'M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5',
+  filter: 'M4 5h16l-6 7.5V18l-4 2v-7.5z',
+  plus: 'M12 5v14M5 12h14',
+  eye: 'M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12zM12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z',
+  eyeOff: 'M3 3l18 18M10.6 5.1Q11.3 5 12 5c6.4 0 10 7 10 7a17 17 0 0 1-3 3.9M6.6 6.6C3.9 8.3 2 12 2 12s3.6 7 10 7q2.3 0 4.3-1M9.9 9.9a3 3 0 0 0 4.2 4.2',
+  arrowUp: 'M12 19V5M6 11l6-6 6 6',
+  arrowDown: 'M12 5v14M6 13l6 6 6-6',
+  refresh: 'M20 11a8 8 0 0 0-14.6-4.5M4 4v4h4M4 13a8 8 0 0 0 14.6 4.5M20 20v-4h-4',
+  shield: 'M12 3l7 3v6c0 4.4-3 7.6-7 9-4-1.4-7-4.6-7-9V6z',
+  key: 'M7.5 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7zM11 12h10M17 12v3M20 12v2',
+  box: 'M3 4h18v4H3zM5 8v12h14V8M10 12h4',
 };
 const Ic = defineComponent({
   props: { name: String },
@@ -236,7 +309,7 @@ const ViewToggle = defineComponent({
 const PageCard = defineComponent({
   template: '#tpl-card',
   props: { p: Object, big: Boolean },
-  computed: { T() { return TYPES[this.p.type] || TYPES.other; } },
+  computed: { T() { return typeInfo(this.p.type); } },
   methods: { relDate },
   data: () => ({ FORMATS, FORMAT_ICON, KINDS }),
 });
@@ -291,8 +364,6 @@ const HomeView = defineComponent({
   methods: {
     count: (n, one, many) => `${n || 0} ${(n || 0) === 1 ? one : many}`,
     folderLabel: (f) => FOLDERS[f] || f,
-    logLabel: (k) => ({ ingest: $t('processing'), query: $t('question'), lint: $t('check'), refactor: $t('restructuring'), inbox: $t('inbox') }[k] || k),
-    logColor: (k) => ({ ingest: 'bg-clay-400', query: 'bg-lime-500', lint: 'bg-sky-500', refactor: 'bg-violet-400', inbox: 'bg-sage-400' }[k] || 'bg-muted'),
     copy(t) { this.$root.copy(t); },
     isRecent: (j) => Date.now() - new Date(j.finishedAt).getTime() < 36 * 3600e3,
     async post(url, body) {
@@ -387,11 +458,14 @@ const PageView = defineComponent({
   emits: ['toast', 'refresh', 'focus'],
   data: () => ({
     ...shared, LEVELS, rename: { on: false, value: '', busy: false }, man: { open: false, md: '', before: '', hash: '', busy: false, error: '' }, page: null, error: false, toc: [], activeH: null, observer: null, chapView: store.get('view:chapters', 'cards'),
-    selBtn: null, lk: { open: false, sel: '', q: '', busy: false, error: '' },
+    selBtn: null, lk: { open: false, sel: '', q: '', busy: false, error: '' }, listMenu: false,
     ai: { open: false, intent: 'ask', sel: '', question: '', level: store.get('asklevel', 'medium'), busy: false, busy2: false, waited: 0, error: '', answer: '', asked: '', proposal: null, saved: false, applied: null },
   }),
   computed: {
-    T() { return TYPES[this.page?.type] || TYPES.other; },
+    T() { return typeInfo(this.page?.type); },
+    // ръчните списъци и дали страницата е в тях (бутонът „Списък“)
+    myLists() { return (this.$root.collections?.items || []).filter((c) => c.kind === 'list').map((c) => ({ ...c, has: c.slugs.includes(this.page?.slug) })); },
+    inLists() { return this.myLists.filter((c) => c.has).length; },
     html() {
       if (!this.page) return '';
       const types = new Map(this.pages.map((p) => [p.slug, p.type]));
@@ -451,7 +525,7 @@ const PageView = defineComponent({
   },
   watch: {
     chapView(v) { store.set('view:chapters', v); },
-    slug: { immediate: true, handler(s, old) { if (old !== undefined && s !== old) { this.resetAi(); this.rename.on = false; this.man.open = false; this.lk.open = false; } this.load(s !== old); } },
+    slug: { immediate: true, handler(s, old) { if (old !== undefined && s !== old) { this.resetAi(); this.rename.on = false; this.man.open = false; this.lk.open = false; this.listMenu = false; } this.load(s !== old); } },
     version() { this.load(false); },
     html() { this.$nextTick(this.buildToc); },
   },
@@ -514,6 +588,9 @@ const PageView = defineComponent({
       if (r.ok) location.hash = '#/';
     },
     levelLabel(id) { return LEVELS.find((l) => l.id === id)?.label || id; },
+    // --- Ръчни списъци: страницата влиза или излиза от списък; нов списък започва с нея ---
+    toggleList(c) { this.$root.listChange(c.id, c.has ? { remove: this.page.slug } : { add: this.page.slug }, c.has ? $t('Removed from “{0}”', [c.name]) : $t('Added to “{0}”', [c.name])); },
+    newListWithPage() { this.listMenu = false; this.$root.openColEditor({ kind: 'list', slugs: [this.page.slug] }); },
     // --- Ръчно преименуване и редакция (без Claude; връзките между страниците не се променят) ---
     startRename() {
       if (!this.canAsk) return;
@@ -730,31 +807,57 @@ const titleCmp = (a, b) => {
 
 const CollectionView = defineComponent({
   template: '#tpl-collection',
-  props: { pages: Array, type: String, tag: String },
+  // type: вид страници (#/c/source); tag: етикет (#/tag/x); cid: колекция на човека (#/col/<id>)
+  props: { pages: Array, type: String, tag: String, cid: String },
   emits: ['toast'],
   data: () => ({
-    ...shared, SCRIPT_LABEL, filter: '', sort: store.get('sort', 'title'), fmt: 'all', view: 'cards', letter: '',
+    ...shared, SCRIPT_LABEL, filter: '', sort: 'title', fmt: 'all', view: 'cards', letter: '',
     dupes: { pairs: [], authors: [] }, dupOpen: false, dupKeep: {}, authCanon: {}, dupPlan: null, dupBusy: false,
     mergeOpen: false, mergeTitle: '', mergePick: [], mergePlan: null, mergeBusy: false,
   }),
-  created() { this.view = store.get('view:' + this.viewKey, 'cards'); this.loadDupes(); },
+  created() { this.view = store.get('view:' + this.viewKey, 'cards'); this.sort = store.get(this.sortKey, this.isList ? 'manual' : 'title'); this.loadDupes(); },
   watch: {
-    sort(v) { store.set('sort', v); },
+    sort(v) { store.set(this.sortKey, v); },
+    sortKey(k) { this.sort = store.get(k, this.isList ? 'manual' : 'title'); },
     view(v) { store.set('view:' + this.viewKey, v); },
     viewKey(k) { this.view = store.get('view:' + k, 'cards'); },
-    type() { this.fmt = 'all'; this.filter = ''; this.letter = ''; this.dupPlan = null; this.dupOpen = false; this.mergeOpen = false; this.mergePick = []; this.mergeTitle = ''; this.mergePlan = null; this.loadDupes(); },
+    type() { this.reset(); },
+    cid() { this.reset(); },
     tag() { this.letter = ''; },
     pages() { clearTimeout(this.dupTimer); this.dupTimer = setTimeout(() => this.loadDupes(), 400); },
   },
   computed: {
-    viewKey() { return this.tag ? 'tag' : this.type; },
-    T() { return TYPES[this.type] || TYPES.other; },
+    viewKey() { return this.cid ? 'col:' + this.cid : this.tag ? 'tag' : this.type; },
+    // Списъкът има и „ред в списъка“; той е по подразбиране и се пази отделно от реда на другите колекции
+    sortKey() { return this.isList ? 'sort:list' : 'sort'; },
+    custom() { return this.cid ? (this.$root.collections?.items || []).find((c) => c.id === this.cid) || null : null; },
+    isList() { return this.custom?.kind === 'list'; },
+    // подреждане и махане на ръка: само в списък, при „ред в списъка“ и без филтър
+    editable() { return this.isList && this.sort === 'manual' && !this.ro && !this.filter.trim() && !this.letter; },
+    T() { return this.custom ? COL_STYLE[this.custom.kind] : typeInfo(this.type); },
+    heading() { return this.custom ? this.custom.name : this.tag ? '#' + this.tag : this.T.plural; },
+    subtitle() {
+      if (this.custom) return this.isList ? $t('A list you put together by hand.') : filterSummary(this.custom.filter);
+      return this.tag ? '' : this.T.desc;
+    },
     formats() { return [...new Set(this.pages.filter((p) => p.type === 'source' && p.format).map((p) => p.format))]; },
-    surnameSort() { return this.type === 'entity' && !this.tag; },
+    surnameSort() { return this.type === 'entity' && !this.tag && !this.cid; },
+    // страниците от списъка, които вече ги няма (обединени или премахнати)
+    missing() {
+      if (!this.isList) return [];
+      const known = new Set(this.pages.map((p) => p.slug));
+      return this.custom.slugs.filter((s) => !known.has(s));
+    },
     // страниците на колекцията преди буквата (от тях се броят буквите)
     base() {
       const q = this.filter.trim().toLowerCase();
-      let l = this.pages.filter((p) => !p.special && (this.tag ? p.tags.includes(this.tag) : p.type === this.type));
+      let l;
+      if (this.cid) {
+        const c = this.custom;
+        if (!c) l = [];
+        else if (c.kind === 'smart') l = this.pages.filter((p) => matchFilter(p, c.filter));
+        else { const by = new Map(this.pages.map((p) => [p.slug, p])); l = c.slugs.map((s) => by.get(s)).filter(Boolean); }
+      } else l = this.pages.filter((p) => !p.special && (this.tag ? p.tags.includes(this.tag) : p.type === this.type));
       if (this.fmt !== 'all') l = l.filter((p) => p.format === this.fmt);
       if (q) l = l.filter((p) => (p.title + ' ' + (p.aliases || []).join(' ') + ' ' + p.excerpt + ' ' + p.tags.join(' ')).toLowerCase().includes(q));
       return l;
@@ -769,11 +872,12 @@ const CollectionView = defineComponent({
     list() {
       let l = this.base;
       if (this.letter) l = l.filter((p) => letterOf(p) === this.letter);
+      if (this.sort === 'manual' && this.isList) return l;
       const by = {
         title: titleCmp,
         updated: (a, b) => String(b.updated || '').localeCompare(String(a.updated || '')),
         links: (a, b) => b.backlinks - a.backlinks,
-      }[this.sort];
+      }[this.sort] || titleCmp;
       return [...l].sort(by);
     },
     // при азбучен ред: заглавие за всяка буква, за да се чете по-лесно
@@ -798,8 +902,13 @@ const CollectionView = defineComponent({
     },
   },
   methods: {
+    reset() { this.fmt = 'all'; this.filter = ''; this.letter = ''; this.dupPlan = null; this.dupOpen = false; this.mergeOpen = false; this.mergePick = []; this.mergeTitle = ''; this.mergePlan = null; this.loadDupes(); },
+    editCustom() { const c = this.custom; if (c) this.$root.openColEditor(c); },
+    removeCustom() { const c = this.custom; if (c) this.$root.deleteCollection(c); },
+    moveInList(slug, dir) { this.$root.listChange(this.cid, { move: { slug, dir } }); },
+    dropFromList(slug) { this.$root.listChange(this.cid, { remove: slug }, $t('Removed from the list')); },
     async loadDupes() {
-      if (this.ro || this.tag || !['entity', 'concept', 'topic', 'source'].includes(this.type)) { this.dupes = { pairs: [], authors: [] }; return; }
+      if (this.ro || this.tag || this.cid || !['entity', 'concept', 'topic', 'source'].includes(this.type)) { this.dupes = { pairs: [], authors: [] }; return; }
       try { this.dupes = await (await fetch('/api/dupes')).json(); } catch { /* не е критично */ }
     },
     pk(p) { return p.a.slug + '|' + p.b.slug; },
@@ -1346,11 +1455,26 @@ const AiSettings = defineComponent({
   },
 });
 
+// Разделите на настройките (подменюто вляво, адрес #/settings/<раздел>)
+const SETTINGS_SECTIONS = [
+  { id: 'model', icon: 'sparkle', label: $t('Model') },
+  { id: 'updates', icon: 'refresh', label: $t('Updates') },
+  { id: 'data', icon: 'shield', label: $t('Data and privacy') },
+  { id: 'password', icon: 'key', label: $t('Password') },
+  { id: 'archive', icon: 'box', label: $t('Archive for reading') },
+  { id: 'tests', icon: 'check', label: $t('Tests') },
+];
+const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 const SettingsView = defineComponent({
   template: '#tpl-settings',
+  props: { section: { type: String, default: 'model' } },
   emits: ['copy'],
-  data: () => ({ ...shared, info: null, code: null, packages: null, tests: null, testError: '', archive: { busy: false, result: null, error: '', list: [] }, busy: { code: false, packages: false, tests: false, auth: false }, pw: { current: '', next: '', message: '', bad: false } }),
+  data: () => ({ ...shared, SETTINGS_SECTIONS, info: null, code: null, packages: null, tests: null, testError: '', archive: { busy: false, result: null, error: '', list: [] }, busy: { code: false, packages: false, tests: false, auth: false }, pw: { current: '', next: '', message: '', bad: false }, upd: { busy: '', result: null, error: '', restarting: false } }),
   computed: {
+    current() { return SETTINGS_SECTIONS.find((s) => s.id === this.section) || SETTINGS_SECTIONS[0]; },
+    // пакетите с безопасна нова версия (в рамките на package.json) и тези, които имат само основна нова версия
+    safeUpdates() { return (this.packages?.outdated?.items || []).filter((p) => p.wanted && p.current && p.wanted !== p.current); },
+    majorOnly() { return (this.packages?.outdated?.items || []).filter((p) => p.major && (!p.wanted || p.wanted === p.current)); },
     updateCmd() {
       const pack = this.info?.contentLang && this.info.contentLang !== 'en' ? ` && npm run content -- ${this.info.contentLang}` : '';
       // Инсталираните копия на езиковия пакет се връщат преди git pull, иначе git отказва заради локалната разлика.
@@ -1366,7 +1490,11 @@ const SettingsView = defineComponent({
     },
   },
   created() { this.load(); this.loadArchives(); },
+  // на телефон подменюто е ред с превъртане: избраният раздел трябва да се вижда
+  mounted() { this.showSection(); },
+  watch: { section() { this.showSection(); } },
   methods: {
+    showSection() { this.$nextTick(() => this.$el?.querySelector?.('nav [aria-current="page"]')?.scrollIntoView({ block: 'nearest', inline: 'center' })); },
     pick(o) { return (window.__I18N?.lang === 'bg' && o.bg) || o.en; },
     async load() {
       try {
@@ -1400,6 +1528,36 @@ const SettingsView = defineComponent({
     async checkPackages() {
       const d = await this.post('packages', '/api/updates/packages');
       this.packages = d.outdated ? d : { outdated: { ok: false, error: d.error }, audit: { ok: false, error: d.error } };
+    },
+    // Обновяване до безопасните версии (npm update). names: един пакет; без него всички.
+    async applyUpdate(name) {
+      const list = name ? [name] : this.safeUpdates.map((p) => p.name);
+      if (!list.length) return;
+      const restartNote = this.info?.supervised ? $t('The library then restarts by itself (about half a minute).') : $t('Then stop the library and start it again so that the new versions load.');
+      const authNote = this.info?.auth ? ' ' + $t('With a password you will have to sign in again.') : '';
+      if (!confirm($t('Update {0} to the safe version allowed by package.json?', [name || $t('{0} packages', [list.length])]) + '\n\n' + restartNote + authNote)) return;
+      this.upd = { busy: name || '*', result: null, error: '', restarting: false };
+      let d;
+      try {
+        d = await (await api('/api/updates/apply', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ names: name ? [name] : [] }) })).json();
+      } catch { d = { ok: false, error: $t('The server is not responding.') }; }
+      if (!d.ok) { this.upd = { busy: '', result: null, error: d.error || $t('I could not'), restarting: false }; return; }
+      if (d.restart) {
+        this.upd = { busy: '', result: d, error: '', restarting: true };
+        await this.waitForRestart();
+        location.reload();
+        return;
+      }
+      this.upd = { busy: '', result: d, error: '', restarting: false };
+      this.checkPackages();
+    },
+    // сървърът излиза и стартерът го пуска отново: чакаме, докато пак отговори (с парола отговаря с 401, и това стига)
+    async waitForRestart() {
+      await wait(2500);
+      for (let i = 0; i < 180; i++) {
+        try { const r = await fetch('/api/settings', { cache: 'no-store' }); if (r.status < 500) return; } catch { /* още не е тръгнал */ }
+        await wait(1000);
+      }
     },
     async savePassword(remove) {
       this.busy.auth = true;
@@ -1763,6 +1921,97 @@ const GraphView = defineComponent({
 
 // ---------- Приложение ----------
 // Начало на архива (само за четене): броячи, последни промени и етикети. Заменя началната страница с Claude.
+// ---------- Дневник: wiki/log.md, най-новите записи отгоре, по дни, с филтър по вид и търсене ----------
+const LOG_PAGE = 60;
+const LogView = defineComponent({
+  template: '#tpl-log',
+  props: { pages: Array, version: Number },
+  data: () => ({ ...shared, entries: null, error: '', kind: '', q: '', limit: LOG_PAGE, open: {} }),
+  created() { this.load(); },
+  watch: {
+    version() { this.load(); }, // нов запис от обработка или ръчна промяна: списъкът се обновява сам
+    kind() { this.limit = LOG_PAGE; },
+    q() { this.limit = LOG_PAGE; },
+  },
+  computed: {
+    kinds() {
+      const n = {};
+      for (const e of this.entries || []) n[e.kind] = (n[e.kind] || 0) + 1;
+      return Object.entries(n).sort((a, b) => b[1] - a[1]).map(([k, c]) => ({ k, n: c }));
+    },
+    filtered() {
+      const q = this.q.trim().toLowerCase();
+      return (this.entries || []).filter((e) => (!this.kind || e.kind === this.kind) && (!q || (e.title + '\n' + e.body).toLowerCase().includes(q)));
+    },
+    // по дни: „днес“, „вчера“, после датата
+    groups() {
+      const g = [];
+      for (const e of this.filtered.slice(0, this.limit)) {
+        if (!g.length || g[g.length - 1].date !== e.date) g.push({ date: e.date, items: [] });
+        g[g.length - 1].items.push(e);
+      }
+      return g;
+    },
+    known() { return new Set(this.pages.map((p) => p.slug)); },
+    titles() { return new Map(this.pages.map((p) => [p.slug, p.title])); },
+  },
+  methods: {
+    async load() {
+      try { const d = await (await fetch('/api/log')).json(); this.entries = d.entries || []; this.error = ''; }
+      catch { this.error = $t('The server is not responding.'); if (!this.entries) this.entries = []; }
+    },
+    dayLabel(d) {
+      if (!d) return $t('Without a date');
+      const rel = relDate(d);
+      const full = new Date(d + 'T00:00:00').toLocaleDateString(I18N.lang, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+      return rel === $t('today') || rel === $t('yesterday') ? `${rel[0].toUpperCase() + rel.slice(1)} · ${full}` : full;
+    },
+    key: (e) => e.n + '|' + e.date,
+    body(e) { return renderMarkdown(e.body, this.known, this.titles); },
+    long: (e) => e.body.split('\n').length > 6,
+    onClick(e) {
+      const a = e.target.closest('a.wl');
+      if (a) { e.preventDefault(); location.hash = '#/p/' + a.dataset.slug; }
+    },
+  },
+});
+
+// ---------- Колекции: видовете в менюто, умните колекции и ръчните списъци ----------
+const CollectionsView = defineComponent({
+  template: '#tpl-collections',
+  props: { pages: Array },
+  data: () => ({ ...shared }),
+  computed: {
+    col() { return this.$root.collections; },
+    types() { return this.$root.allTypes; },
+    smart() { return this.col.items.filter((c) => c.kind === 'smart'); },
+    lists() { return this.col.items.filter((c) => c.kind === 'list'); },
+  },
+  methods: {
+    count(c) { return this.$root.colCount(c); },
+    hidden(t) { return this.col.menu.hidden.includes(t); },
+    toggleType(t) {
+      const h = this.col.menu.hidden;
+      this.$root.saveMenu({ hidden: h.includes(t) ? h.filter((x) => x !== t) : [...h, t] });
+    },
+    moveType(i, dir) {
+      const order = this.types.map((x) => x.t), j = i + dir;
+      if (j < 0 || j >= order.length) return;
+      [order[i], order[j]] = [order[j], order[i]];
+      this.$root.saveMenu({ order });
+    },
+    resetTypes() { this.$root.saveMenu({ order: [], hidden: [] }); },
+    // колекциите се местят само сред своя вид (умни или списъци)
+    moveCol(c, dir) {
+      const same = this.col.items.filter((x) => x.kind === c.kind), i = same.indexOf(c), j = i + dir;
+      if (j < 0 || j >= same.length) return;
+      const ids = this.col.items.map((x) => x.id), a = ids.indexOf(c.id), b = ids.indexOf(same[j].id);
+      [ids[a], ids[b]] = [ids[b], ids[a]];
+      this.$root.saveMenu({ items: ids });
+    },
+  },
+});
+
 const ArchiveHome = defineComponent({
   template: '#tpl-archive-home',
   props: { stats: Object },
@@ -1775,13 +2024,16 @@ function parseRoute() {
   if (!parts[0]) return { name: 'home' };
   if (parts[0] === 'p' && parts[1]) return { name: 'page', slug: parts[1] };
   if (parts[0] === 'c' && parts[1]) return { name: 'collection', type: parts[1] };
+  if (parts[0] === 'col' && parts[1]) return { name: 'custom', id: parts[1] };
+  if (parts[0] === 'collections') return { name: 'collections' };
+  if (parts[0] === 'log') return { name: 'log' };
   if (parts[0] === 'tag' && parts[1]) return { name: 'tag', tag: parts[1] };
   if (parts[0] === 'graph') return { name: 'graph' };
   if (parts[0] === 'write') return { name: 'write', id: parts[1] || '' };
   if (parts[0] === 'find') return { name: 'find' };
   if (parts[0] === 'areas') return { name: 'areas' };
   if (parts[0] === 'setup') return { name: 'setup' };
-  if (parts[0] === 'settings') return { name: 'settings' };
+  if (parts[0] === 'settings') return { name: 'settings', section: SETTINGS_SECTIONS.some((s) => s.id === parts[1]) ? parts[1] : 'model' };
   if (parts[0] === 'path') return { name: 'path', q: parts.slice(1).join('/'), mode: new URLSearchParams(hashQuery).get('m') || 'local' };
   return { name: 'page', slug: parts[0] }; // стари връзки #/slug
 }
@@ -1794,10 +2046,30 @@ const app = createApp({
     manual: [], manualHidden: false, manualShow: false, manualText: '', manualBusy: false, manualError: '', // ръчен режим (копиране в чат)
     focus: store.get('focus', '0') === '1', // режим фокус: само текстът на страницата (запомня се на този компютър)
     theme: store.get('theme', 'system'), isMac: /Mac|iPhone|iPad/.test(navigator.platform),
+    collections: { menu: { order: [], hidden: [] }, items: [] }, colEdit: null, // колекциите на човека и прозорецът за тях
+    navClosed: (() => { try { return JSON.parse(store.get('nav:closed', '{}')) || {}; } catch { return {}; } })(), // свитите групи в менюто
   }),
   computed: {
     focusOn() { return this.focus && this.route.name === 'page' && !['index', 'log', 'overview'].includes(this.route.slug); },
     countBy() { return this.pages.reduce((a, p) => (p.special ? a : ((a[p.type] = (a[p.type] || 0) + 1), a)), {}); },
+    // Видовете, които ги има в wiki/: първо в реда, избран от човека, после по подразбиране, после новите по азбучен ред
+    allTypes() {
+      const rank = (t) => { const i = this.collections.menu.order.indexOf(t); if (i >= 0) return i; const j = NAV_ORDER.indexOf(t); return 1000 + (j >= 0 ? j : 100); };
+      return Object.entries(this.countBy).filter(([t]) => !!t)
+        .map(([t, n]) => ({ t, n })).sort((a, b) => rank(a.t) - rank(b.t) || a.t.localeCompare(b.t));
+    },
+    navTypes() { return this.allTypes.filter((x) => !this.collections.menu.hidden.includes(x.t)); },
+    smartCols() { return this.collections.items.filter((c) => c.kind === 'smart'); },
+    listCols() { return this.collections.items.filter((c) => c.kind === 'list'); },
+    // за прозореца на умна колекция: какво може да се избере и колко страници ще влязат
+    tagOptions() {
+      const n = new Map();
+      for (const p of this.pages) if (!p.special) for (const t of p.tags || []) n.set(t, (n.get(t) || 0) + 1);
+      return [...n].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).map(([t]) => t);
+    },
+    areaOptions() { return [...new Set(this.pages.map((p) => p.area).filter(Boolean))].sort((a, b) => a.localeCompare(b, I18N.lang)); },
+    formatOptions() { return [...new Set(this.pages.map((p) => p.format).filter(Boolean))]; },
+    colEditCount() { return this.colEdit?.kind === 'smart' ? this.pages.filter((p) => matchFilter(p, this.colEdit.filter)).length : 0; },
     paletteItems() {
       if (this.pq.trim().length >= 2) return this.hits;
       return [...this.pages].filter((p) => !p.special).sort((a, b) => String(b.updated || '').localeCompare(String(a.updated || ''))).slice(0, 8);
@@ -1806,7 +2078,62 @@ const app = createApp({
   methods: {
     setFocus(v) { this.focus = !!v; store.set('focus', v ? '1' : '0'); },
     // В архива екраните, които пишат или викат Claude, не работят: връщаме към началото
-    guardArchive() { if (window.LIB_STATIC && ['path', 'write', 'find', 'areas', 'setup', 'settings'].includes(this.route.name)) location.hash = '#/'; },
+    guardArchive() { if (window.LIB_STATIC && ['path', 'write', 'find', 'areas', 'setup', 'settings', 'collections'].includes(this.route.name)) location.hash = '#/'; },
+    // ---------- Менюто: свиване на групите ----------
+    navOpen(g) { return !this.navClosed[g]; },
+    navToggle(g) { this.navClosed = { ...this.navClosed, [g]: !this.navClosed[g] }; store.set('nav:closed', JSON.stringify(this.navClosed)); },
+    // ---------- Колекции на човека ----------
+    async loadCollections() {
+      try { const d = await (await fetch('/api/collections')).json(); if (d && Array.isArray(d.items)) this.collections = d; } catch { /* менюто остава с видовете */ }
+    },
+    colCount(c) {
+      if (c.kind === 'smart') return this.pages.filter((p) => matchFilter(p, c.filter)).length;
+      const known = new Set(this.pages.map((p) => p.slug));
+      return c.slugs.filter((s) => known.has(s)).length;
+    },
+    async colSend(url, body, method = 'POST') {
+      try {
+        const r = await (await api(url, { method, headers: { 'content-type': 'application/json' }, body: body ? JSON.stringify(body) : undefined })).json();
+        if (r.collections) this.collections = r.collections;
+        if (!r.ok) this.toast({ text: r.error || $t('I could not'), icon: 'alert' });
+        return r;
+      } catch { this.toast({ text: $t('The server is not responding'), icon: 'alert' }); return { ok: false }; }
+    },
+    // Прозорецът за нова или съществуваща колекция: spec е колекцията или { kind, slugs }
+    openColEditor(spec = {}) {
+      const kind = spec.kind === 'list' ? 'list' : 'smart';
+      const f = spec.filter || {};
+      this.colEdit = {
+        id: spec.id || null, kind, name: spec.name || '', slugs: spec.slugs ? [...spec.slugs] : [], tagInput: '', busy: false,
+        filter: { types: [...(f.types || [])], tags: [...(f.tags || [])], areas: [...(f.areas || [])], formats: [...(f.formats || [])], confidence: [...(f.confidence || [])], status: [...(f.status || [])], author: f.author || '', q: f.q || '', yearFrom: f.yearFrom || '', yearTo: f.yearTo || '' },
+      };
+      this.$nextTick(() => this.$refs.colName?.focus());
+    },
+    colToggle(field, v) { const a = this.colEdit.filter[field]; const i = a.indexOf(v); if (i >= 0) a.splice(i, 1); else a.push(v); },
+    colAddTag() { const t = this.colEdit.tagInput.trim().replace(/^#/, ''); if (t && !this.colEdit.filter.tags.includes(t)) this.colEdit.filter.tags.push(t); this.colEdit.tagInput = ''; },
+    async saveColEditor() {
+      const e = this.colEdit; if (!e || !e.name.trim()) return;
+      e.busy = true;
+      const body = { id: e.id || undefined, kind: e.kind, name: e.name };
+      if (e.kind === 'smart') body.filter = { ...e.filter, yearFrom: e.filter.yearFrom || null, yearTo: e.filter.yearTo || null };
+      else if (!e.id) body.slugs = e.slugs;
+      const r = await this.colSend('/api/collections', body);
+      e.busy = false;
+      if (!r.ok) return;
+      this.colEdit = null;
+      this.toast({ text: e.id ? $t('Saved') : $t('Collection created: “{0}”', [r.item.name]) });
+      if (!e.id && !e.slugs.length) location.hash = '#/col/' + r.item.id; // нова празна или умна колекция: отваря се веднага
+    },
+    async deleteCollection(c) {
+      if (!confirm($t('Delete the collection “{0}”? The pages themselves are not touched.', [c.name]))) return;
+      const r = await this.colSend('/api/collections/' + encodeURIComponent(c.id), null, 'DELETE');
+      if (r.ok) { this.toast({ text: $t('The collection was deleted.') }); if (this.route.name === 'custom' && this.route.id === c.id) location.hash = '#/collections'; }
+    },
+    async listChange(id, change, okText) {
+      const r = await this.colSend('/api/collections/' + encodeURIComponent(id) + '/pages', change);
+      if (r.ok && okText) this.toast({ text: okText, icon: 'bookmark' });
+    },
+    saveMenu(patch) { return this.colSend('/api/collections/menu', patch); },
     async refresh() {
       const [pages, stats] = await Promise.all([fetch('/api/pages').then((r) => r.json()), fetch('/api/stats').then((r) => r.json())]);
       this.pages = pages; this.stats = stats;
@@ -1945,7 +2272,7 @@ const app = createApp({
     });
     matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => this.theme === 'system' && this.setTheme('system'));
     this.guardArchive();
-    await Promise.all([this.refresh(), window.LIB_STATIC ? null : this.loadAgent()]);
+    await Promise.all([this.refresh(), this.loadCollections(), window.LIB_STATIC ? null : this.loadAgent()]);
     if (!window.LIB_STATIC) this.connect(); // архивът няма сървър и живи събития
   },
 });
@@ -1967,4 +2294,6 @@ app.component('ai-settings', AiSettings);
 app.component('scope-bar', ScopeBar);
 app.component('view-toggle', ViewToggle);
 app.component('archive-home', ArchiveHome);
+app.component('log-view', LogView);
+app.component('collections-view', CollectionsView);
 app.mount('#app');

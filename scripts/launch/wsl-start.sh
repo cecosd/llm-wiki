@@ -19,7 +19,9 @@ export PATH="$HOME/.local/bin:$HOME/.claude/local:$PATH"
 if [ -s "$HOME/.nvm/nvm.sh" ]; then . "$HOME/.nvm/nvm.sh" >/dev/null 2>&1; fi
 
 open_url() { ( cd /mnt/c 2>/dev/null; cmd.exe /c start "" "$1" >/dev/null 2>&1 ) || wslview "$1" >/dev/null 2>&1 || echo "Отвори ръчно: $1"; }
-alive() { curl -fs -m 2 -o /dev/null -H 'x-library: 1' "http://localhost:$PORT/api/stats"; }
+# Сървърът работи, щом отговори с какъвто и да е HTTP код. С парола /api/stats връща 401 без вход;
+# ако чакаме само 200, браузърът се отваря чак след 80 опита (около 40 секунди).
+alive() { local code; code="$(curl -s -m 2 -o /dev/null -w '%{http_code}' -H 'x-library: 1' "http://localhost:$PORT/api/stats" 2>/dev/null)"; [ -n "$code" ] && [ "$code" != "000" ]; }
 
 echo "📚 Библиотека"
 if alive; then
@@ -54,6 +56,14 @@ else
 fi
 
 echo "▶ Сървър на порт $PORT, адрес $WIKI_URL (Ctrl+C или затваряне на прозореца спира библиотеката)"
-PORT="$PORT" "${START[@]}"
+# Код 75: сървърът иска да бъде пуснат отново (след обновени пакети от „Настройки → Обновления“).
+# В изолацията това го прави самият scripts/sandbox.js; цикълът тук е за пускането без нея.
+export LIB_SUPERVISED=1
+while :; do
+  PORT="$PORT" "${START[@]}"
+  code=$?
+  [ "$code" -eq 75 ] || break
+  echo "↻ Пускам библиотеката отново с обновените пакети…"
+done
 echo "Сървърът спря."
 pause

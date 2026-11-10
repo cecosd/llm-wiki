@@ -72,6 +72,7 @@
       .field { @apply w-full min-w-0 rounded-xl border border-line bg-paper px-3 py-1.5 text-sm outline-none transition focus:border-sage-400 dark:border-night-line dark:bg-night; }
       .nav-item { @apply flex w-full items-center gap-3 rounded-xl px-3 py-2 text-sm text-ink/75 transition hover:bg-ink/5 hover:text-ink dark:text-night-ink/70 dark:hover:bg-white/5 dark:hover:text-night-ink; }
       .nav-item.active { @apply bg-panel text-ink shadow-soft dark:bg-night-panel dark:text-night-ink; }
+      .nav-group { @apply flex w-full items-center gap-2 rounded-lg px-3 pb-1.5 pt-1 text-left text-[11px] font-semibold uppercase tracking-[.14em] text-muted transition hover:text-ink dark:text-night-muted dark:hover:text-night-ink; }
 
       /* Четивен текст на wiki страниците */
       .reading { @apply font-serif text-[17.5px] leading-[1.75] text-ink/90 dark:text-night-ink/90; }
@@ -134,39 +135,73 @@
       </button>
     </div>
 
-    <nav class="scrollbar-thin mt-4 flex-1 space-y-6 overflow-y-auto px-3 pb-6">
+    <nav class="scrollbar-thin mt-4 flex-1 space-y-5 overflow-y-auto px-3 pb-6" :aria-label="$t('Menu')">
       <div class="space-y-0.5">
         <a href="#/" :class="['nav-item', route.name==='home' && 'active']" @click="drawer=false"><ic name="home" class="size-4"></ic>{{ $t('Home') }}</a>
-        <a v-if="!ro" href="#/path" :class="['nav-item', route.name==='path' && 'active']" @click="drawer=false"><ic name="route" class="size-4"></ic>{{ $t('Learn by question') }}</a>
-        <a v-if="!ro" href="#/write" :class="['nav-item', route.name==='write' && 'active']" @click="drawer=false"><ic name="pen" class="size-4"></ic>{{ $t('Write with the wiki') }}</a>
-        <a v-if="!ro" href="#/find" :class="['nav-item', route.name==='find' && 'active']" @click="drawer=false"><ic name="link" class="size-4"></ic>{{ $t('Add an article') }}</a>
-        <a v-if="!ro" href="#/areas" :class="['nav-item', route.name==='areas' && 'active']" @click="drawer=false"><ic name="grid" class="size-4"></ic>{{ $t('Areas') }}</a>
-        <a href="#/graph" :class="['nav-item', route.name==='graph' && 'active']" @click="drawer=false"><ic name="graph" class="size-4"></ic>{{ $t('Link map') }}</a>
-        <a v-if="!ro" href="#/setup" :class="['nav-item', route.name==='setup' && 'active']" @click="drawer=false"><ic name="check" class="size-4"></ic><span class="flex-1">{{ $t('Setup') }}</span><span v-if="setupLeft" class="size-2 rounded-full bg-amber-500" :title="$t('{0} required steps are left.', [setupLeft])"></span></a>
-        <a v-if="!ro" href="#/settings" :class="['nav-item', route.name==='settings' && 'active']" @click="drawer=false"><ic name="gear" class="size-4"></ic>{{ $t('Settings') }}</a>
-        <a href="#/p/index" :class="['nav-item', route.slug==='index' && 'active']" @click="drawer=false"><ic name="list" class="size-4"></ic>{{ $t('Index') }}</a>
-        <a href="#/p/log" :class="['nav-item', route.slug==='log' && 'active']" @click="drawer=false"><ic name="clock" class="size-4"></ic>{{ $t('Log') }}</a>
       </div>
 
+      <!-- Учене и писане: всичко, което работи с модела -->
+      <div v-if="!ro">
+        <button type="button" class="nav-group" :aria-expanded="navOpen('work')" @click="navToggle('work')"><span class="flex-1">{{ $t('Learn and write') }}</span><ic name="chevron" :class="['size-3 transition', navOpen('work') && 'rotate-90']"></ic></button>
+        <div v-show="navOpen('work')" class="space-y-0.5">
+          <a href="#/path" :class="['nav-item', route.name==='path' && 'active']" @click="drawer=false"><ic name="route" class="size-4"></ic>{{ $t('Learn by question') }}</a>
+          <a href="#/write" :class="['nav-item', route.name==='write' && 'active']" @click="drawer=false"><ic name="pen" class="size-4"></ic>{{ $t('Write with the wiki') }}</a>
+          <a href="#/find" :class="['nav-item', route.name==='find' && 'active']" @click="drawer=false"><ic name="link" class="size-4"></ic>{{ $t('Add an article') }}</a>
+        </div>
+      </div>
+
+      <!-- Библиотеката като цяло -->
       <div>
-        <p class="eyebrow px-3 pb-2">{{ $t('Collection') }}</p>
-        <div class="space-y-0.5">
-          <a v-for="t in typeOrder" :key="t" :href="'#/c/'+t" @click="drawer=false"
-             :class="['nav-item', route.name==='collection' && route.type===t && 'active']">
-            <span :class="['grid size-6 place-items-center rounded-lg', TYPES[t].soft]"><ic :name="TYPES[t].icon" class="size-3.5"></ic></span>
-            <span class="flex-1">{{ TYPES[t].plural }}</span>
-            <span class="text-xs tabular-nums text-muted dark:text-night-muted">{{ countBy[t] || 0 }}</span>
+        <button type="button" class="nav-group" :aria-expanded="navOpen('lib')" @click="navToggle('lib')"><span class="flex-1">{{ $t('Library') }}</span><ic name="chevron" :class="['size-3 transition', navOpen('lib') && 'rotate-90']"></ic></button>
+        <div v-show="navOpen('lib')" class="space-y-0.5">
+          <a href="#/p/index" :class="['nav-item', route.slug==='index' && 'active']" @click="drawer=false"><ic name="list" class="size-4"></ic>{{ $t('Index') }}</a>
+          <a href="#/log" :class="['nav-item', (route.name==='log' || route.slug==='log') && 'active']" @click="drawer=false"><ic name="clock" class="size-4"></ic>{{ $t('Log') }}</a>
+          <a href="#/graph" :class="['nav-item', route.name==='graph' && 'active']" @click="drawer=false"><ic name="graph" class="size-4"></ic>{{ $t('Link map') }}</a>
+          <a v-if="!ro" href="#/areas" :class="['nav-item', route.name==='areas' && 'active']" @click="drawer=false"><ic name="grid" class="size-4"></ic>{{ $t('Areas') }}</a>
+        </div>
+      </div>
+
+      <!-- Колекции: видовете от wiki/ (ред и скриване в #/collections), умните колекции и ръчните списъци -->
+      <div>
+        <div class="flex items-center">
+          <button type="button" class="nav-group flex-1" :aria-expanded="navOpen('col')" @click="navToggle('col')"><span class="flex-1">{{ $t('Collections') }}</span><ic name="chevron" :class="['size-3 transition', navOpen('col') && 'rotate-90']"></ic></button>
+          <template v-if="!ro">
+            <button type="button" class="btn-ghost !p-1 text-muted" :title="$t('New collection')" :aria-label="$t('New collection')" @click="openColEditor({ kind: 'smart' })"><ic name="plus" class="size-3.5"></ic></button>
+            <a href="#/collections" class="btn-ghost !p-1 text-muted" :title="$t('Arrange the collections')" :aria-label="$t('Arrange the collections')" @click="drawer=false"><ic name="gear" class="size-3.5"></ic></a>
+          </template>
+        </div>
+        <div v-show="navOpen('col')" class="space-y-0.5">
+          <a v-for="x in navTypes" :key="x.t" :href="'#/c/'+x.t" @click="drawer=false"
+             :class="['nav-item', route.name==='collection' && route.type===x.t && 'active']">
+            <span :class="['grid size-6 place-items-center rounded-lg', typeInfo(x.t).soft]"><ic :name="typeInfo(x.t).icon" class="size-3.5"></ic></span>
+            <span class="min-w-0 flex-1 truncate">{{ typeInfo(x.t).plural }}</span>
+            <span class="text-xs tabular-nums text-muted dark:text-night-muted">{{ x.n }}</span>
+          </a>
+          <a v-for="c in collections.items" :key="c.id" :href="'#/col/'+c.id" @click="drawer=false"
+             :class="['nav-item', route.name==='custom' && route.id===c.id && 'active']">
+            <span :class="['grid size-6 place-items-center rounded-lg', COL_STYLE[c.kind].soft]"><ic :name="COL_STYLE[c.kind].icon" class="size-3.5"></ic></span>
+            <span class="min-w-0 flex-1 truncate">{{ c.name }}</span>
+            <span class="text-xs tabular-nums text-muted dark:text-night-muted">{{ colCount(c) }}</span>
           </a>
         </div>
       </div>
 
       <div v-if="stats.tags?.length">
-        <p class="eyebrow px-3 pb-2">{{ $t('Tags') }}</p>
-        <div class="flex flex-wrap gap-1.5 px-3">
+        <button type="button" class="nav-group" :aria-expanded="navOpen('tags')" @click="navToggle('tags')"><span class="flex-1">{{ $t('Tags') }}</span><ic name="chevron" :class="['size-3 transition', navOpen('tags') && 'rotate-90']"></ic></button>
+        <div v-show="navOpen('tags')" class="flex flex-wrap gap-1.5 px-3">
           <a v-for="[t,n] in stats.tags.slice(0,16)" :key="t" :href="'#/tag/'+encodeURIComponent(t)" @click="drawer=false"
              :class="['chip border transition', route.tag===t ? 'border-sage-500 bg-sage-50 text-sage-700 dark:bg-sage-900/50 dark:text-sage-200' : 'border-line text-ink/70 hover:border-sage-200 dark:border-night-line dark:text-night-ink/70']">
             #{{ t }} <span class="text-muted">{{ n }}</span>
           </a>
+        </div>
+      </div>
+
+      <!-- Системата: инсталация и настройки -->
+      <div v-if="!ro">
+        <button type="button" class="nav-group" :aria-expanded="navOpen('sys')" @click="navToggle('sys')"><span class="flex-1">{{ $t('System') }}</span><ic name="chevron" :class="['size-3 transition', navOpen('sys') && 'rotate-90']"></ic></button>
+        <div v-show="navOpen('sys')" class="space-y-0.5">
+          <a href="#/setup" :class="['nav-item', route.name==='setup' && 'active']" @click="drawer=false"><ic name="check" class="size-4"></ic><span class="flex-1">{{ $t('Setup') }}</span><span v-if="setupLeft" class="size-2 rounded-full bg-amber-500" :title="$t('{0} required steps are left.', [setupLeft])"></span></a>
+          <a href="#/settings" :class="['nav-item', route.name==='settings' && 'active']" @click="drawer=false"><ic name="gear" class="size-4"></ic>{{ $t('Settings') }}</a>
         </div>
       </div>
     </nav>
@@ -214,11 +249,13 @@
       <archive-home v-if="route.name==='home' && ro" :stats="stats"></archive-home>
       <home-view v-else-if="route.name==='home'" :stats="stats" :pages="pages" :agent="agent" @refresh="refresh" @toast="toast"></home-view>
       <page-view v-else-if="route.name==='page'" :slug="route.slug" :pages="pages" :version="version" :focus="focusOn" @focus="setFocus" @toast="toast" @refresh="refresh"></page-view>
-      <collection-view v-else-if="route.name==='collection' || route.name==='tag'" :pages="pages" :type="route.type" :tag="route.tag" @toast="toast"></collection-view>
+      <collection-view v-else-if="route.name==='collection' || route.name==='tag' || route.name==='custom'" :pages="pages" :type="route.type" :tag="route.tag" :cid="route.id" @toast="toast"></collection-view>
+      <collections-view v-else-if="route.name==='collections'" :pages="pages"></collections-view>
+      <log-view v-else-if="route.name==='log'" :pages="pages" :version="version"></log-view>
       <graph-view v-else-if="route.name==='graph'" :version="version"></graph-view>
       <find-view v-else-if="route.name==='find'" @toast="toast" @refresh="refresh"></find-view>
       <setup-view v-else-if="route.name==='setup'" @copy="copy" @done="loadAgent"></setup-view>
-      <settings-view v-else-if="route.name==='settings'" @copy="copy"></settings-view>
+      <settings-view v-else-if="route.name==='settings'" :section="route.section" @copy="copy"></settings-view>
       <areas-view v-else-if="route.name==='areas'" :pages="pages" @toast="toast" @refresh="refresh"></areas-view>
       <write-view v-else-if="route.name==='write'" :id="route.id" :pages="pages" @toast="toast"></write-view>
       <path-view v-else-if="route.name==='path'" :q="route.q" :mode="route.mode" :pages="pages" @toast="toast"></path-view>
@@ -284,6 +321,100 @@
       </div>
     </div>
   </transition>
+
+  <!-- Нова или съществуваща колекция: умна (по филтър) или ръчен списък -->
+  <div v-if="colEdit" class="fixed inset-0 z-[58] flex items-center justify-center bg-ink/30 p-4 backdrop-blur-sm" @keydown.esc="colEdit=null" @mousedown.self="colEdit=null">
+    <form class="card flex max-h-[92vh] w-full max-w-xl animate-rise flex-col !shadow-lift" role="dialog" aria-modal="true" aria-labelledby="col-title" @submit.prevent="saveColEditor">
+      <div class="scrollbar-thin overflow-y-auto p-6">
+        <p class="eyebrow">{{ $t('Collection') }}</p>
+        <h2 id="col-title" class="mt-1 font-serif text-2xl font-semibold">{{ colEdit.id ? $t('Edit the collection') : $t('New collection') }}</h2>
+
+        <div v-if="!colEdit.id" class="mt-4 grid grid-cols-2 gap-2" role="radiogroup" :aria-label="$t('Kind of collection')">
+          <label v-for="k in ['smart','list']" :key="k" :class="['flex cursor-pointer items-start gap-2 rounded-2xl border p-3 text-sm', colEdit.kind===k ? 'border-sage-500 bg-sage-50 dark:bg-sage-900/30' : 'border-line dark:border-night-line']">
+            <input type="radio" class="mt-1 accent-sage-600" :value="k" v-model="colEdit.kind">
+            <span><span class="block font-medium">{{ k==='smart' ? $t('Smart collection') : $t('List') }}</span>
+              <span class="block text-xs text-muted dark:text-night-muted">{{ k==='smart' ? $t('Fills itself with the pages that match the conditions.') : $t('You add pages by hand and choose their order.') }}</span></span>
+          </label>
+        </div>
+
+        <label class="mt-4 block text-sm font-medium" for="col-name">{{ $t('Name') }}</label>
+        <input id="col-name" ref="colName" v-model="colEdit.name" maxlength="80" class="field mt-1 !py-2" :placeholder="colEdit.kind==='list' ? $t('For example: For my thesis') : $t('For example: Books on psychosomatics')">
+
+        <template v-if="colEdit.kind==='smart'">
+          <p class="mt-5 text-xs text-muted dark:text-night-muted">{{ $t('A page enters when it meets every filled-in condition; within one condition any of the chosen values is enough. Empty conditions do not limit.') }}</p>
+
+          <p class="mt-4 text-sm font-medium">{{ $t('Kinds of pages') }}</p>
+          <div class="mt-1.5 flex flex-wrap gap-1.5">
+            <button v-for="x in allTypes" :key="x.t" type="button" @click="colToggle('types', x.t)" :aria-pressed="colEdit.filter.types.includes(x.t)"
+                    :class="['chip border px-3 py-1 transition', colEdit.filter.types.includes(x.t) ? 'border-sage-500 bg-sage-50 text-sage-700 dark:bg-sage-900/40 dark:text-sage-200' : 'border-line text-ink/70 dark:border-night-line dark:text-night-ink/70']">{{ typeInfo(x.t).plural }}</button>
+          </div>
+
+          <p class="mt-4 text-sm font-medium">{{ $t('Tags') }}</p>
+          <div class="mt-1.5 flex flex-wrap items-center gap-1.5">
+            <button v-for="t in colEdit.filter.tags" :key="t" type="button" class="chip border border-sage-500 bg-sage-50 px-3 py-1 text-sage-700 dark:bg-sage-900/40 dark:text-sage-200" :title="$t('Remove')" @click="colToggle('tags', t)">#{{ t }} <ic name="x" class="size-3"></ic></button>
+            <input v-model="colEdit.tagInput" list="col-tags" class="field !w-44" :placeholder="$t('+ tag')" @keydown.enter.prevent="colAddTag" @change="colAddTag">
+            <datalist id="col-tags"><option v-for="t in tagOptions" :key="t" :value="t"></option></datalist>
+          </div>
+
+          <template v-if="areaOptions.length">
+            <p class="mt-4 text-sm font-medium">{{ $t('Areas') }}</p>
+            <div class="mt-1.5 flex flex-wrap gap-1.5">
+              <button v-for="a in areaOptions" :key="a" type="button" @click="colToggle('areas', a)" :aria-pressed="colEdit.filter.areas.includes(a)"
+                      :class="['chip border px-3 py-1 transition', colEdit.filter.areas.includes(a) ? 'border-sage-500 bg-sage-50 text-sage-700 dark:bg-sage-900/40 dark:text-sage-200' : 'border-line text-ink/70 dark:border-night-line dark:text-night-ink/70']">{{ a }}</button>
+            </div>
+          </template>
+
+          <div class="mt-4 grid gap-4 sm:grid-cols-2">
+            <div v-if="formatOptions.length">
+              <p class="text-sm font-medium">{{ $t('Format of the source') }}</p>
+              <div class="mt-1.5 flex flex-wrap gap-1.5">
+                <button v-for="f in formatOptions" :key="f" type="button" @click="colToggle('formats', f)" :aria-pressed="colEdit.filter.formats.includes(f)"
+                        :class="['chip border px-3 py-1 transition', colEdit.filter.formats.includes(f) ? 'border-sage-500 bg-sage-50 text-sage-700 dark:bg-sage-900/40 dark:text-sage-200' : 'border-line text-ink/70 dark:border-night-line dark:text-night-ink/70']">{{ FORMATS[f] || f }}</button>
+              </div>
+            </div>
+            <div>
+              <p class="text-sm font-medium">{{ $t('Confidence') }}</p>
+              <div class="mt-1.5 flex flex-wrap gap-1.5">
+                <button v-for="(c, k) in CONF" :key="k" type="button" @click="colToggle('confidence', k)" :aria-pressed="colEdit.filter.confidence.includes(k)"
+                        :class="['chip border px-3 py-1 transition', colEdit.filter.confidence.includes(k) ? 'border-sage-500 bg-sage-50 text-sage-700 dark:bg-sage-900/40 dark:text-sage-200' : 'border-line text-ink/70 dark:border-night-line dark:text-night-ink/70']">{{ c.label }}</button>
+              </div>
+            </div>
+            <div>
+              <p class="text-sm font-medium">{{ $t('Reading status') }}</p>
+              <div class="mt-1.5 flex flex-wrap gap-1.5">
+                <button v-for="(label, k) in STATUS" :key="k" type="button" @click="colToggle('status', k)" :aria-pressed="colEdit.filter.status.includes(k)"
+                        :class="['chip border px-3 py-1 transition', colEdit.filter.status.includes(k) ? 'border-sage-500 bg-sage-50 text-sage-700 dark:bg-sage-900/40 dark:text-sage-200' : 'border-line text-ink/70 dark:border-night-line dark:text-night-ink/70']">{{ label }}</button>
+              </div>
+            </div>
+            <div>
+              <label class="text-sm font-medium" for="col-author">{{ $t('Author') }}</label>
+              <input id="col-author" v-model="colEdit.filter.author" maxlength="80" class="field mt-1.5" :placeholder="$t('part of the name')">
+            </div>
+            <div>
+              <p class="text-sm font-medium">{{ $t('Year') }}</p>
+              <div class="mt-1.5 flex items-center gap-2">
+                <input v-model.number="colEdit.filter.yearFrom" type="number" min="1" max="2999" class="field" :placeholder="$t('from')" :aria-label="$t('Year from')">
+                <span class="text-muted">–</span>
+                <input v-model.number="colEdit.filter.yearTo" type="number" min="1" max="2999" class="field" :placeholder="$t('to')" :aria-label="$t('Year to')">
+              </div>
+            </div>
+            <div>
+              <label class="text-sm font-medium" for="col-q">{{ $t('Word in the title') }}</label>
+              <input id="col-q" v-model="colEdit.filter.q" maxlength="80" class="field mt-1.5">
+            </div>
+          </div>
+          <p class="mt-5 rounded-xl bg-sage-50 px-3 py-2 text-sm text-sage-800 dark:bg-sage-900/40 dark:text-sage-200">{{ $t('Right now {0} {1} match.', [colEditCount, plural(colEditCount, $t('page'), $t('pages'))]) }}</p>
+        </template>
+        <p v-else class="mt-4 text-sm text-muted dark:text-night-muted">
+          {{ colEdit.slugs.length ? $t('The list starts with the page you are on. You add more with the “List” button at the top of every page.') : $t('You add pages with the “List” button at the top of every page, and arrange them in the list itself.') }}
+        </p>
+      </div>
+      <div class="flex justify-end gap-2 border-t border-line px-6 py-4 dark:border-night-line">
+        <button type="button" class="btn-ghost" @click="colEdit=null">{{ $t('Cancel') }}</button>
+        <button type="submit" class="btn-primary" :disabled="colEdit.busy || !colEdit.name.trim()">{{ colEdit.id ? $t('Save') : $t('Create') }}</button>
+      </div>
+    </form>
+  </div>
 
   <!-- Ръчен режим: заявка, която чака отговор от чата в браузъра -->
   <div v-if="!ro && manual.length && !manualHidden" class="fixed inset-0 z-[55] flex items-center justify-center bg-ink/30 p-4 backdrop-blur-sm">
@@ -713,7 +844,10 @@
 
     <div class="space-y-6">
       <section class="card p-6">
-        <p class="font-semibold">{{ $t('Latest activity') }}</p>
+        <div class="flex items-center justify-between gap-3">
+          <p class="font-semibold">{{ $t('Latest activity') }}</p>
+          <a href="#/log" class="text-xs font-medium text-sage-700 hover:underline dark:text-sage-200">{{ $t('The whole log →') }}</a>
+        </div>
         <ol class="relative mt-4 space-y-4 border-l border-line pl-5 dark:border-night-line">
           <li v-for="e in stats.log" :key="e.date+e.title" class="relative">
             <span :class="['absolute -left-[25px] top-1 size-2.5 rounded-full ring-4 ring-panel dark:ring-night-panel', logColor(e.kind)]"></span>
@@ -786,6 +920,20 @@
       </span>
       <span v-if="page.updated" class="chip text-muted dark:text-night-muted"><ic name="clock" class="size-3"></ic>{{ relDate(page.updated) }}</span>
       <a v-for="t in page.tags" :key="t" :href="'#/tag/'+encodeURIComponent(t)" class="chip border border-line text-ink/70 hover:border-sage-200 dark:border-night-line dark:text-night-ink/70">#{{ t }}</a>
+      <!-- ръчните списъци: страницата влиза или излиза; нов списък започва с нея -->
+      <span v-if="canAsk" class="relative">
+        <button type="button" :class="['chip border transition', inLists ? 'border-teal-400 bg-teal-50 text-teal-700 dark:bg-teal-500/15 dark:text-teal-300' : 'border-dashed border-line text-muted hover:border-sage-300 hover:text-ink dark:border-night-line dark:text-night-muted']"
+                :aria-expanded="listMenu" :title="$t('Add the page to a list of yours')" @click="listMenu=!listMenu">
+          <ic name="bookmark" class="size-3"></ic>{{ inLists ? $t('In {0} {1}', [inLists, plural(inLists, $t('list'), $t('lists'))]) : $t('List') }}
+        </button>
+        <div v-if="listMenu" class="card absolute left-0 top-full z-30 mt-2 w-64 p-2 !shadow-lift" @keydown.esc="listMenu=false">
+          <p v-if="!myLists.length" class="px-2 py-1.5 text-xs text-muted dark:text-night-muted">{{ $t('You have no lists yet.') }}</p>
+          <label v-for="c in myLists" :key="c.id" class="flex cursor-pointer items-center gap-2 rounded-xl px-2 py-1.5 text-sm hover:bg-ink/5 dark:hover:bg-white/5">
+            <input type="checkbox" class="accent-teal-600" :checked="c.has" @change="toggleList(c)"><span class="min-w-0 flex-1 truncate">{{ c.name }}</span>
+          </label>
+          <button type="button" class="mt-1 flex w-full items-center gap-2 rounded-xl px-2 py-1.5 text-left text-sm text-sage-700 hover:bg-sage-50 dark:text-sage-200 dark:hover:bg-sage-900/40" @click="newListWithPage"><ic name="plus" class="size-4"></ic>{{ $t('New list with this page') }}</button>
+        </div>
+      </span>
     </div>
 
     <!-- Глава: навигация в книгата -->
@@ -1136,13 +1284,18 @@
 <script type="text/x-template" id="tpl-collection">
 <div class="mx-auto max-w-6xl px-5 py-8 sm:px-8 lg:py-12">
   <div class="flex flex-wrap items-end justify-between gap-4 animate-rise">
-    <div>
-      <p class="eyebrow">{{ tag ? $t('Tag') : $t('Collection') }}</p>
+    <div class="min-w-0">
+      <p class="eyebrow">{{ custom ? (isList ? $t('List') : $t('Smart collection')) : tag ? $t('Tag') : $t('Collection') }}</p>
       <h1 class="mt-2 flex items-center gap-3 font-serif text-4xl font-semibold tracking-tight">
-        <span v-if="!tag" :class="['grid size-11 place-items-center rounded-2xl', T.soft]"><ic :name="T.icon" class="size-5"></ic></span>
-        {{ tag ? '#' + tag : T.plural }}
+        <span v-if="!tag" :class="['grid size-11 shrink-0 place-items-center rounded-2xl', T.soft]"><ic :name="T.icon" class="size-5"></ic></span>
+        <span class="min-w-0 break-words">{{ heading }}</span>
       </h1>
-      <p v-if="!tag" class="mt-2 text-muted dark:text-night-muted">{{ T.desc }}</p>
+      <p v-if="subtitle" class="mt-2 text-muted dark:text-night-muted">{{ subtitle }}</p>
+      <div v-if="custom && !ro" class="mt-3 flex flex-wrap gap-2">
+        <button class="btn-soft !py-1.5 text-sm" @click="editCustom"><ic name="pen" class="size-4"></ic>{{ isList ? $t('Rename') : $t('Change the conditions') }}</button>
+        <button class="btn-ghost !py-1.5 text-sm text-clay-500" @click="removeCustom"><ic name="trash" class="size-4"></ic>{{ $t('Delete the collection') }}</button>
+      </div>
+      <p v-else-if="cid && !custom" class="mt-2 text-muted dark:text-night-muted">{{ $t('There is no such collection. It may have been deleted.') }} <a href="#/collections" class="underline">{{ $t('All collections') }}</a></p>
     </div>
     <div class="flex w-full items-center gap-2 sm:w-auto">
       <div class="relative min-w-0 flex-1 sm:flex-none">
@@ -1150,6 +1303,7 @@
         <input v-model="filter" :placeholder="$t('Filter…')" class="w-full rounded-full sm:w-56 border border-line bg-panel py-2 pl-9 pr-4 text-sm outline-none transition focus:border-sage-400 dark:border-night-line dark:bg-night-panel">
       </div>
       <select v-model="sort" class="rounded-full border border-line bg-panel px-4 py-2 text-sm outline-none dark:border-night-line dark:bg-night-panel">
+        <option v-if="isList" value="manual">{{ $t('Order in the list') }}</option>
         <option value="title">{{ surnameSort ? $t('Alphabetical (surname)') : $t('Alphabetical') }}</option>
         <option value="updated">{{ $t('Newest') }}</option>
         <option value="links">{{ $t('Most connected') }}</option>
@@ -1158,7 +1312,17 @@
     </div>
   </div>
 
-  <div v-if="type==='source' && formats.length > 1" class="mt-6 flex flex-wrap gap-2">
+  <!-- списък: страници, които вече ги няма (обединени или премахнати) -->
+  <div v-if="missing.length" class="card mt-6 p-4 text-sm">
+    <p class="font-medium">{{ $t('Missing from this list: {0} {1} (merged or removed).', [missing.length, plural(missing.length, $t('page'), $t('pages'))]) }}</p>
+    <ul class="mt-2 flex flex-wrap gap-1.5">
+      <li v-for="s in missing" :key="s" class="chip border border-line dark:border-night-line"><span class="font-mono">{{ s }}</span>
+        <button v-if="!ro" class="ml-1 text-muted hover:text-clay-500" :title="$t('Remove from the list')" :aria-label="$t('Remove from the list')" @click="dropFromList(s)"><ic name="x" class="size-3"></ic></button></li>
+    </ul>
+  </div>
+  <p v-if="isList && editable && view==='cards' && list.length > 1" class="mt-4 text-xs text-muted dark:text-night-muted">{{ $t('To change the order or remove pages, switch to the list view.') }}</p>
+
+  <div v-if="type==='source' && !cid && formats.length > 1" class="mt-6 flex flex-wrap gap-2">
     <button v-for="f in ['all', ...formats]" :key="f" @click="fmt=f"
             :class="['chip border px-3 py-1 transition', fmt===f ? 'border-sage-500 bg-sage-50 text-sage-700 dark:bg-sage-900/40 dark:text-sage-200' : 'border-line text-ink/70 hover:border-sage-200 dark:border-night-line dark:text-night-ink/70']">
       {{ f==='all' ? $t('All') : (FORMATS[f] || f) }}
@@ -1274,8 +1438,8 @@
       </div>
       <div v-else class="card overflow-hidden">
         <ul class="divide-y divide-line dark:divide-night-line">
-          <li v-for="p in g.items" :key="p.slug">
-            <a :href="'#/p/'+p.slug" class="group flex items-center gap-3 px-4 py-2.5 transition hover:bg-ink/[.03] dark:hover:bg-white/5">
+          <li v-for="(p, pi) in g.items" :key="p.slug" class="flex items-center">
+            <a :href="'#/p/'+p.slug" class="group flex min-w-0 flex-1 items-center gap-3 px-4 py-2.5 transition hover:bg-ink/[.03] dark:hover:bg-white/5">
               <span :class="['grid size-7 shrink-0 place-items-center rounded-lg', (TYPES[p.type]||TYPES.other).soft]"><ic :name="p.type==='source' && FORMAT_ICON[p.format] ? FORMAT_ICON[p.format] : (TYPES[p.type]||TYPES.other).icon" class="size-3.5"></ic></span>
               <span class="min-w-0 flex-1">
                 <span class="block truncate font-medium transition group-hover:text-sage-700 dark:group-hover:text-sage-200">{{ p.title }}</span>
@@ -1289,6 +1453,11 @@
               <span v-if="p.backlinks" class="flex w-10 shrink-0 items-center justify-end gap-1 text-xs tabular-nums text-muted dark:text-night-muted"><ic name="link" class="size-3"></ic>{{ p.backlinks }}</span>
               <span v-if="p.updated" class="hidden w-24 shrink-0 text-right text-xs text-muted dark:text-night-muted lg:block">{{ relDate(p.updated) }}</span>
             </a>
+            <span v-if="editable" class="flex shrink-0 items-center pr-2">
+              <button class="btn-ghost !p-1.5" :disabled="pi===0" :title="$t('Move up')" :aria-label="$t('Move up')" @click="moveInList(p.slug,-1)"><ic name="arrowUp" class="size-3.5"></ic></button>
+              <button class="btn-ghost !p-1.5" :disabled="pi===g.items.length-1" :title="$t('Move down')" :aria-label="$t('Move down')" @click="moveInList(p.slug,1)"><ic name="arrowDown" class="size-3.5"></ic></button>
+              <button class="btn-ghost !p-1.5 text-muted hover:text-clay-500" :title="$t('Remove from the list')" :aria-label="$t('Remove from the list')" @click="dropFromList(p.slug)"><ic name="x" class="size-3.5"></ic></button>
+            </span>
           </li>
         </ul>
       </div>
@@ -1297,8 +1466,9 @@
   <div v-else class="card mt-8 flex flex-col items-center px-6 py-16 text-center">
     <span :class="['grid size-14 place-items-center rounded-3xl', T.soft]"><ic :name="T.icon" class="size-6"></ic></span>
     <p class="mt-5 font-serif text-xl font-semibold">{{ filter ? $t('Nothing matches the filter') : $t('Nothing here yet') }}</p>
-    <p class="mt-2 max-w-md text-sm text-muted dark:text-night-muted">{{ filter ? $t('Try another word.') : $t('Pages of this kind appear when {ai} processes sources. Upload files from the home page.') }}</p>
-    <a v-if="!filter" href="#/" class="btn-soft mt-6"><ic name="upload" class="size-4"></ic>{{ $t('Go to uploading') }}</a>
+    <p class="mt-2 max-w-md text-sm text-muted dark:text-night-muted">{{ filter ? $t('Try another word.') : isList ? $t('Add pages with the “List” button at the top of every page.') : custom ? $t('No page matches the conditions of this collection right now. It fills itself when such pages appear.') : $t('Pages of this kind appear when {ai} processes sources. Upload files from the home page.') }}</p>
+    <a v-if="!filter && !cid" href="#/" class="btn-soft mt-6"><ic name="upload" class="size-4"></ic>{{ $t('Go to uploading') }}</a>
+    <button v-else-if="!filter && custom && !isList && !ro" class="btn-soft mt-6" @click="editCustom"><ic name="filter" class="size-4"></ic>{{ $t('Change the conditions') }}</button>
   </div>
 </div>
 </script>
@@ -1767,18 +1937,27 @@
 </script>
 
 <script type="text/x-template" id="tpl-settings">
-<div class="mx-auto max-w-3xl px-5 py-8 sm:px-8 lg:py-12">
+<div class="mx-auto max-w-6xl px-5 py-8 sm:px-8 lg:py-12">
   <p class="eyebrow">{{ $t('Settings') }}</p>
-  <h1 class="mt-1 font-serif text-3xl font-semibold">{{ $t('Model, updates, data and tests') }}</h1>
+  <h1 class="mt-1 font-serif text-3xl font-semibold">{{ current.label }}</h1>
   <p class="mt-2 max-w-2xl text-sm text-muted dark:text-night-muted">{{ $t('Nothing here leaves your computer until you press a button, and nothing is installed by itself. You see the result and decide.') }}</p>
 
-  <!-- Модел: доставчик, ключ, модели, име и надписи -->
-  <ai-settings v-if="!ro"></ai-settings>
+  <div class="mt-6 lg:grid lg:grid-cols-[13rem_minmax(0,1fr)] lg:items-start lg:gap-10">
+    <!-- Подменю: на телефон е ред с превъртане, на голям екран колона вляво -->
+    <nav class="scrollbar-thin -mx-1 flex gap-1 overflow-x-auto px-1 pb-2 lg:sticky lg:top-6 lg:mx-0 lg:flex-col lg:overflow-visible lg:px-0 lg:pb-0" :aria-label="$t('Sections of the settings')">
+      <a v-for="s in SETTINGS_SECTIONS" :key="s.id" :href="'#/settings/'+s.id" :aria-current="section===s.id ? 'page' : null"
+         :class="['nav-item shrink-0 !w-auto whitespace-nowrap lg:!w-full', section===s.id && 'active']"><ic :name="s.icon" class="size-4"></ic>{{ s.label }}</a>
+      <a href="/product/" target="_blank" rel="noopener" class="nav-item shrink-0 !w-auto whitespace-nowrap lg:!w-full lg:mt-3"><ic name="external" class="size-4"></ic>{{ $t('About the product') }}</a>
+    </nav>
 
-  <p v-if="!info" class="mt-8 text-sm text-muted">{{ $t('Loading…') }}</p>
+    <div class="mt-2 min-w-0 max-w-3xl lg:mt-0 lg:[&>:first-child]:!mt-0">
+  <!-- Модел: доставчик, ключ, модели, име и надписи -->
+  <ai-settings v-if="section==='model' && !ro"></ai-settings>
+
+  <p v-else-if="!info" class="mt-8 text-sm text-muted">{{ $t('Loading…') }}</p>
   <template v-else>
     <!-- Архив за четене -->
-    <section v-if="!ro" class="card mt-6 p-5">
+    <section v-if="section==='archive' && !ro" class="card mt-6 p-5">
       <h2 class="font-serif text-xl font-semibold">{{ $t('Archive for reading') }}</h2>
       <p class="mt-1 text-sm text-muted dark:text-night-muted">{{ $t('A copy of the library in one ZIP file, for reading on another computer. It has the pages with their links and tags, and the markdown files. The original files from raw/ are not included, and the copy cannot be changed by {ai}.') }}</p>
       <button class="btn-primary mt-4 !py-1.5 text-sm" :disabled="archive.busy" @click="makeArchive"><ic :name="archive.busy ? 'spinner' : 'upload'" :class="['size-4', archive.busy && 'animate-spin']"></ic>{{ archive.busy ? $t('Making the archive…') : $t('Make the archive') }}</button>
@@ -1800,6 +1979,7 @@
       <p class="mt-2 text-xs text-muted dark:text-night-muted">{{ $t('To open it: unzip the file and open index.html in any browser. It works without internet and without {ai}.') }}</p>
     </section>
 
+    <template v-if="section==='updates'">
     <!-- Версия -->
     <section class="card mt-6 p-5">
       <h2 class="font-serif text-xl font-semibold">{{ $t('Version of the code') }}</h2>
@@ -1833,26 +2013,56 @@
       <button class="btn-primary mt-4 !py-1.5 text-sm" :disabled="busy.packages" @click="checkPackages"><ic :name="busy.packages ? 'spinner' : 'terminal'" :class="['size-4', busy.packages && 'animate-spin']"></ic>{{ $t('Check the packages') }}</button>
       <p class="mt-1 text-xs text-muted dark:text-night-muted">{{ $t('Runs npm outdated and npm audit. npm sends the list of packages to its registry, not your library.') }}</p>
 
+      <!-- Резултат от обновяването: рестарт, готово или грешка -->
+      <div v-if="upd.restarting" class="mt-4 flex items-center gap-3 rounded-xl bg-sage-50 px-4 py-3 text-sm text-sage-800 dark:bg-sage-900/40 dark:text-sage-200" role="status">
+        <ic name="spinner" class="size-4 shrink-0 animate-spin"></ic>
+        <span>{{ $t('Updated: {0}. The library is restarting with the new versions; the page reloads by itself.', [upd.result.changed.map((c) => c.name + ' ' + c.to).join(', ') || $t('nested packages')]) }}</span>
+      </div>
+      <p v-else-if="upd.error" class="mt-4 rounded-xl bg-clay-100/60 px-4 py-3 text-sm text-clay-500 dark:bg-clay-500/10" role="alert">{{ upd.error }}</p>
+      <div v-else-if="upd.result" class="mt-4 rounded-xl bg-sage-50 px-4 py-3 text-sm text-sage-800 dark:bg-sage-900/40 dark:text-sage-200" role="status">
+        <p v-if="!upd.result.changed.length && !upd.result.lockChanged">{{ $t('npm found nothing to update within package.json.') }}</p>
+        <template v-else>
+          <p>{{ $t('Updated: {0}.', [upd.result.changed.map((c) => c.name + ' ' + (c.from || '–') + ' → ' + c.to).join(', ') || $t('nested packages')]) }}</p>
+          <p v-if="!upd.result.supervised" class="mt-1 font-medium">{{ $t('Stop the library (Ctrl+C in its window) and start it again so that the new versions load.') }}</p>
+        </template>
+      </div>
+
       <div v-if="packages" class="mt-4 space-y-4 text-sm">
         <div>
           <h3 class="font-medium">{{ $t('New versions') }}</h3>
           <p v-if="!packages.outdated.ok" class="mt-1 text-clay-500">{{ packages.outdated.error }}</p>
           <p v-else-if="!packages.outdated.items.length" class="mt-1 text-sage-700 dark:text-sage-200">{{ $t('All packages are up to date.') }}</p>
-          <div v-else class="mt-2 overflow-x-auto">
-            <table class="w-full text-left text-xs">
-              <thead class="text-muted dark:text-night-muted"><tr><th class="py-1 pr-3 font-medium">{{ $t('Package') }}</th><th class="py-1 pr-3 font-medium">{{ $t('Installed') }}</th><th class="py-1 pr-3 font-medium">{{ $t('Safe update') }}</th><th class="py-1 font-medium">{{ $t('Latest') }}</th></tr></thead>
-              <tbody>
-                <tr v-for="p in packages.outdated.items" :key="p.name" class="border-t border-line/70 dark:border-night-line">
-                  <td class="py-1.5 pr-3 font-mono">{{ p.name }}</td><td class="py-1.5 pr-3">{{ p.current || '–' }}</td><td class="py-1.5 pr-3">{{ p.wanted }}</td>
-                  <td class="py-1.5">{{ p.latest }} <span v-if="p.major" class="ml-1 text-clay-500">{{ $t('major change, test first') }}</span></td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-          <div v-if="packages.outdated.ok && packages.outdated.items.length" class="mt-2 flex items-center gap-2 rounded-xl bg-ink/[.05] px-3 py-2 dark:bg-white/5">
-            <code class="min-w-0 flex-1 break-all text-xs">npm update &amp;&amp; npm test</code>
-            <button class="btn-ghost !p-1.5" :title="$t('Copy')" :aria-label="$t('Copy')" @click="$emit('copy', 'npm update && npm test')"><ic name="copy" class="size-4"></ic></button>
-          </div>
+          <template v-else>
+            <div class="mt-2 overflow-x-auto">
+              <table class="w-full text-left text-xs">
+                <thead class="text-muted dark:text-night-muted"><tr><th class="py-1 pr-3 font-medium">{{ $t('Package') }}</th><th class="py-1 pr-3 font-medium">{{ $t('Installed') }}</th><th class="py-1 pr-3 font-medium">{{ $t('Safe update') }}</th><th class="py-1 pr-3 font-medium">{{ $t('Latest') }}</th><th class="py-1"><span class="sr-only">{{ $t('Update') }}</span></th></tr></thead>
+                <tbody>
+                  <tr v-for="p in packages.outdated.items" :key="p.name" class="border-t border-line/70 dark:border-night-line">
+                    <td class="py-1.5 pr-3 font-mono">{{ p.name }}</td><td class="py-1.5 pr-3">{{ p.current || '–' }}</td><td class="py-1.5 pr-3">{{ p.wanted }}</td>
+                    <td class="py-1.5 pr-3">{{ p.latest }} <span v-if="p.major" class="ml-1 text-clay-500">{{ $t('major change, test first') }}</span></td>
+                    <td class="py-1.5 text-right">
+                      <button v-if="safeUpdates.includes(p)" class="btn-soft !px-3 !py-1 text-xs" :disabled="!!upd.busy || upd.restarting" @click="applyUpdate(p.name)">
+                        <ic v-if="upd.busy===p.name" name="spinner" class="size-3.5 animate-spin"></ic>{{ $t('Update to {0}', [p.wanted]) }}
+                      </button>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <div v-if="safeUpdates.length" class="mt-3 flex flex-wrap items-center gap-3">
+              <button class="btn-primary !py-1.5 text-sm" :disabled="!!upd.busy || upd.restarting" @click="applyUpdate()">
+                <ic :name="upd.busy==='*' ? 'spinner' : 'refresh'" :class="['size-4', upd.busy==='*' && 'animate-spin']"></ic>{{ upd.busy ? $t('Updating…') : $t('Update all safe ones ({0})', [safeUpdates.length]) }}
+              </button>
+              <span class="text-xs text-muted dark:text-night-muted">{{ info.isolated ? $t('In the isolation the launcher outside it runs npm update; if the library does not start with the new versions, the previous ones come back by themselves.') : $t('Runs npm update without the install scripts of the packages.') }}</span>
+            </div>
+            <div v-if="majorOnly.length" class="mt-3 rounded-xl bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:bg-amber-500/10 dark:text-amber-200">
+              <p>{{ $t('Major versions are not installed from here: they may need another version of Node.js or break the code. If you still want one, run this in the project folder and then the tests:') }}</p>
+              <div v-for="p in majorOnly" :key="p.name" class="mt-1.5 flex items-center gap-2 rounded-lg bg-white/60 px-2 py-1 dark:bg-white/5">
+                <code class="min-w-0 flex-1 break-all">npm install {{ p.name }}@{{ p.latest }} &amp;&amp; npm test</code>
+                <button class="btn-ghost !p-1" :title="$t('Copy')" :aria-label="$t('Copy')" @click="$emit('copy', 'npm install ' + p.name + '@' + p.latest + ' && npm test')"><ic name="copy" class="size-3.5"></ic></button>
+              </div>
+            </div>
+          </template>
         </div>
         <div>
           <h3 class="font-medium">{{ $t('Known vulnerabilities') }}</h3>
@@ -1868,7 +2078,10 @@
       </div>
     </section>
 
+    </template>
+
     <!-- Данни: друг доставчик, локален модел или ръчен режим -->
+    <template v-if="section==='data'">
     <section v-if="!AI.claude" class="card mt-5 p-5">
       <h2 class="font-serif text-xl font-semibold">{{ $t('Your data and {ai}') }}</h2>
       <div :class="['mt-3 rounded-xl px-4 py-3 text-sm', ['local','commercial'].includes(info.account.terms) ? 'bg-sage-50 text-sage-700 dark:bg-sage-900/40 dark:text-sage-200' : 'bg-amber-50 text-amber-800 dark:bg-amber-500/10 dark:text-amber-300']">
@@ -1894,9 +2107,10 @@
       </ol>
       <a href="/product/#data" target="_blank" rel="noopener" class="mt-3 inline-block text-sm underline">{{ $t('Full explanation with sources') }}</a>
     </section>
+    </template>
 
     <!-- Парола -->
-    <section class="card mt-6 p-5">
+    <section v-if="section==='password'" class="card mt-6 p-5">
       <h2 class="font-serif text-xl font-semibold">{{ $t('Password for this interface') }}</h2>
       <p class="mt-1 text-sm text-muted dark:text-night-muted">{{ $t('Off by default. It stops other people and programs on this computer from opening the library through the browser. It does not encrypt the files.') }}</p>
       <p class="mt-3 text-sm font-medium">{{ info.auth ? $t('The password is on.') : $t('The password is off.') }}</p>
@@ -1914,7 +2128,7 @@
     </section>
 
     <!-- Тестове -->
-    <section class="card mt-5 p-5">
+    <section v-if="section==='tests'" class="card mt-5 p-5">
       <h2 class="font-serif text-xl font-semibold">{{ $t('What works and what does not') }}</h2>
       <p class="mt-1 text-sm text-muted dark:text-night-muted">{{ $t('The tests run in a temporary copy with a simulated Claude. They do not touch your library and cost nothing.') }}</p>
       <button class="btn-primary mt-4 !py-1.5 text-sm" :disabled="busy.tests" @click="runTests"><ic :name="busy.tests ? 'spinner' : 'play'" :class="['size-4', busy.tests && 'animate-spin']"></ic>{{ busy.tests ? $t('The tests are running, about a minute…') : $t('Run the tests on this computer') }}</button>
@@ -1946,8 +2160,105 @@
       </div>
     </section>
 
-    <p class="mt-6 text-sm"><a href="/product/" target="_blank" rel="noopener" class="underline">{{ $t('About the product') }}</a></p>
   </template>
+    </div>
+  </div>
+</div>
+</script>
+
+<!-- ============================ ДНЕВНИК ============================ -->
+<script type="text/x-template" id="tpl-log">
+<div class="mx-auto max-w-4xl px-5 py-8 sm:px-8 lg:py-12">
+  <p class="eyebrow">{{ $t('Library') }}</p>
+  <h1 class="mt-1 flex items-center gap-3 font-serif text-4xl font-semibold tracking-tight">
+    <span class="grid size-11 place-items-center rounded-2xl bg-violet-50 text-violet-600 dark:bg-violet-500/15 dark:text-violet-300"><ic name="clock" class="size-5"></ic></span>{{ $t('Log') }}
+  </h1>
+  <p class="mt-2 max-w-2xl text-muted dark:text-night-muted">{{ $t('Every processing and every change to the pages, the newest at the top. It is the file wiki/log.md, which only grows at the end.') }}
+    <a href="#/p/log" class="whitespace-nowrap text-sm underline">{{ $t('Open the file as a page') }}</a></p>
+
+  <div class="mt-6 flex flex-wrap items-center gap-2">
+    <button type="button" :aria-pressed="!kind" @click="kind=''"
+            :class="['chip border px-3 py-1 transition', !kind ? 'border-sage-500 bg-sage-50 text-sage-700 dark:bg-sage-900/40 dark:text-sage-200' : 'border-line text-ink/70 hover:border-sage-200 dark:border-night-line dark:text-night-ink/70']">{{ $t('All') }} <span class="text-muted">{{ entries ? entries.length : '' }}</span></button>
+    <button v-for="k in kinds" :key="k.k" type="button" :aria-pressed="kind===k.k" @click="kind = kind===k.k ? '' : k.k"
+            :class="['chip border px-3 py-1 transition', kind===k.k ? 'border-sage-500 bg-sage-50 text-sage-700 dark:bg-sage-900/40 dark:text-sage-200' : 'border-line text-ink/70 hover:border-sage-200 dark:border-night-line dark:text-night-ink/70']">
+      <span :class="['size-2 rounded-full', logColor(k.k)]"></span>{{ logLabel(k.k) }} <span class="text-muted">{{ k.n }}</span>
+    </button>
+    <div class="relative ml-auto w-full sm:w-56">
+      <ic name="search" class="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted"></ic>
+      <input v-model="q" :placeholder="$t('Search the log…')" :aria-label="$t('Search the log…')" class="w-full rounded-full border border-line bg-panel py-2 pl-9 pr-4 text-sm outline-none transition focus:border-sage-400 dark:border-night-line dark:bg-night-panel">
+    </div>
+  </div>
+
+  <p v-if="error" class="mt-6 text-sm text-clay-500">{{ error }}</p>
+  <p v-if="entries === null" class="mt-8 text-sm text-muted">{{ $t('Loading…') }}</p>
+  <div v-else-if="!filtered.length" class="card mt-8 px-6 py-12 text-center text-sm text-muted dark:text-night-muted">{{ entries.length ? $t('No entry matches.') : $t('The log is still empty. Entries appear when {ai} processes sources or when you change pages.') }}</div>
+
+  <section v-for="g in groups" :key="g.date" class="mt-8">
+    <h2 class="sticky top-0 z-10 -mx-2 bg-paper/90 px-2 py-2 text-xs font-semibold uppercase tracking-wider text-muted backdrop-blur dark:bg-night/90 dark:text-night-muted lg:top-0">{{ dayLabel(g.date) }} <span class="font-normal">· {{ g.items.length }}</span></h2>
+    <ol class="relative mt-2 space-y-3 border-l border-line pl-5 dark:border-night-line">
+      <li v-for="e in g.items" :key="key(e)" class="relative">
+        <span :class="['absolute -left-[25px] top-4 size-2.5 rounded-full ring-4 ring-paper dark:ring-night', logColor(e.kind)]"></span>
+        <article class="card p-4">
+          <p class="text-xs text-muted dark:text-night-muted">{{ logLabel(e.kind) }}</p>
+          <p class="mt-0.5 font-medium leading-snug">{{ e.title }}</p>
+          <div v-if="e.body" :class="['reading mt-2 !text-sm !leading-relaxed [&>*+*]:!mt-1', long(e) && !open[key(e)] && 'max-h-36 overflow-hidden [mask-image:linear-gradient(to_bottom,black_70%,transparent)]']" v-html="body(e)" @click="onClick"></div>
+          <button v-if="e.body && long(e)" type="button" class="mt-1 text-xs font-medium text-sage-700 hover:underline dark:text-sage-200" @click="open = { ...open, [key(e)]: !open[key(e)] }">{{ open[key(e)] ? $t('Show less') : $t('Show all') }}</button>
+        </article>
+      </li>
+    </ol>
+  </section>
+  <div v-if="filtered.length > limit" class="mt-8 text-center">
+    <button class="btn-soft" @click="limit += 60">{{ $t('Show {0} more (of {1})', [Math.min(60, filtered.length - limit), filtered.length - limit]) }}</button>
+  </div>
+</div>
+</script>
+
+<!-- ============================ КОЛЕКЦИИ: ПОДРЕЖДАНЕ ============================ -->
+<script type="text/x-template" id="tpl-collections">
+<div class="mx-auto max-w-4xl px-5 py-8 sm:px-8 lg:py-12">
+  <p class="eyebrow">{{ $t('Library') }}</p>
+  <h1 class="mt-1 font-serif text-4xl font-semibold tracking-tight">{{ $t('Collections') }}</h1>
+  <p class="mt-2 max-w-2xl text-muted dark:text-night-muted">{{ $t('What the menu shows: the kinds of pages that exist in the wiki, smart collections that fill themselves by conditions, and lists you put together by hand. The pages themselves are not changed.') }}</p>
+
+  <section class="card mt-8 p-5">
+    <div class="flex flex-wrap items-center gap-3">
+      <h2 class="flex-1 font-serif text-xl font-semibold">{{ $t('Kinds of pages') }}</h2>
+      <button v-if="col.menu.order.length || col.menu.hidden.length" class="btn-ghost !py-1 text-xs" @click="resetTypes">{{ $t('Default order') }}</button>
+    </div>
+    <p class="mt-1 text-sm text-muted dark:text-night-muted">{{ $t('They come from the pages themselves: a new kind appears here by itself. Hide what you do not need in the menu and arrange the rest.') }}</p>
+    <ul class="mt-3 divide-y divide-line dark:divide-night-line">
+      <li v-for="(x, i) in types" :key="x.t" :class="['flex items-center gap-3 py-2', hidden(x.t) && 'opacity-60']">
+        <span :class="['grid size-7 shrink-0 place-items-center rounded-lg', typeInfo(x.t).soft]"><ic :name="typeInfo(x.t).icon" class="size-3.5"></ic></span>
+        <a :href="'#/c/'+x.t" class="min-w-0 flex-1 truncate text-sm font-medium hover:underline">{{ typeInfo(x.t).plural }}</a>
+        <span class="text-xs tabular-nums text-muted dark:text-night-muted">{{ x.n }}</span>
+        <button class="btn-ghost !p-1.5" :disabled="i===0" :title="$t('Move up')" :aria-label="$t('Move up')" @click="moveType(i,-1)"><ic name="arrowUp" class="size-3.5"></ic></button>
+        <button class="btn-ghost !p-1.5" :disabled="i===types.length-1" :title="$t('Move down')" :aria-label="$t('Move down')" @click="moveType(i,1)"><ic name="arrowDown" class="size-3.5"></ic></button>
+        <button class="btn-ghost !p-1.5" :title="hidden(x.t) ? $t('Show in the menu') : $t('Hide from the menu')" :aria-label="hidden(x.t) ? $t('Show in the menu') : $t('Hide from the menu')" :aria-pressed="!hidden(x.t)" @click="toggleType(x.t)"><ic :name="hidden(x.t) ? 'eyeOff' : 'eye'" class="size-3.5"></ic></button>
+      </li>
+    </ul>
+  </section>
+
+  <section v-for="grp in [{ kind: 'smart', items: smart, title: $t('Smart collections'), hint: $t('Conditions such as a tag, an area, a format, an author or years. They fill themselves when new pages appear.'), add: $t('New smart collection') }, { kind: 'list', items: lists, title: $t('Lists'), hint: $t('Pages you choose by hand, in your own order. You add a page with the “List” button at the top of it.'), add: $t('New list') }]" :key="grp.kind" class="card mt-6 p-5">
+    <div class="flex flex-wrap items-center gap-3">
+      <h2 class="flex flex-1 items-center gap-2 font-serif text-xl font-semibold"><span :class="['grid size-7 place-items-center rounded-lg', COL_STYLE[grp.kind].soft]"><ic :name="COL_STYLE[grp.kind].icon" class="size-3.5"></ic></span>{{ grp.title }}</h2>
+      <button class="btn-soft !py-1.5 text-sm" @click="$root.openColEditor({ kind: grp.kind })"><ic name="plus" class="size-4"></ic>{{ grp.add }}</button>
+    </div>
+    <p class="mt-1 text-sm text-muted dark:text-night-muted">{{ grp.hint }}</p>
+    <ul v-if="grp.items.length" class="mt-3 divide-y divide-line dark:divide-night-line">
+      <li v-for="(c, i) in grp.items" :key="c.id" class="flex items-center gap-3 py-2">
+        <div class="min-w-0 flex-1">
+          <a :href="'#/col/'+c.id" class="block truncate text-sm font-medium hover:underline">{{ c.name }}</a>
+          <p v-if="c.kind==='smart'" class="truncate text-xs text-muted dark:text-night-muted">{{ filterSummary(c.filter) }}</p>
+        </div>
+        <span class="text-xs tabular-nums text-muted dark:text-night-muted">{{ count(c) }}</span>
+        <button class="btn-ghost !p-1.5" :disabled="i===0" :title="$t('Move up')" :aria-label="$t('Move up')" @click="moveCol(c,-1)"><ic name="arrowUp" class="size-3.5"></ic></button>
+        <button class="btn-ghost !p-1.5" :disabled="i===grp.items.length-1" :title="$t('Move down')" :aria-label="$t('Move down')" @click="moveCol(c,1)"><ic name="arrowDown" class="size-3.5"></ic></button>
+        <button class="btn-ghost !p-1.5" :title="$t('Edit')" :aria-label="$t('Edit')" @click="$root.openColEditor(c)"><ic name="pen" class="size-3.5"></ic></button>
+        <button class="btn-ghost !p-1.5 text-muted hover:text-clay-500" :title="$t('Delete')" :aria-label="$t('Delete')" @click="$root.deleteCollection(c)"><ic name="trash" class="size-3.5"></ic></button>
+      </li>
+    </ul>
+    <p v-else class="mt-3 text-sm text-muted dark:text-night-muted">{{ $t('None yet.') }}</p>
+  </section>
 </div>
 </script>
 

@@ -27,6 +27,7 @@ import crypto from 'node:crypto';
 import { spawn, spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { serveRequests } from './sandbox-ipc.js';
+import { updatePackages, restoreLock, RESTART_CODE } from './npm-update.js';
 
 export const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 /** Където сървърът в клетката вижда общата папка за заявки към стартера (sandbox-ipc.js) */
@@ -152,14 +153,23 @@ function readonlyLinks(root) {
  * Действията, които стартерът изпълнява отвън по молба на сървъра. Нищо от заявката не се приема наготово.
  * Смяна на езика на съдържанието: само съществуващ пакет от content/ (отвътре е само за четене) и само файловете,
  * които клетката не може да пише (CLAUDE.md, .claude/, scripts/starter/). Останалото прави сървърът вътре.
+ * Обновяване на пакетите: само преки зависимости от package.json и само версиите, които той позволява (npm-update.js).
+ * Предишният package-lock.json остава в state.backup, в паметта на стартера: в outputs/ клетката би могла да го подмени
+ * с файл, който сочи към чужди пакети, а стартерът после би го инсталирал отвън.
  */
-export function outsideHandlers(root = ROOT) {
+export function outsideHandlers(root = ROOT, state = {}, opts = {}) { // opts.npm: само за тестовете (фалшив npm)
   const insideWritable = (to) => [...WRITABLE_DIRS, ...WRITABLE_FILES].some((d) => under(to, path.join(root, d)));
   return {
     'content-lang': async ({ code }) => {
       const { installPack, packs } = await import(new URL('./content-pack.js', import.meta.url).href);
       if (typeof code !== 'string' || !packs().includes(code)) return { ok: false, error: 'unknown pack' };
       return installPack(code, { only: (to) => !insideWritable(to), config: false });
+    },
+    'npm-update': async ({ names }) => {
+      const r = await updatePackages(root, names, opts.npm ? { npm: opts.npm } : {});
+      const { backup, ...reply } = r;
+      if (r.ok && r.lockChanged) state.backup = backup;
+      return reply;
     },
   };
 }
@@ -310,13 +320,31 @@ function main(argv) {
   const ipc = fs.mkdtempSync(path.join(os.tmpdir(), 'llm-wiki-ipc-'));
   const p = plan({ extraEnv: { LIB_SANDBOX_IPC: IPC_INSIDE }, extra: [['--bind', ipc, IPC_INSIDE]] });
   if (!p.claude) console.warn($t('Claude Code was not found: the library will open, but processing will not work.'));
-  const stopIpc = serveRequests(ipc, outsideHandlers());
-  const child = spawn(bwrap, [...p.args, '--', ...cmd], { stdio: 'inherit' });
-  for (const sig of ['SIGINT', 'SIGTERM', 'SIGHUP']) process.on(sig, () => { try { child.kill(sig); } catch { /* вече е спрял */ } });
+  const state = { backup: null };
+  const stopIpc = serveRequests(ipc, outsideHandlers(ROOT, state));
+  let child = null, startedAt = 0, afterUpdate = false;
+  for (const sig of ['SIGINT', 'SIGTERM', 'SIGHUP']) process.on(sig, () => { try { child?.kill(sig); } catch { /* вече е спрял */ } });
   return new Promise((resolve) => {
     const done = (code) => { stopIpc(); fs.rmSync(ipc, { recursive: true, force: true }); resolve(code); };
-    child.on('error', (e) => { console.error(e.message); done(1); });
-    child.on('exit', (code, sig) => done(code ?? (sig ? 1 : 0)));
+    const start = () => {
+      startedAt = Date.now();
+      child = spawn(bwrap, [...p.args, '--', ...cmd], { stdio: 'inherit' });
+      child.on('error', (e) => { console.error(e.message); done(1); });
+      child.on('exit', async (code, sig) => {
+        // Сървърът поиска рестарт (след обновени пакети): пуска се отново със същата клетка
+        if (code === RESTART_CODE) { console.log('\n  ' + $t('Restarting the library with the updated packages…')); afterUpdate = !!state.backup; return start(); }
+        // Новите версии не тръгват: връщат се предишните и библиотеката се пуска отново
+        if (code && afterUpdate && state.backup && Date.now() - startedAt < 30000) {
+          console.error('\n  ' + $t('The library did not start after the update. Restoring the previous versions of the packages…'));
+          const r = await restoreLock(ROOT, state.backup);
+          state.backup = null; afterUpdate = false;
+          if (r.ok) return start();
+          console.error('  ' + $t('The previous versions could not be restored: {0}', [r.error || '']));
+        }
+        done(code ?? (sig ? 1 : 0));
+      });
+    };
+    start();
   });
 }
 

@@ -14,8 +14,8 @@ const IS_WIN = process.platform === 'win32';
 
 test(T('security', 'The isolation launcher loads no packages from node_modules', 'Стартерът на изолацията не зарежда пакети от node_modules'), () => {
   // Стартерът работи извън клетката: ако зареди пакет, пробитият пакет би се изпълнил с всичките ти права.
-  const allowed = new Set(['./sandbox-ipc.js', './content-pack.js']);
-  for (const file of ['sandbox.js', 'sandbox-ipc.js', 'sandbox-probe.js', 'content-pack.js']) {
+  const allowed = new Set(['./sandbox-ipc.js', './content-pack.js', './npm-update.js']);
+  for (const file of ['sandbox.js', 'sandbox-ipc.js', 'sandbox-probe.js', 'content-pack.js', 'npm-update.js']) {
     const code = fs.readFileSync(path.join(PROJECT, 'scripts', file), 'utf8');
     const specs = [...code.matchAll(/(?:^|\s)import\s[^'"]*?from\s+['"]([^'"]+)['"]|import\(\s*(?:new URL\(\s*)?['"]([^'"]+)['"]/gm)].map((m) => m[1] || m[2]);
     assert.ok(specs.length, file);

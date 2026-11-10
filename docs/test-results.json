@@ -1,18 +1,18 @@
 {
-  "version": "1.3.0",
-  "date": "2026-11-09T17:38:55.844Z",
-  "durationMs": 19767,
+  "version": "1.4.0",
+  "date": "2026-11-10T15:33:53.975Z",
+  "durationMs": 20338,
   "environment": {
     "platform": "linux",
     "node": "26.12.1"
   },
   "summary": {
-    "total": 94,
-    "pass": 91,
+    "total": 102,
+    "pass": 99,
     "fail": 0,
     "known": 1,
     "notRun": 2,
-    "notCovered": 9
+    "notCovered": 10
   },
   "groups": {
     "app": {
@@ -321,6 +321,24 @@
     },
     {
       "group": "library",
+      "en": "The log lists the newest entries first, without the header of the file",
+      "bg": "Дневникът показва най-новите записи първи, без заглавната част на файла",
+      "status": "pass"
+    },
+    {
+      "group": "library",
+      "en": "Collections: smart and hand-made lists are saved outside wiki/",
+      "bg": "Колекции: умните и ръчните списъци се пазят извън wiki/",
+      "status": "pass"
+    },
+    {
+      "group": "security",
+      "en": "Collections cannot be changed without the header of the page",
+      "bg": "Колекциите не се променят без заглавката на страницата",
+      "status": "pass"
+    },
+    {
+      "group": "library",
       "en": "The inbox sorts files into folders by type and records them",
       "bg": "Входящата кутия подрежда файловете по вид и ги записва",
       "status": "pass"
@@ -620,6 +638,36 @@
       "en": "The application does not install anything by itself",
       "bg": "Приложението не инсталира нищо само",
       "status": "pass"
+    },
+    {
+      "group": "updates",
+      "en": "Only packages from package.json can be updated, by their exact names",
+      "bg": "Обновяват се само пакети от package.json, по точните им имена",
+      "status": "pass"
+    },
+    {
+      "group": "updates",
+      "en": "The update runs npm update without install scripts and reports what changed",
+      "bg": "Обновяването пуска npm update без инсталационни скриптове и казва какво се е сменило",
+      "status": "pass"
+    },
+    {
+      "group": "updates",
+      "en": "If npm fails halfway, the previous versions come back",
+      "bg": "Ако npm спре по средата, предишните версии се връщат",
+      "status": "pass"
+    },
+    {
+      "group": "security",
+      "en": "The launcher keeps the old package list to itself; the isolation never gets it",
+      "bg": "Стартерът пази стария списък на пакетите у себе си; клетката не го получава",
+      "status": "pass"
+    },
+    {
+      "group": "updates",
+      "en": "The update button refuses a package that is not in package.json",
+      "bg": "Бутонът за обновяване отказва пакет, който не е в package.json",
+      "status": "pass"
     }
   ],
   "notCovered": [
@@ -694,30 +742,24 @@
         "en": "It uses bubblewrap, which exists only on Linux. There the packages of the program run with all your rights.",
         "bg": "Ползва bubblewrap, който го има само в Linux. Там пакетите на програмата работят с всичките ви права."
       }
+    },
+    {
+      "en": "Updating real packages from Settings → Updates and the restart with the new versions",
+      "bg": "Обновяването на истински пакети от „Настройки → Обновления“ и рестартът с новите версии",
+      "why": {
+        "en": "The tests use a simulated npm, because a real update would change the node_modules that the test copy shares with the project. The restart through the isolation launcher was checked by hand (2026-11-10); the rollback when the new versions do not start was not.",
+        "bg": "Тестовете ползват симулиран npm, защото истинско обновяване би сменило node_modules, които тестовото копие споделя с проекта. Рестартът през стартера на изолацията е проверен на ръка (2026-11-10); връщането, ако новите версии не тръгнат, не е."
+      }
     }
   ],
   "packages": {
     "outdated": [
-      {
-        "name": "@tailwindcss/browser",
-        "current": "4.3.4",
-        "wanted": "4.3.5",
-        "latest": "4.3.5",
-        "major": false
-      },
       {
         "name": "unpdf",
         "current": "1.9.1",
         "wanted": "1.9.1",
         "latest": "2.1.0",
         "major": true
-      },
-      {
-        "name": "vue",
-        "current": "3.5.44",
-        "wanted": "3.5.45",
-        "latest": "3.5.45",
-        "major": false
       }
     ],
     "audit": {

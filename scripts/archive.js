@@ -7,7 +7,8 @@ import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import AdmZip from 'adm-zip';
 import { ROOT, WIKI, OUTPUTS, walk, ingestState, extractLinks } from './lib.js';
-import { snapshot, pagesList, pageDetail, contentStats, graphData } from './pages-data.js';
+import { snapshot, pagesList, pageDetail, contentStats, graphData, logEntries } from './pages-data.js';
+import { readCollections } from './collections.js';
 import { readUnits, extractedFile } from './reader-data.js';
 import { messagesFor, locales, contentLang, pickLang } from './i18n.js';
 import { aiConfig } from './providers.js';
@@ -88,6 +89,8 @@ export function archiveApi() {
     '/api/pages': pagesList(ctx),
     '/api/stats': { ...contentStats(), raw: 0, pending: [], inbox: [], depth: { total: 0, current: 0, legacy: [] } },
     '/api/graph': graphData(),
+    '/api/log': { entries: logEntries() }, // дневникът, най-новите първи
+    '/api/collections': readCollections(), // колекциите на човека (в архива само за четене)
   };
   for (const p of ctx.pages) api['/api/page/' + p.slug] = pageDetail(p.slug, { archive: true, ctx, readerOf });
   return { api, readerOf, readers, meta: { created: localDate(created), pages: ctx.pages.length, readers: readers.length } };
