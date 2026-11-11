@@ -54,6 +54,13 @@ async function docx(file) {
   return value;
 }
 
+// Стар Word формат (.doc, Word 97-2003): word-extractor чете двоичния OLE файл, без LibreOffice
+async function doc(file) {
+  const WordExtractor = (await import('word-extractor')).default;
+  const extracted = await new WordExtractor().extract(file);
+  return extracted.getBody().replace(/\r\n?/g, '\n');
+}
+
 // Стойност на клетка от exceljs → текст (формули, дати, rich text, хипервръзки)
 function cellText(v) {
   if (v == null) return '';
@@ -132,6 +139,7 @@ async function epub(file) {
 const HANDLERS = {
   '.pdf': pdf,
   '.docx': docx,
+  '.doc': doc,
   '.xlsx': table, '.xlsm': table, '.csv': table, '.tsv': table,
   // .xls и .ods: запази ги като .xlsx (LibreOffice/Excel) и пусни extract отново
   '.epub': epub,
