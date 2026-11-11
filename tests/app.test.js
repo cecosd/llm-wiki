@@ -116,7 +116,7 @@ test(T('app', 'Screens and the product page open in a real browser', 'Екран
   const b = await openBrowser(CHROME);
   try {
     const base = `http://localhost:${srv.port}`;
-    const screens = { '/#/': 'Library', '/#/settings': 'Check for a new version', '/#/setup': 'Getting the library ready', '/#/areas': 'Areas of knowledge', '/#/p/entropy': 'A measure of disorder', '/product/?lang=bg': 'ЕсДевелопърс ЕООД', '/product/?lang=en': 'What works and what does not' };
+    const screens = { '/#/': 'Library', '/#/settings/updates': 'Check for a new version', '/#/setup': 'Getting the library ready', '/#/areas': 'Areas of knowledge', '/#/p/entropy': 'A measure of disorder', '/product/?lang=bg': 'ЕсДевелопърс ЕООД', '/product/?lang=en': 'What works and what does not' };
     for (const [url, text] of Object.entries(screens)) {
       await b.goto(base + url);
       assert.ok(await b.waitForText(text), `${url} does not show “${text}”`);

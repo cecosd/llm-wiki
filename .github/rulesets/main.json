@@ -27,8 +27,7 @@
         "strict_required_status_checks_policy": false,
         "do_not_enforce_on_create": false,
         "required_status_checks": [
-          { "context": "Tests (Node 20)", "integration_id": 15368 },
-          { "context": "Tests (Node 24)", "integration_id": 15368 }
+          { "context": "Tests", "integration_id": 15368 }
         ]
       }
     }
