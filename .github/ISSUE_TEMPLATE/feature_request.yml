@@ -1,0 +1,31 @@
+name: Feature request
+description: An idea for the library, the interface or the agent rules.
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem does it solve
+      description: What you are trying to do and what gets in the way today.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposal
+      description: How it could work. Screenshots or sketches are welcome.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives you considered
+  - type: dropdown
+    id: help
+    attributes:
+      label: Would you like to work on it?
+      description: Please wait for the maintainer to agree on the approach before you open a pull request.
+      options:
+        - "No"
+        - Yes, with guidance
+        - Yes

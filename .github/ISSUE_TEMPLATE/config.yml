@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Report a security vulnerability
+    url: https://github.com/cecosd/llm-wiki/security/advisories/new
+    about: Please report security problems privately, not in a public issue.
+  - name: Product page and demo
+    url: https://cecosd.github.io/llm-wiki/
+    about: How the library works, with an interactive demo.

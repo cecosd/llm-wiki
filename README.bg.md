@@ -347,6 +347,10 @@ Karpathy, A. (2026). *LLM Wiki* [GitHub Gist]. https://gist.github.com/karpathy/
 
 Lutke, T. (n.d.). *QMD: Local markdown search* [Computer software]. GitHub. https://github.com/tobi/qmd
 
+## Участие в проекта
+
+Сигнали за грешки, идеи, преводи и заявки за промени (pull requests) са добре дошли. Първо прочети [CONTRIBUTING.md](CONTRIBUTING.md) (на английски): всяка промяна стига до `main` само през pull request, който поддържащият проекта преглежда и одобрява. Спазвай [кодекса за поведение](CODE_OF_CONDUCT.md). Проблеми със сигурността се съобщават поверително, както е описано в [SECURITY.md](SECURITY.md).
+
 ## Лиценз
 
 GNU General Public License, версия 3 или (по ваш избор) по-нова. Виж [LICENSE](LICENSE).

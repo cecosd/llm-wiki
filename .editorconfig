@@ -1,0 +1,12 @@
+# Editor settings shared by everyone who works on the code (https://editorconfig.org).
+# Line endings are not set here: a few older files still use CRLF, and an editor would rewrite them whole.
+root = true
+
+[*]
+charset = utf-8
+indent_style = space
+indent_size = 2
+insert_final_newline = true
+
+[*.sh]
+end_of_line = lf

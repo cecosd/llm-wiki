@@ -265,6 +265,10 @@ Groq. (n.d.-d). *Supported models*. GroqDocs. Retrieved November 9, 2026, from h
 
 Ollama. (n.d.). *Anthropic compatibility*. Ollama Docs. https://docs.ollama.com/api/anthropic-compatibility
 
+## Contributing
+
+Bug reports, ideas, translations and pull requests are welcome. Read [CONTRIBUTING.md](CONTRIBUTING.md) first: every change reaches `main` through a pull request that the maintainer reviews and approves. Please follow the [Code of Conduct](CODE_OF_CONDUCT.md). Security problems are reported privately, as described in [SECURITY.md](SECURITY.md).
+
 ## License
 
 GNU General Public License, version 3 or (at your option) any later version. See [LICENSE](LICENSE).

@@ -39,9 +39,15 @@ Text processed with Claude goes to Anthropic through Claude Code. Whether it is 
 - **Claude Code with another provider.** The application sets `ANTHROPIC_BASE_URL`, `ANTHROPIC_AUTH_TOKEN` and the three model names only for that run; the permission rules, the hook and the isolation stay the same. With the Claude subscription the environment of Claude Code is not changed.
 - **Without tools** the model cannot read or write files at all: the server sends the text and writes the pages itself, and links to pages that do not exist become plain text.
 
+## Supported versions
+
+Only the latest release (the newest tag in [Releases](https://github.com/cecosd/llm-wiki/releases)) receives security fixes. If you can, check that the problem is still there in the latest release before you report it.
+
 ## Reporting a vulnerability
 
 Please use [GitHub private vulnerability reporting](https://github.com/cecosd/llm-wiki/security/advisories/new). If it is not available, open an issue without technical details and ask for a private contact. Do not publish working exploits before a fix.
+
+A useful report includes the version, how the library was started (`npm run serve`, `npm run serve:safe` or the desktop shortcut), the steps to reproduce and what an attacker can achieve. Please do not include content from your own library or your API keys.
 
 ## References
 

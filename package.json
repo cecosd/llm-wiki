@@ -9,6 +9,9 @@
     "type": "git",
     "url": "git+https://github.com/cecosd/llm-wiki.git"
   },
+  "bugs": {
+    "url": "https://github.com/cecosd/llm-wiki/issues"
+  },
   "type": "module",
   "engines": {
     "node": ">=20"

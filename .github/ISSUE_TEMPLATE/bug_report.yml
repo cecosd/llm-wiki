@@ -1,0 +1,75 @@
+name: Bug report
+description: Something does not work as the README or the product page describes.
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for the report. Please do not paste content from your library (raw files, wiki pages), API keys or passwords.
+        Security problems go through [private vulnerability reporting](https://github.com/cecosd/llm-wiki/security/advisories/new), not through issues.
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: Settings → Updates in the application, or `version` in package.json.
+      placeholder: "1.4.0"
+    validations:
+      required: true
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating system
+      options:
+        - Windows with WSL
+        - Windows without WSL
+        - Linux
+        - macOS
+        - Other
+    validations:
+      required: true
+  - type: input
+    id: node
+    attributes:
+      label: Node.js version
+      description: The output of `node -v`.
+      placeholder: "v22.11.0"
+  - type: dropdown
+    id: model
+    attributes:
+      label: How the model runs
+      options:
+        - Agent (Claude Code)
+        - Claude Code with another provider
+        - Without tools (API or local model)
+        - Manual (copy and paste)
+        - Not related to a model
+  - type: dropdown
+    id: start
+    attributes:
+      label: How the library was started
+      options:
+        - npm run serve
+        - npm run serve:safe (isolation)
+        - Desktop shortcut
+        - Other
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you did, what you expected, and what you saw instead.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1.
+        2.
+        3.
+  - type: textarea
+    id: logs
+    attributes:
+      label: Error messages or logs
+      description: Remove personal data before pasting.
+      render: text

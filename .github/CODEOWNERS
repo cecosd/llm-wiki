@@ -1,0 +1,4 @@
+# Every file in the repository is owned by the maintainer.
+# The "main" ruleset requires a review from a code owner, so a pull request
+# can be merged only after @cecosd approves it.
+* @cecosd
