@@ -207,6 +207,8 @@ npm update && npm test        # safe update, then check
 
 To update the code with git (the language pack rewrites a few tracked files, so restore them first; your library is not touched):
 
+> **From 1.x to 2.0:** version 2.0 needs Node.js 24 or newer. Check with `node -v` and update Node.js first (with nvm: `nvm install 24`).
+
 ```bash
 git restore CLAUDE.md .claude wiki/_templates scripts/starter
 git pull && npm install

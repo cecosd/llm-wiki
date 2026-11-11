@@ -1,7 +1,7 @@
 {
-  "version": "1.4.0",
-  "date": "2026-11-10T15:33:53.975Z",
-  "durationMs": 20338,
+  "version": "2.0.0",
+  "date": "2026-11-11T11:22:50.445Z",
+  "durationMs": 20446,
   "environment": {
     "platform": "linux",
     "node": "26.12.1"
@@ -753,15 +753,7 @@
     }
   ],
   "packages": {
-    "outdated": [
-      {
-        "name": "unpdf",
-        "current": "1.9.1",
-        "wanted": "1.9.1",
-        "latest": "2.1.0",
-        "major": true
-      }
-    ],
+    "outdated": [],
     "audit": {
       "total": 0,
       "critical": 0,
