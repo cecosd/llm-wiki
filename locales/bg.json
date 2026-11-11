@@ -998,7 +998,7 @@
     "Pages in the library language, but the title and terms of the original are kept in the index and search finds them. A good choice when the translation is poor.": "Страници на езика на библиотеката, но заглавието и термините на оригинала се пазят в индекса и търсенето ги намира. Добър избор при лош превод.",
     "✔ Content language: {0} ({1} files installed).": "✔ Език на съдържанието: {0} (инсталирани файлове: {1}).",
     "Unknown language.": "Непознат език.",
-    "Node.js 20 or newer": "Node.js 20 или по-нов",
+    "Node.js 24 or newer": "Node.js 24 или по-нов",
     "Installed: {0}": "Инсталиран: {0}",
     "Install the current version from nodejs.org, then start the library again.": "Инсталирайте текущата версия от nodejs.org и пуснете библиотеката отново.",
     "Libraries are installed": "Библиотеките са инсталирани",

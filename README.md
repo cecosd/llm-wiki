@@ -29,7 +29,7 @@ Three layers: `raw/` (originals), `wiki/` (generated pages), `CLAUDE.md` (the sc
 
 ## Requirements
 
-- Node.js 20 or newer
+- Node.js 24 or newer
 - A model. By default [Claude Code](https://code.claude.com), signed in once (run `claude` in a terminal); the app runs it in the background (`claude -p`) with your own subscription. Other models are chosen in **Settings → Model** (see “Other models” below), and then Claude Code is needed only for the agent.
 - Optional: Git (gives the “Undo” button), `pdftotext` from poppler (better PDF text; without it the built-in `unpdf` is used), Obsidian.
 

@@ -59,7 +59,7 @@ export function checkSetup() {
 
   // 1. Node.js
   const major = Number(process.versions.node.split('.')[0]);
-  add({ id: 'node', title: $t('Node.js 20 or newer'), ok: major >= 20, detail: $t('Installed: {0}', ['v' + process.versions.node]),
+  add({ id: 'node', title: $t('Node.js 24 or newer'), ok: major >= 24, detail: $t('Installed: {0}', ['v' + process.versions.node]),
     fix: $t('Install the current version from nodejs.org, then start the library again.') });
 
   // 2. Зависимости

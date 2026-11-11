@@ -999,7 +999,7 @@
     "Pages in the library language, but the title and terms of the original are kept in the index and search finds them. A good choice when the translation is poor.": "Pages in the library language, but the title and terms of the original are kept in the index and search finds them. A good choice when the translation is poor.",
     "✔ Content language: {0} ({1} files installed).": "✔ Content language: {0} ({1} files installed).",
     "Unknown language.": "Unknown language.",
-    "Node.js 20 or newer": "Node.js 20 or newer",
+    "Node.js 24 or newer": "Node.js 24 or newer",
     "Installed: {0}": "Installed: {0}",
     "Install the current version from nodejs.org, then start the library again.": "Install the current version from nodejs.org, then start the library again.",
     "Libraries are installed": "Libraries are installed",

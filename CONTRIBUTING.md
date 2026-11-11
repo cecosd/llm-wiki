@@ -23,7 +23,7 @@ The steps:
 
 ## Development setup
 
-You need Node.js 20 or newer and Git. Claude Code is not needed for development: the tests use a simulated Claude.
+You need Node.js 24 or newer and Git. Claude Code is not needed for development: the tests use a simulated Claude.
 
 ```bash
 git clone https://github.com/<you>/llm-wiki.git
@@ -34,7 +34,7 @@ npm run i18n:check   # every interface text exists in every language
 npm run serve        # the interface on http://localhost:4321
 ```
 
-`npm test` starts the real server in a temporary copy with a simulated Claude (`tests/fake-claude.js`). It does not touch your library and spends no tokens. Browser tests run only when Chrome or Chromium is found (or set `CHROME_BIN`) and Node.js is 22 or newer; the isolation tests need `bubblewrap` on Linux. Tests that cannot run are reported as "not run", not as passed.
+`npm test` starts the real server in a temporary copy with a simulated Claude (`tests/fake-claude.js`). It does not touch your library and spends no tokens. Browser tests run only when Chrome or Chromium is found (or set `CHROME_BIN`); the isolation tests need `bubblewrap` on Linux. Tests that cannot run are reported as "not run", not as passed.
 
 `.npmrc` sets `ignore-scripts=true`, so dependencies cannot run install scripts. Keep it that way.
 

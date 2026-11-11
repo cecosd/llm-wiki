@@ -17,14 +17,14 @@ load_nvm() { export NVM_DIR="${NVM_DIR:-$HOME/.nvm}"; [ -s "$NVM_DIR/nvm.sh" ] &
 node_major() { have node && node -p 'process.versions.node.split(".")[0]' 2>/dev/null || echo 0; }
 
 load_nvm
-say "1/4  Node.js 20 or newer"
-if [ "$(node_major)" -ge 20 ]; then ok "Node.js $(node -v)"; else
-  warn "Node.js 20+ was not found."
+say "1/4  Node.js 24 or newer"
+if [ "$(node_major)" -ge 24 ]; then ok "Node.js $(node -v)"; else
+  warn "Node.js 24+ was not found."
   if ask "Install Node.js with nvm (no administrator rights needed)?"; then
     have curl || { echo "  curl is required. Install it (for example: sudo apt install curl) and run this again."; exit 1; }
     curl -fsSo- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.1/install.sh | bash && load_nvm && nvm install 24 >/dev/null && nvm use 24 >/dev/null
-    [ "$(node_major)" -ge 20 ] && ok "Node.js $(node -v)" || { echo "  Installation failed. Install Node.js from https://nodejs.org and run this again."; exit 1; }
-  else echo "  Install Node.js 20+ from https://nodejs.org (macOS: brew install node; Ubuntu: see nodejs.org) and run this again."; exit 1; fi
+    [ "$(node_major)" -ge 24 ] && ok "Node.js $(node -v)" || { echo "  Installation failed. Install Node.js from https://nodejs.org and run this again."; exit 1; }
+  else echo "  Install Node.js 24+ from https://nodejs.org (macOS: brew install node; Ubuntu: see nodejs.org) and run this again."; exit 1; fi
 fi
 
 say "2/4  Libraries (npm install)"

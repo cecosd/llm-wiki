@@ -72,7 +72,7 @@ I18N.bg = {
   q: ['„', '“'],
   start: { eye: 'Първи стъпки', t1: 'Вашата библиотека', t2: 'в три стъпки.', lede: 'Не е нужно да сте програмист, но трябва да можете да пуснете команда в терминала. Инсталаторът проверява нужните програми и пита преди всяка стъпка.', copy: 'копирай',
     steps: [{ t: 'Изтеглете', d: 'Свалете кода от GitHub с git или като ZIP архив.', code: 'git clone https://github.com/cecosd/llm-wiki.git\ncd llm-wiki' }, { t: 'Инсталирайте', d: 'Инсталаторът проверява Node.js, библиотеките, Claude Code и входа в акаунта ви и пита преди всяка стъпка.', code: './install.sh     # macOS, Linux, WSL\ninstall.cmd      # Windows' }, { t: 'Отворете', d: 'Библиотеката се отваря в браузъра. Добавете първия файл и гледайте как расте.', code: 'npm run serve\n# http://localhost:4321' }],
-    reqs: [['Node.js 20 или по-нова', 'Нужен е, за да работи приложението.'], ['Claude Code', 'За обработка и въпроси. Четенето работи и без него.'], ['Акаунт в Claude', 'Pro, Max или API ключ. Разходът е ваш.'], ['Windows, macOS или Linux', 'На Windows е препоръчително през WSL.']] },
+    reqs: [['Node.js 24 или по-нова', 'Нужен е, за да работи приложението.'], ['Claude Code', 'За обработка и въпроси. Четенето работи и без него.'], ['Акаунт в Claude', 'Pro, Max или API ключ. Разходът е ваш.'], ['Windows, macOS или Linux', 'На Windows е препоръчително през WSL.']] },
   faq: { eye: 'Въпроси', title: 'Честни отговори.', lede: 'Казваме и какво не може. Резултатите от тестовете и известните ограничения са в демото на настройките по-горе.', link: 'Кое работи и кое не',
     items: [
       ['Трябва ли да съм програмист?', 'Не. Трябва да можете да отворите терминал, да пуснете команда и да инсталирате програма. Програмиране, сървър или домейн не са нужни, защото приложението работи на вашия компютър.'],
@@ -204,7 +204,7 @@ I18N.en = {
   q: ['“', '”'],
   start: { eye: 'Get started', t1: 'Your own library', t2: 'in three steps.', lede: 'You do not need to be a programmer, but you should be comfortable running a command in a terminal. The installer checks the required programs and asks before each step.', copy: 'copy',
     steps: [{ t: 'Download', d: 'Get the code from GitHub with git or as a ZIP archive.', code: 'git clone https://github.com/cecosd/llm-wiki.git\ncd llm-wiki' }, { t: 'Install', d: 'The installer checks Node.js, the libraries, Claude Code and your Claude sign-in, and asks before each step.', code: './install.sh     # macOS, Linux, WSL\ninstall.cmd      # Windows' }, { t: 'Open', d: 'The library opens in your browser. Add your first file and watch it grow.', code: 'npm run serve\n# http://localhost:4321' }],
-    reqs: [['Node.js 20 or newer', 'Runs the application.'], ['Claude Code', 'For processing and questions. Reading works without it.'], ['A Claude account', 'Pro, Max or an API key. The cost is yours.'], ['Windows, macOS or Linux', 'On Windows, WSL is recommended.']] },
+    reqs: [['Node.js 24 or newer', 'Runs the application.'], ['Claude Code', 'For processing and questions. Reading works without it.'], ['A Claude account', 'Pro, Max or an API key. The cost is yours.'], ['Windows, macOS or Linux', 'On Windows, WSL is recommended.']] },
   faq: { eye: 'Questions', title: 'Honest answers.', lede: 'We also tell you what it cannot do. The test results and known limitations are in the settings demo above.', link: 'What works and what does not',
     items: [
       ['Do I need to be a programmer?', 'No. You need to be able to open a terminal, run a command and install a program. No programming, server or domain is needed, because the app runs on your computer.'],
@@ -417,7 +417,7 @@ I18N.bg.set = {
   setup: {
     h: 'Проверка на инсталацията', p: 'Това са стъпките, от които библиотеката има нужда. Всяка се проверява на вашия компютър и не струва нищо. Поправете отбелязаното и натиснете „Провери отново“.',
     again: 'Провери отново', allOk: 'Всичко нужно е на мястото си.', optional: 'по избор',
-    items: [['Node.js 20 или по-нова', 'Инсталирана: v22.11.0'], ['Библиотеките са инсталирани', 'Папката node_modules е на мястото си.'], ['Claude Code е инсталиран', 'Командата claude е намерена.'], ['Влезли сте в акаунта си в Claude', 'Влезли сте. План: Max.'], ['git, за точки за връщане', 'Намерен. „Върни“ след промени на Claude работи.'], ['OCR за сканирани PDF', 'Ще се използва вграденият OCR. Той е по-бавен и по-неточен от ocrmypdf.'], ['Език на библиотеката', 'Сега: български. Сменя се от менюто за език.'], ['Първият ви източник', '6 файла, 6 страници за източници.']],
+    items: [['Node.js 24 или по-нова', 'Инсталирана: v24.11.0'], ['Библиотеките са инсталирани', 'Папката node_modules е на мястото си.'], ['Claude Code е инсталиран', 'Командата claude е намерена.'], ['Влезли сте в акаунта си в Claude', 'Влезли сте. План: Max.'], ['git, за точки за връщане', 'Намерен. „Върни“ след промени на Claude работи.'], ['OCR за сканирани PDF', 'Ще се използва вграденият OCR. Той е по-бавен и по-неточен от ocrmypdf.'], ['Език на библиотеката', 'Сега: български. Сменя се от менюто за език.'], ['Първият ви източник', '6 файла, 6 страници за източници.']],
     test: 'Опитай връзката', testNote: 'Изпраща една дума на най-лекия модел. Използва незначителна част от лимита ви.', testOk: s => `Claude отговори за ${s} с. Връзката работи.`,
     cli: 'Същата проверка прави и инсталаторът (install.sh, install.cmd), преди да започне.',
   },
@@ -428,7 +428,7 @@ I18N.bg.set = {
     pkgH: 'Пакети на Node.js', pkgP: 'Приложението е изградено върху пакети с отворен код, а те зависят от други пакети. Те получават нови версии и поправки за сигурност по свой график, затова ги проверявайте от време на време.',
     pkgBtn: 'Провери пакетите', pkgNote: 'Пуска npm outdated и npm audit. npm изпраща списъка с пакети към своя регистър, а не библиотеката ви.',
     newH: 'Нови версии', cols: ['Пакет', 'Инсталиран', 'Безопасно обновяване', 'Последен'], major: 'голяма промяна, първо тествайте',
-    why: 'unpdf остава на 1.x, защото версия 2 изисква Node 24, а приложението работи с Node 20 и по-нова.',
+    why: 'unpdf 2.x е голяма промяна: обновява се на ръка, след като тестовете минат.',
     example: v => `Пример: пакетите на версия ${v}. Натиснете „Обнови“ и вижте какво става.`, actH: 'Действие',
     updTo: v => `Обнови до ${v}`, all: n => `Обнови всички безопасни (${n})`, updating: 'Обновявам…', done: 'обновен', manual: 'само на ръка',
     safe: 'Бутонът пуска npm update без скриптове при инсталиране (--ignore-scripts), само за пакетите от package.json и само до версиите, които той позволява. В изолацията пакетите са само за четене, затова npm го пуска стартерът отвън.',
@@ -598,7 +598,7 @@ I18N.en.set = {
   setup: {
     h: 'Setup check', p: 'These are the steps the library needs to work. Each one is checked on your computer and costs nothing. Fix what is marked, then press "Check again".',
     again: 'Check again', allOk: 'Everything needed is in place.', optional: 'optional',
-    items: [['Node.js 20 or newer', 'Installed: v22.11.0'], ['Libraries are installed', 'The folder node_modules is in place.'], ['Claude Code is installed', 'The claude command was found.'], ['You are signed in to your Claude account', 'Signed in. Plan: Max.'], ['git, for restore points', 'Found. "Undo" after Claude\'s changes works.'], ['OCR for scanned PDFs', 'The built-in OCR will be used. It is slower and less exact than ocrmypdf.'], ['Language of the library', 'Now: English. Change it from the language menu.'], ['Your first source', '6 files, 6 source pages.']],
+    items: [['Node.js 24 or newer', 'Installed: v24.11.0'], ['Libraries are installed', 'The folder node_modules is in place.'], ['Claude Code is installed', 'The claude command was found.'], ['You are signed in to your Claude account', 'Signed in. Plan: Max.'], ['git, for restore points', 'Found. "Undo" after Claude\'s changes works.'], ['OCR for scanned PDFs', 'The built-in OCR will be used. It is slower and less exact than ocrmypdf.'], ['Language of the library', 'Now: English. Change it from the language menu.'], ['Your first source', '6 files, 6 source pages.']],
     test: 'Test the connection', testNote: 'Sends one word to the lightest model. It uses a negligible part of your limit.', testOk: s => `Claude answered in ${s} s. The connection works.`,
     cli: 'The installer (install.sh, install.cmd) runs the same check before it starts.',
   },
@@ -609,7 +609,7 @@ I18N.en.set = {
     pkgH: 'Node.js packages', pkgP: 'The application is built on open-source packages, and they depend on further packages. They get new versions and security fixes on their own schedule, so check them from time to time.',
     pkgBtn: 'Check the packages', pkgNote: 'Runs npm outdated and npm audit. npm sends the list of packages to its registry, not your library.',
     newH: 'New versions', cols: ['Package', 'Installed', 'Safe update', 'Latest'], major: 'major change, test first',
-    why: 'unpdf stays on 1.x because version 2 needs Node 24, while the app works with Node 20 and newer.',
+    why: 'unpdf 2.x is a major change: update it by hand once the tests pass.',
     example: v => `Example: the packages of version ${v}. Press "Update" and see what happens.`, actH: 'Action',
     updTo: v => `Update to ${v}`, all: n => `Update all safe ones (${n})`, updating: 'Updating…', done: 'updated', manual: 'by hand only',
     safe: 'The button runs npm update without install scripts (--ignore-scripts), only for the packages in package.json and only to the versions it allows. In the isolation the packages are read-only, so the launcher outside runs npm.',

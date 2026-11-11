@@ -15,13 +15,13 @@ function Refresh-Path { $env:Path = [Environment]::GetEnvironmentVariable('Path'
 function NodeMajor { if (Have node) { return [int](node -p "process.versions.node.split('.')[0]") } else { return 0 } }
 
 Refresh-Path
-Say '1/4  Node.js 20 or newer'
-if ((NodeMajor) -ge 20) { Ok "Node.js $(node -v)" }
+Say '1/4  Node.js 24 or newer'
+if ((NodeMajor) -ge 24) { Ok "Node.js $(node -v)" }
 else {
-  Warn 'Node.js 20+ was not found.'
+  Warn 'Node.js 24+ was not found.'
   if ((Have winget) -and (Ask 'Install Node.js (LTS) with winget?')) { winget install --id OpenJS.NodeJS.LTS -e --accept-package-agreements --accept-source-agreements; Refresh-Path }
-  if ((NodeMajor) -ge 20) { Ok "Node.js $(node -v)" }
-  else { Write-Host '  Install Node.js 20+ from https://nodejs.org, open a NEW window and run this again.'; exit 1 }
+  if ((NodeMajor) -ge 24) { Ok "Node.js $(node -v)" }
+  else { Write-Host '  Install Node.js 24+ from https://nodejs.org, open a NEW window and run this again.'; exit 1 }
 }
 
 Say '2/4  Libraries (npm install)'
