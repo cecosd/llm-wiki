@@ -39,3 +39,13 @@ jobs:
       - run: npm run i18n:check
       # A simulated Claude in a temporary copy: no tokens, no secrets needed.
       - run: npm test
+      # Each failed test becomes an annotation on the pull request, readable without opening the log.
+      - name: Failed tests as annotations
+        if: failure()
+        run: |
+          node --input-type=module -e "
+          import fs from 'node:fs';
+          const esc = (s) => String(s || '').replace(/%/g, '%25').replace(/\r/g, '%0D').replace(/\n/g, '%0A');
+          const r = JSON.parse(fs.readFileSync('outputs/test-results.json', 'utf8'));
+          for (const t of r.tests.filter((x) => x.status === 'fail')) console.log('::error title=' + esc(t.group).replace(/:/g, '%3A').replace(/,/g, '%2C') + '::' + esc(t.en + ': ' + t.error));
+          "
