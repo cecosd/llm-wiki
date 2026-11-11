@@ -811,6 +811,7 @@
     "The text is ready: {0} words": "Текстът е готов: {0} думи",
     "Writing: {0}{1}": "Писане: {0}{1}",
     "Stopped by you.": "Спряно от теб.",
+    "The log had lost {0} entries during the job; they were restored.": "По време на задачата дневникът беше загубил {0} записа; върнах ги.",
     "The subscription limit has been reached. The queue is waiting.": "Лимитът на абонамента е достигнат. Опашката изчаква.",
     "Claude Code is not signed in. Run `claude` once in a terminal and sign in, then try again.": "Claude Code не е влязъл в акаунт. Пусни веднъж `claude` в терминал и влез, после опитай пак.",
     "The processing stopped with an error.": "Обработката спря с грешка.",
