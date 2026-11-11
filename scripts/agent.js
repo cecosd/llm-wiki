@@ -16,6 +16,7 @@ import { P, lazy } from './vocab.js';
 import { aiConfig, aiPublic, readiness, claudeEnv } from './providers.js';
 import { runPipeline, TIER_OF } from './pipeline.js';
 import { errorText, msToPacificMidnight } from './llm.js';
+import { repairLog, readLog } from './log-guard.js';
 
 const SETTINGS_FILE = path.join(ROOT, 'library.config.json');
 const HISTORY_FILE = path.join(OUTPUTS, '.agent-history.json');
@@ -128,8 +129,12 @@ function privateGuardDir() {
 export function guardArgs() {
   const file = path.join(privateGuardDir(), 'claude-guard.json');
   const slash = (p) => p.split(path.sep).join('/');
-  const command = `"${slash(process.execPath)}" "${slash(path.join(ROOT, 'scripts', 'guard-read.js'))}"`;
-  writeJSON(file, { hooks: { PreToolUse: [{ matcher: 'Read|Grep|Glob', hooks: [{ type: 'command', command }] }] } });
+  const hook = (script) => `"${slash(process.execPath)}" "${slash(path.join(ROOT, 'scripts', script))}"`;
+  // guard-write.js не позволява Write върху wiki/log.md (дневникът се допълва с Edit)
+  writeJSON(file, { hooks: { PreToolUse: [
+    { matcher: 'Read|Grep|Glob', hooks: [{ type: 'command', command: hook('guard-read.js') }] },
+    { matcher: 'Write', hooks: [{ type: 'command', command: hook('guard-write.js') }] },
+  ] } });
   return ['--settings', file, '--disallowedTools', DENIED_TOOLS.join(',')];
 }
 
@@ -397,6 +402,7 @@ export function createAgent({ broadcast }) {
     const job = {
       ...state.queue.shift(), steps: [], created: new Set(), updated: new Set(), startedAt: now(),
       before: new Set(walk(WIKI).map((f) => rel(f))),
+      logBefore: readLog(path.join(WIKI, 'log.md')), // дневникът преди задачата: проверява се в finish()
       index: state.batch.done + 1, total: Math.max(state.batch.total, state.batch.done + 1),
     };
     state.current = job;
@@ -531,11 +537,24 @@ export function createAgent({ broadcast }) {
     if (ev.type === 'result') { job.usage = { costUsd: ev.total_cost_usd ?? null, in: ev.usage?.input_tokens ?? null, out: ev.usage?.output_tokens ?? null, cacheRead: ev.usage?.cache_read_input_tokens ?? null, cacheWrite: ev.usage?.cache_creation_input_tokens ?? null }; setResult(ev); }
   }
 
+  /** Възстановява стари записи в дневника, ако задачата са изчезнали (вж. log-guard.js). Връща { lost } или null. */
+  function restoreLogEntries(job) {
+    if (job.logBefore == null) return null;
+    const file = path.join(WIKI, 'log.md');
+    const r = repairLog(job.logBefore, readLog(file));
+    if (!r.lost) return null;
+    fs.writeFileSync(file, r.text);
+    return { lost: r.lost };
+  }
+
   function finish(job, { status, message, detail, retryMs }) {
     if (job.finished) return;
     job.finished = true;
     child = null;
     let report = status === 'done' ? (message || job.lastText || '') : message;
+    // Дневникът е само за добавяне: ако задачата е изтрила стари записи, връщаме ги, преди да се направи точката
+    const logFix = restoreLogEntries(job);
+    if (logFix) report += ' ' + $t('The log had lost {0} entries during the job; they were restored.', [logFix.lost]);
     let commitAfter = null;
     if (job.commitBefore && status === 'done') commitAfter = checkpoint(`Processed: ${job.label}`);
     else if (job.commitBefore && (job.created.size || job.updated.size)) {

@@ -812,6 +812,7 @@
     "The text is ready: {0} words": "The text is ready: {0} words",
     "Writing: {0}{1}": "Writing: {0}{1}",
     "Stopped by you.": "Stopped by you.",
+    "The log had lost {0} entries during the job; they were restored.": "The log had lost {0} entries during the job; they were restored.",
     "The subscription limit has been reached. The queue is waiting.": "The subscription limit has been reached. The queue is waiting.",
     "Claude Code is not signed in. Run `claude` once in a terminal and sign in, then try again.": "Claude Code is not signed in. Run `claude` once in a terminal and sign in, then try again.",
     "The processing stopped with an error.": "The processing stopped with an error.",
