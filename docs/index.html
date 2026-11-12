@@ -672,6 +672,13 @@
             <h3>{{ t.feat.archive[0] }}</h3><p>{{ t.feat.archive[1] }}</p>
           </div>
           <div class="feat glow-card w3 reveal" @mousemove="glow">
+            <div class="grid gap-1.5 text-xs">
+              <div class="flex flex-wrap gap-1.5"><span v-for="k in t.feat.backup.kinds" :key="k" class="chip">{{ k }}</span></div>
+              <div v-for="(r, i) in t.feat.backup.rows" :key="i" class="flex items-center gap-2 min-w-0"><span class="dot" :style="{ '--c': r[0] }"></span><span class="font-semibold" style="flex:none">{{ r[1] }}</span><span class="truncate muted">{{ r[2] }}</span></div>
+            </div>
+            <h3>{{ t.feat.backup.title }}</h3><p>{{ t.feat.backup.text }}</p>
+          </div>
+          <div class="feat glow-card w3 reveal" @mousemove="glow">
             <div class="flex flex-wrap gap-1.5">
               <span class="chip"><span class="dot" style="--c:var(--t-source)"></span>{{ t.types.source[1] }} · 6</span>
               <span class="chip"><span class="dot" style="--c:var(--t-chapter)"></span>{{ t.types.chapter[1] }} · 4</span>
