@@ -1635,6 +1635,8 @@
     "Show the files": "Show the files",
     "Hide the files": "Hide the files",
     "changed": "changed",
-    "… and {0} more": "… and {0} more"
+    "… and {0} more": "… and {0} more",
+    "The drive {0}: is not mounted in WSL. A virtual drive (for example pCloud Drive) is not visible there. Use a normal folder, such as pCloud Sync or a folder on C: or E:.": "The drive {0}: is not mounted in WSL. A virtual drive (for example pCloud Drive) is not visible there. Use a normal folder, such as pCloud Sync or a folder on C: or E:.",
+    "WSL cannot write to this drive ({0}). Virtual drives such as pCloud Drive are not normal disks. Use a normal folder, such as pCloud Sync or a folder on C: or E:, and let the cloud program upload it.": "WSL cannot write to this drive ({0}). Virtual drives such as pCloud Drive are not normal disks. Use a normal folder, such as pCloud Sync or a folder on C: or E:, and let the cloud program upload it."
   }
 }

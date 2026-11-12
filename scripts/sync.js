@@ -60,12 +60,18 @@ export function checkTarget(input, { create = true } = {}) {
   if (!r || (!r.startsWith('..') && !path.isAbsolute(r))) return { ok: false, error: $t('The folder cannot be inside the library.') };
   const back = path.relative(p, ROOT);
   if (!back.startsWith('..') && !path.isAbsolute(back)) return { ok: false, error: $t('The folder cannot contain the library.') };
+  // Виртуален диск (pCloud Drive и подобни) или немонтиран диск в WSL: /mnt/<буква> липсва или не се пише
+  const drive = p.match(/^\/mnt\/([a-z])(?:\/|$)/);
+  if (drive && !fs.existsSync(`/mnt/${drive[1]}`)) return { ok: false, error: $t('The drive {0}: is not mounted in WSL. A virtual drive (for example pCloud Drive) is not visible there. Use a normal folder, such as pCloud Sync or a folder on C: or E:.', [drive[1].toUpperCase()]) };
   try {
     if (!fs.existsSync(p)) { if (!create) return { ok: true, path: p, exists: false, empty: true }; fs.mkdirSync(p, { recursive: true }); }
     if (!fs.statSync(p).isDirectory()) return { ok: false, error: $t('This is a file, not a folder.') };
     const t = path.join(p, `.llm-wiki-write-test-${process.pid}`);
     fs.writeFileSync(t, 'x'); fs.unlinkSync(t);
-  } catch (e) { return { ok: false, error: $t('The folder cannot be written: {0}', [e.code || e.message]) }; }
+  } catch (e) {
+    const wsl = drive && ['EACCES', 'EPERM', 'EROFS'].includes(e.code);
+    return { ok: false, error: wsl ? $t('WSL cannot write to this drive ({0}). Virtual drives such as pCloud Drive are not normal disks. Use a normal folder, such as pCloud Sync or a folder on C: or E:, and let the cloud program upload it.', [e.code]) : $t('The folder cannot be written: {0}', [e.code || e.message]) };
+  }
   let free = null; try { const s = fs.statfsSync(p); free = Number(s.bavail) * Number(s.bsize); } catch { /* не всяка файлова система казва */ }
   const meta = readMeta(p);
   return { ok: true, path: p, exists: true, empty: fs.readdirSync(p).length === 0, free, meta };
