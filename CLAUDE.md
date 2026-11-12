@@ -229,6 +229,8 @@ The sections are: Overview, Topics, Concepts, People and organizations, Sources 
 | `npm run pending` | Only the new files, one path per line: this is the list for ingest |
 | `npm run fix-paths` | Aligns `raw_path` in the source pages with the exact path on disk |
 | `npm run index` | Rebuilds index.md, log.md and overview.md from the pages; use it when files are lost or damaged. The automatic block in overview.md is between `auto-overview` markers: do not edit it by hand |
+| `npm run sync -- list\|plan <name>\|run <name> [--push-only\|--overwrite]` | Backups and sync with other folders (another disk, Drive, Dropbox, network disk). Targets are set in Settings → Backups. Do not run `run --overwrite` unless asked: it overwrites other people's changes in a shared folder (the old versions go to `_deleted/`) |
+| `npm run restore -- <folder> [--apply] [--force]` | Brings the library back from a copy folder into this project (without `--apply` it only shows) |
 | `npm run remove -- <slug>` | Preview of removing a source with its chapters and citations (only the human applies it with `--apply` or from the button) |
 | `npm run dupes` | Shows possible duplicates by spelling (Tchaikovsky/Chaikovsky) and authors written in different ways. `npm run dupes -- <keep> <drop> [--apply]` merges them (archive in `outputs/merged/`); the same is done from the collections in the interface |
 | `npm run merge-sources -- "Title" <slug1> <slug2> [...] [--apply]` | Merges separately uploaded sources (e.g. chapters of a book uploaded separately) into a book with chapters; see "Merging separately uploaded sources into a book" above |

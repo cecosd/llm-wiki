@@ -34,6 +34,7 @@ import { readUnits } from './reader-data.js';
 import { Worker } from 'node:worker_threads';
 import { listTargets, targetsView, saveTarget, deleteTarget, checkTarget, diffFile, forgetDeclined } from './sync.js';
 import { rebuildIndex } from './index.js';
+import { appInfo, requestMode, requestHost, requestQuit, hostsCommand, BOOT } from './app-control.js';
 
 const PORT = Number(process.env.PORT) || 4321;
 const INBOX = path.join(RAW, 'inbox');
@@ -71,6 +72,9 @@ app.use((req, res, next) => {
   if (req.method !== 'GET' && req.method !== 'HEAD' && req.headers['x-library'] !== '1' && !isLogin) return res.status(403).send($t('Forbidden'));
   next();
 });
+
+// Колко прозореца са отворени сега. Стартерът (scripts/app.js) спира сървъра, когато ги няма; отговорът е само число.
+app.get('/api/app/presence', (_req, res) => res.json({ clients: clients.size, boot: BOOT }));
 
 // --- Парола за интерфейса (по избор) ---
 function loginPage(req, res, failed) {
@@ -821,6 +825,16 @@ app.post('/api/remove', (req, res) => {
   agent.record({ kind: 'remove', target: slug, label: $t('Removed: {0}', [r.title]), report: $t('Removed {0} pages, cleaned citations in {1}. Archive: {2}.', [r.pages.length, r.touched.length, r.archive]), commitBefore: before, commitAfter: after, mode: null });
   res.json(r);
 });
+// ---------- Приложение: режим (обикновен или защитен), име на сайта, спиране ----------
+app.use('/api/app', express.json({ limit: '2kb' }));
+app.get('/api/app', (_req, res) => res.json(appInfo()));
+app.post('/api/app/mode', async (req, res) => res.json(await requestMode(req.body?.mode)));
+app.post('/api/app/host', async (req, res) => {
+  const name = req.body?.name ? String(req.body.name) : '';
+  const r = await requestHost(name, !!req.body?.force);
+  res.json(r.ok || r.error !== 'no-launcher' ? r : { ...r, command: name ? hostsCommand(name) : null });
+});
+app.post('/api/app/quit', async (_req, res) => res.json(await requestQuit()));
 app.get('/api/setup', (_req, res) => res.json(checkSetup()));
 app.post('/api/setup/test', async (_req, res) => res.json(await testAI()));
 
@@ -883,7 +897,7 @@ app.post('/api/tests/run', async (_req, res) => res.json(await runTests()));
 
 app.post('/api/agent/settings', (req, res) => {
   const s = {};
-  for (const k of ['autoIngest', 'autoResume', 'synthesisBest', 'confirmCost', 'setupDone']) if (k in (req.body || {})) s[k] = !!req.body[k];
+  for (const k of ['autoIngest', 'autoResume', 'synthesisBest', 'confirmCost', 'setupDone', 'welcomeDone']) if (k in (req.body || {})) s[k] = !!req.body[k];
   if (['economy', 'balanced', 'best'].includes(req.body?.mode)) s.mode = req.body.mode;
   if (['bg', 'both', 'original'].includes(req.body?.lang)) s.lang = req.body.lang;
   for (const k of ['reader', 'writer']) if (k in (req.body || {}) && ['', 'haiku', 'sonnet', 'opus'].includes(req.body[k])) s[k] = req.body[k];
@@ -1018,6 +1032,8 @@ app.use(express.static(path.join(ROOT, 'scripts', 'viewer')));
 
 app.listen(PORT, '127.0.0.1', () => {
   const where = WIKI_HOST ? $t('The library is open at http://localhost:{0} (and at http://{1}, if it is set in hosts)', [PORT, WIKI_HOST]) : $t('The library is open at http://localhost:{0}', [PORT]);
-  const sandbox = process.env.LIB_SANDBOX === '1' ? $t('Isolation: on (the program sees only the project folder)') : $t('Isolation: off (start with npm run serve:safe to turn it on)');
+  const sandbox = process.env.LIB_SANDBOX === '1' ? $t('Isolation: on (the program sees only the project folder)')
+    : process.env.LIB_ISOLATION === 'permission' ? $t('Isolation: basic (Node.js limits the files the program can reach)')
+      : $t('Isolation: off (start with npm run serve:safe to turn it on)');
   console.log(`\n  📚 ${where}\n     ${sandbox}\n     ${$t('Ctrl+C to stop')}\n`);
 });

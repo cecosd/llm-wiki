@@ -1,0 +1,62 @@
+{
+  "groups": [
+    {
+      "id": "start",
+      "title": { "bg": "Първи стъпки", "en": "Getting started" },
+      "pages": [
+        { "id": "intro", "track": "both", "title": { "bg": "Какво е библиотеката", "en": "What the library is" } },
+        { "id": "install", "track": "user", "title": { "bg": "Инсталиране", "en": "Installing" } },
+        { "id": "first-run", "track": "user", "title": { "bg": "Първо пускане", "en": "First start" } },
+        { "id": "app-window", "track": "user", "title": { "bg": "Прозорецът на приложението", "en": "The app window" } }
+      ]
+    },
+    {
+      "id": "daily",
+      "title": { "bg": "Всекидневна работа", "en": "Everyday use" },
+      "pages": [
+        { "id": "add-files", "track": "user", "title": { "bg": "Добавяне на файлове", "en": "Adding files" } },
+        { "id": "processing", "track": "user", "title": { "bg": "Обработка от ИИ", "en": "Processing with the AI" } },
+        { "id": "reading", "track": "user", "title": { "bg": "Четене и търсене", "en": "Reading and searching" } },
+        { "id": "learn-write", "track": "user", "title": { "bg": "Учене и писане", "en": "Learning and writing" } },
+        { "id": "organize", "track": "user", "title": { "bg": "Области, колекции, поправки", "en": "Areas, collections, fixes" } },
+        { "id": "backup", "track": "both", "title": { "bg": "Резервни копия и архив", "en": "Backups and archive" } }
+      ]
+    },
+    {
+      "id": "ai",
+      "title": { "bg": "ИИ модел", "en": "The AI model" },
+      "pages": [
+        { "id": "choose-model", "track": "user", "title": { "bg": "Избор на модел или доставчик", "en": "Choosing a model or provider" } },
+        { "id": "local-model", "track": "user", "title": { "bg": "Локален модел (Ollama)", "en": "A local model (Ollama)" } },
+        { "id": "cost-privacy", "track": "user", "title": { "bg": "Цена и поверителност", "en": "Cost and privacy" } }
+      ]
+    },
+    {
+      "id": "safety",
+      "title": { "bg": "Безопасност и адрес", "en": "Safety and address" },
+      "pages": [
+        { "id": "safe-mode", "track": "both", "title": { "bg": "Обикновен и защитен режим", "en": "Normal and safe mode" } },
+        { "id": "site-name", "track": "both", "title": { "bg": "Име на локалния сайт", "en": "A name for the local site" } }
+      ]
+    },
+    {
+      "id": "terminal",
+      "title": { "bg": "За терминала", "en": "For the terminal" },
+      "pages": [
+        { "id": "cli-launch", "track": "terminal", "title": { "bg": "Пускане от терминала", "en": "Starting from a terminal" } },
+        { "id": "cli-commands", "track": "terminal", "title": { "bg": "Команди", "en": "Commands" } },
+        { "id": "cli-agent", "track": "terminal", "title": { "bg": "Работа с Claude Code", "en": "Working with Claude Code" } },
+        { "id": "cli-config", "track": "terminal", "title": { "bg": "Настройки и променливи", "en": "Settings and variables" } },
+        { "id": "cli-dev", "track": "terminal", "title": { "bg": "Тестове и разработка", "en": "Tests and development" } }
+      ]
+    },
+    {
+      "id": "help",
+      "title": { "bg": "Помощ", "en": "Help" },
+      "pages": [
+        { "id": "troubleshooting", "track": "both", "title": { "bg": "Когато нещо не работи", "en": "When something does not work" } },
+        { "id": "glossary", "track": "both", "title": { "bg": "Речник", "en": "Glossary" } }
+      ]
+    }
+  ]
+}

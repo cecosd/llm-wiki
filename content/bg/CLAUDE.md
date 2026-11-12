@@ -237,6 +237,8 @@ raw_path:                             # НЕ се попълва: само кн�
 | `npm run lint` | Механичен lint, записва `outputs/lint-mech-YYYY-MM-DD.md` |
 | `npm run lint:quick` | Само счупени връзки, в конзолата |
 | `npm run serve` | Интерфейс на http://localhost:4321: качване, подреждане, преглед, граф. Обновява се сам, докато пишеш в wiki/ |
+| `npm run app` | Стартер на приложението: скрит сървър и прозорец на приложението (Edge, Chrome, Chromium, Brave); затварянето на прозореца спира сървъра. `--safe`, `--normal`, `--no-window`, `--check`. Режимът и името на сайта се сменят от интерфейса (`.launch.json`) |
+| `npm run hosts -- set <име>\|show\|remove` | Име на локалния сайт във файла hosts (блок `# llm-wiki begin` до `# llm-wiki end`); иска права на администратор. Не го пускай без молба на човека |
 | `npm run serve:safe` | Същото, но в изолация (Linux и WSL, иска `bubblewrap`): кодът и пакетите виждат само папката на проекта и пишат само в данните. Виж SECURITY.md |
 | `npm run sandbox:check` | Проверява изолацията отвътре: какво се вижда и какво не |
 | `npm run new -- <type> <slug>` | Нова страница от шаблон |

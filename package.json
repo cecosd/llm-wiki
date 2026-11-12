@@ -25,6 +25,8 @@
     "lint": "node scripts/lint.js",
     "lint:quick": "node scripts/lint.js --quick",
     "new": "node scripts/new.js",
+    "app": "node scripts/app.js",
+    "hosts": "node scripts/hosts.js",
     "serve": "node scripts/server.js",
     "serve:safe": "node scripts/sandbox.js",
     "sandbox:check": "node scripts/sandbox.js --check",

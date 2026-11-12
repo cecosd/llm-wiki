@@ -4,6 +4,7 @@
   "claude": { "en": "Work with Claude (simulated)", "bg": "Работа с Claude (симулирана)" },
   "ai": { "en": "Other models: API, local, copy and paste (simulated)", "bg": "Други модели: API, локален, копиране (симулирано)" },
   "security": { "en": "Security", "bg": "Сигурност" },
+  "launcher": { "en": "App launcher, safe mode and site name", "bg": "Стартер на приложението, защитен режим и име на сайта" },
   "updates": { "en": "Update check", "bg": "Проверка за обновления" },
   "runner": { "en": "Test runner", "bg": "Изпълнение на тестовете" }
 }

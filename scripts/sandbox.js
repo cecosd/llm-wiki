@@ -39,7 +39,7 @@ export const WRITABLE_FILES = ['library.config.json', '.library-auth.json', '.li
 /** В .library-git настройките и куките остават само за четене: git ги изпълнява. */
 const LOCKED = ['.library-git/config', '.library-git/hooks'];
 /** Променливите, които минават в клетката. Всичко друго се маха: ключове, SSH агент, сокетите на WSL (WSL_INTEROP). */
-export const PASS_ENV = ['PORT', 'WIKI_HOST', 'LIB_LANG', 'LANG', 'LC_ALL', 'LC_MESSAGES', 'TERM', 'NO_COLOR', 'FORCE_COLOR',
+export const PASS_ENV = ['PORT', 'WIKI_HOST', 'LIB_LAUNCHER', 'LIB_MODE', 'LIB_ISOLATION', 'LIB_LANG', 'LANG', 'LC_ALL', 'LC_MESSAGES', 'TERM', 'NO_COLOR', 'FORCE_COLOR',
   'LIBRARY_MAILTO', 'LIBRARY_OCR', 'LIBRARY_RETRY_MS', 'ANTHROPIC_API_KEY', 'CLAUDE_CODE_OAUTH_TOKEN',
   // ключовете на другите доставчици (providers.js), ако са зададени в средата вместо в .library-secrets.json
   'LIB_AI_KEY', 'OPENAI_API_KEY', 'GEMINI_API_KEY', 'GROQ_API_KEY', 'OPENROUTER_API_KEY', 'DEEPSEEK_API_KEY', 'MISTRAL_API_KEY'];
