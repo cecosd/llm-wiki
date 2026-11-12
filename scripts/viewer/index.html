@@ -216,7 +216,7 @@
     </a>
 
     <button v-if="!ro" type="button" :class="['mx-3 mb-3 flex items-center gap-3 rounded-2xl border px-3 py-2.5 text-left text-sm transition', syncStale ? 'border-amber-300 bg-amber-50 text-amber-900 hover:bg-amber-100 dark:border-amber-500/40 dark:bg-amber-500/10 dark:text-amber-200' : 'border-line hover:bg-ink/5 dark:border-night-line dark:hover:bg-white/5']" @click="syncButton">
-      <ic name="refresh" class="size-4 shrink-0"></ic>
+      <ic name="cloud" class="size-4 shrink-0"></ic>
       <span class="min-w-0 flex-1">
         <span class="block truncate font-medium">{{ syncInfo.length ? $t('Copy to other folders') : $t('Set up a backup') }}</span>
         <span class="block truncate text-xs opacity-80">{{ syncLine }}</span>

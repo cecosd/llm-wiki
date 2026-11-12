@@ -209,6 +209,7 @@ const ICONS = {
   arrowUp: 'M12 19V5M6 11l6-6 6 6',
   arrowDown: 'M12 5v14M6 13l6 6 6-6',
   refresh: 'M20 11a8 8 0 0 0-14.6-4.5M4 4v4h4M4 13a8 8 0 0 0 14.6 4.5M20 20v-4h-4',
+  cloud: 'M7 18a4 4 0 0 1-.6-8A6 6 0 0 1 18 9.5 4.5 4.5 0 0 1 17.5 18H7zM12 12v5M9.5 14.5 12 12l2.5 2.5',
   shield: 'M12 3l7 3v6c0 4.4-3 7.6-7 9-4-1.4-7-4.6-7-9V6z',
   key: 'M7.5 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7zM11 12h10M17 12v3M20 12v2',
   box: 'M3 4h18v4H3zM5 8v12h14V8M10 12h4',
@@ -1461,7 +1462,7 @@ const SETTINGS_SECTIONS = [
   { id: 'updates', icon: 'refresh', label: $t('Updates') },
   { id: 'data', icon: 'shield', label: $t('Data and privacy') },
   { id: 'password', icon: 'key', label: $t('Password') },
-  { id: 'backup', icon: 'refresh', label: $t('Backups and sync') },
+  { id: 'backup', icon: 'cloud', label: $t('Backups') },
   { id: 'archive', icon: 'box', label: $t('Archive for reading') },
   { id: 'tests', icon: 'check', label: $t('Tests') },
 ];
