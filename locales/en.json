@@ -1638,6 +1638,9 @@
     "The drive {0}: is not mounted in WSL. A virtual drive (for example pCloud Drive) is not visible there. Use a normal folder, such as pCloud Sync or a folder on C: or E:.": "The drive {0}: is not mounted in WSL. A virtual drive (for example pCloud Drive) is not visible there. Use a normal folder, such as pCloud Sync or a folder on C: or E:.",
     "WSL cannot write to this drive ({0}). Virtual drives such as pCloud Drive are not normal disks. Use a normal folder, such as pCloud Sync or a folder on C: or E:, and let the cloud program upload it.": "WSL cannot write to this drive ({0}). Virtual drives such as pCloud Drive are not normal disks. Use a normal folder, such as pCloud Sync or a folder on C: or E:, and let the cloud program upload it.",
     "A folder you share with other people (for example in pCloud). Only the sources, the pages and the drafts go there; your settings, history and code stay yours. If they changed something, you are asked what to take and what to overwrite.": "A folder you share with other people (for example in pCloud). Only the sources, the pages and the drafts go there; your settings, history and code stay yours. If they changed something, you are asked what to take and what to overwrite.",
-    "Backups": "Backups"
+    "Backups": "Backups",
+    "A copy of the library in one ZIP file, for reading on another computer. It has the pages with their links and tags, the markdown files, and the extracted text of the books and articles from raw/ (for the reader). The original files (PDF, EPUB, DOCX) are not included, and the copy cannot be changed by {ai}.": "A copy of the library in one ZIP file, for reading on another computer. It has the pages with their links and tags, the markdown files, and the extracted text of the books and articles from raw/ (for the reader). The original files (PDF, EPUB, DOCX) are not included, and the copy cannot be changed by {ai}.",
+    "Hide the sidebar": "Hide the sidebar",
+    "Show the sidebar": "Show the sidebar"
   }
 }

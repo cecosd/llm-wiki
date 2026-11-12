@@ -1638,6 +1638,9 @@
     "The drive {0}: is not mounted in WSL. A virtual drive (for example pCloud Drive) is not visible there. Use a normal folder, such as pCloud Sync or a folder on C: or E:.": "Дискът {0}: не е монтиран в WSL. Виртуален диск (например pCloud Drive) не се вижда там. Ползвайте обикновена папка, например pCloud Sync или папка на C: или E:.",
     "WSL cannot write to this drive ({0}). Virtual drives such as pCloud Drive are not normal disks. Use a normal folder, such as pCloud Sync or a folder on C: or E:, and let the cloud program upload it.": "WSL не може да пише на този диск ({0}). Виртуалните дискове като pCloud Drive не са обикновени дискове. Ползвайте обикновена папка, например pCloud Sync или папка на C: или E:, и оставете облачната програма да я качи.",
     "A folder you share with other people (for example in pCloud). Only the sources, the pages and the drafts go there; your settings, history and code stay yours. If they changed something, you are asked what to take and what to overwrite.": "Папка, която споделяте с други хора (например в pCloud). Там отиват само източниците, страниците и чернови; вашите настройки, история и код остават ваши. Ако те са променили нещо, ви питаме какво да вземете и какво да презапишете.",
-    "Backups": "Резервни копия"
+    "Backups": "Резервни копия",
+    "A copy of the library in one ZIP file, for reading on another computer. It has the pages with their links and tags, the markdown files, and the extracted text of the books and articles from raw/ (for the reader). The original files (PDF, EPUB, DOCX) are not included, and the copy cannot be changed by {ai}.": "Копие на библиотеката в един ZIP файл, за четене на друг компютър. Съдържа страниците с техните връзки и етикети, markdown файловете и извлечения текст на книгите и статиите от raw/ (за четеца). Оригиналните файлове (PDF, EPUB, DOCX) не са включени, а {ai} не може да промени копието.",
+    "Hide the sidebar": "Скрий страничното меню",
+    "Show the sidebar": "Покажи страничното меню"
   }
 }

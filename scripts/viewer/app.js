@@ -185,6 +185,7 @@ const ICONS = {
   external: 'M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5',
   link: 'M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1',
   menu: 'M4 7h16M4 12h16M4 17h16',
+  panel: 'M4 5h16v14H4zM9 5v14',
   trash: 'M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13M10 11v6M14 11v6',
   sun: 'M12 16a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4',
   moon: 'M20 14.5A8.5 8.5 0 0 1 9.5 4a8.5 8.5 0 1 0 10.5 10.5z',
@@ -2178,6 +2179,7 @@ const app = createApp({
     manual: [], manualHidden: false, manualShow: false, manualText: '', manualBusy: false, manualError: '', // ръчен режим (копиране в чат)
     syncReq: null, syncInfo: [], // резервни копия: отвореният прозорец и целите (за бутона в менюто)
     focus: store.get('focus', '0') === '1', // режим фокус: само текстът на страницата (запомня се на този компютър)
+    navHidden: store.get('nav:hidden', '0') === '1', // страничното меню скрито (запомня се на този компютър)
     theme: store.get('theme', 'system'), isMac: /Mac|iPhone|iPad/.test(navigator.platform),
     collections: { menu: { order: [], hidden: [] }, items: [] }, colEdit: null, // колекциите на човека и прозорецът за тях
     navClosed: (() => { try { return JSON.parse(store.get('nav:closed', '{}')) || {}; } catch { return {}; } })(), // свитите групи в менюто
@@ -2219,6 +2221,7 @@ const app = createApp({
     openSync(id) { this.syncReq = { id: id || '' }; },
     closeSync() { this.syncReq = null; this.loadSync(); },
     syncButton() { this.drawer = false; if (this.syncInfo.length) this.openSync(); else location.hash = '#/settings/backup'; },
+    setNav(show) { this.navHidden = !show; store.set('nav:hidden', show ? '0' : '1'); },
     setFocus(v) { this.focus = !!v; store.set('focus', v ? '1' : '0'); },
     // В архива екраните, които пишат или викат Claude, не работят: връщаме към началото
     guardArchive() { if (window.LIB_STATIC && ['path', 'write', 'find', 'areas', 'setup', 'settings', 'collections'].includes(this.route.name)) location.hash = '#/'; },
@@ -2407,6 +2410,7 @@ const app = createApp({
     window.addEventListener('keydown', (e) => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') { e.preventDefault(); this.palette ? (this.palette = false) : this.openPalette(); }
       else if (e.key === '/' && !/INPUT|TEXTAREA|SELECT/.test(document.activeElement?.tagName)) { e.preventDefault(); this.openPalette(); }
+      else if (e.key === '[' && !e.metaKey && !e.ctrlKey && !/INPUT|TEXTAREA|SELECT/.test(document.activeElement?.tagName) && !document.activeElement?.isContentEditable) { this.setNav(this.navHidden); }
       else if (e.key === 'Escape') {
         if (this.focusOn && !this.reader && !this.palette && !this.drawer) this.setFocus(false); // Esc излиза от фокуса
         this.palette = false; this.drawer = false; this.reader = null;
