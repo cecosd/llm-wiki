@@ -34,6 +34,8 @@
     "dupes": "node scripts/merge.js",
     "merge-sources": "node scripts/merge-sources.js",
     "archive": "node scripts/archive.js",
+    "sync": "node scripts/sync.js",
+    "restore": "node scripts/sync.js restore",
     "index": "node scripts/index.js",
     "i18n:check": "node scripts/i18n-check.js",
     "content": "node scripts/content.js",

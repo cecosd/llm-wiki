@@ -5,7 +5,7 @@ import express from 'express';
 import fs from 'node:fs';
 import path from 'node:path';
 import { spawn } from 'node:child_process';
-import { ensureStarter, ROOT, RAW, WIKI, OUTPUTS, rawFiles, rel, wikiPages, extractLinks, walk, sha256, loadManifest, ingestState, normRaw } from './lib.js';
+import { ensureStarter, today, ROOT, RAW, WIKI, OUTPUTS, rawFiles, rel, wikiPages, extractLinks, walk, sha256, loadManifest, ingestState, normRaw } from './lib.js';
 import { createAgent, legacySources, PATH_LEVELS } from './agent.js';
 import { askAI } from './ai.js';
 import { aiConfig, aiPublic, aiSettings, saveAiConfig, setKey, PRESETS } from './providers.js';
@@ -31,6 +31,9 @@ import { SPECIAL, snapshot, summary, plain, excerpt, AREAS, pagesList, pageDetai
 import { NM, VENDOR } from './vendor.js';
 import { writeArchive, listArchives, isArchiveName, archiveFile, deleteArchive } from './archive.js';
 import { readUnits } from './reader-data.js';
+import { Worker } from 'node:worker_threads';
+import { listTargets, targetsView, saveTarget, deleteTarget, checkTarget, diffFile, forgetDeclined } from './sync.js';
+import { rebuildIndex } from './index.js';
 
 const PORT = Number(process.env.PORT) || 4321;
 const INBOX = path.join(RAW, 'inbox');
@@ -661,6 +664,61 @@ app.get('/api/archive/:name', (req, res) => {
 app.delete('/api/archive/:name', (req, res) => {
   if (!deleteArchive(req.params.name)) return res.status(404).json({ ok: false, error: $t('There is no such archive') });
   res.json({ ok: true });
+});
+
+
+// ---------- Резервни копии и синхронизация с други папки (scripts/sync.js) ----------
+// Дългите операции вървят в отделна нишка (sync-worker.js), за да не замръзва интерфейсът; напредъкът се чете от /api/sync.
+const syncJob = { busy: false, progress: null };
+function inWorker(op, args) {
+  return new Promise((resolve) => {
+    let done = false; const fin = (r) => { if (!done) { done = true; resolve(r); } };
+    const w = new Worker(new URL('./sync-worker.js', import.meta.url), { workerData: { op, args } });
+    w.on('message', (m) => { if (m.progress) syncJob.progress = m.progress; else fin(m.result); });
+    w.on('error', (e) => fin({ ok: false, error: e.message }));
+    w.on('exit', () => fin({ ok: false, error: $t('The copy stopped.') }));
+  });
+}
+const isolated = () => !!process.env.LIB_SANDBOX_IPC;
+const noIso = (res) => res.json({ ok: false, error: $t('Copies to other folders are not available in the isolated mode yet. Start the library with “npm run serve”.') });
+app.use('/api/sync', express.json({ limit: '8mb' }));
+app.get('/api/sync', (_req, res) => res.json({ targets: targetsView(), busy: syncJob.busy, progress: syncJob.progress, isolated: isolated() }));
+app.post('/api/sync/check', (req, res) => res.json(checkTarget(String(req.body?.path || ''), { create: false })));
+app.post('/api/sync/targets', (req, res) => { if (isolated()) return noIso(res); res.json(saveTarget(req.body || {})); });
+app.delete('/api/sync/targets/:id', (req, res) => res.json({ ok: deleteTarget(String(req.params.id)) }));
+app.post('/api/sync/:id/plan', async (req, res) => {
+  if (isolated()) return noIso(res);
+  if (syncJob.busy) return res.json({ ok: false, error: $t('Another copy is running. Wait for it to finish.') });
+  syncJob.busy = true; syncJob.progress = { phase: 'plan', done: 0, total: 0 };
+  try { res.json(await inWorker('plan', [String(req.params.id)])); } finally { syncJob.busy = false; }
+});
+app.post('/api/sync/:id/diff', (req, res) => res.json(diffFile(String(req.params.id), String(req.body?.rel || ''))));
+app.post('/api/sync/:id/forget', (req, res) => res.json({ ok: forgetDeclined(String(req.params.id)) }));
+app.post('/api/sync/:id/verify', async (req, res) => {
+  if (syncJob.busy) return res.json({ ok: false, error: $t('Another copy is running. Wait for it to finish.') });
+  syncJob.busy = true;
+  try { res.json(await inWorker('verify', [String(req.params.id)])); } finally { syncJob.busy = false; }
+});
+app.post('/api/sync/:id/run', async (req, res) => {
+  if (isolated()) return noIso(res);
+  if (syncJob.busy || agent.isBusy()) return res.json({ ok: false, error: $t('Wait for the processing to finish.') });
+  const t = listTargets().find((x) => x.id === String(req.params.id));
+  if (!t) return res.json({ ok: false, error: $t('There is no such copy.') });
+  const b = req.body || {};
+  const strategy = ['push', 'overwrite', 'review'].includes(b.strategy) ? b.strategy : 'push';
+  syncJob.busy = true; syncJob.progress = { phase: 'plan', done: 0, total: 0 };
+  const before = strategy === 'review' ? agent.checkpoint(`Before: sync ${t.name}`) : null; // точка за „Върни“ само когато може да се вземе нещо
+  try {
+    const r = await inWorker('run', [t.id, { strategy, decisions: b.decisions && typeof b.decisions === 'object' ? b.decisions : {} }]);
+    if (r.ok && (r.pulled || r.merged || r.log)) {
+      try { rebuildIndex(); } catch { /* индексът се строи наново и при следващо lint */ }
+      fs.appendFileSync(path.join(WIKI, 'log.md'), `\n## ${today()} refactor: ${$t('Took changes from “{0}”', [t.name])}\n- ${$t('Taken')}: ${r.pulled}; ${$t('merged by paragraph')}: ${r.merged}; ${$t('log entries')}: ${r.log}\n- ${$t('Your versions of replaced files')}: ${r.undoBackup || '-'}\n`);
+      const after = agent.checkpoint(`Sync: ${t.name}`);
+      agent.record({ kind: 'merge', target: t.id, label: $t('Took changes from “{0}”', [t.name]), report: $t('Taken {0} files, merged {1}. Your old versions: {2}.', [r.pulled, r.merged, r.undoBackup || '-']), commitBefore: before, commitAfter: after, mode: null });
+      r.undoId = agent.snapshot().history[0]?.id || null;
+    }
+    res.json(r);
+  } finally { syncJob.busy = false; syncJob.progress = null; }
 });
 
 // Качване на файл в raw/inbox (тялото на заявката е самият файл)
