@@ -1535,7 +1535,6 @@
     "Backup": "Backup",
     "A copy for disaster recovery. Always writes yours to the folder; older versions and files you deleted go to _deleted.": "A copy for disaster recovery. Always writes yours to the folder; older versions and files you deleted go to _deleted.",
     "Shared folder": "Shared folder",
-    "A folder shared with other people. If they changed something, you are asked what to take and what to overwrite.": "A folder shared with other people. If they changed something, you are asked what to take and what to overwrite.",
     "Take from a copy": "Take from a copy",
     "Only takes what a colleague added. Nothing is written in their folder.": "Only takes what a colleague added. Nothing is written in their folder.",
     "Skip": "Skip",
@@ -1637,6 +1636,7 @@
     "changed": "changed",
     "… and {0} more": "… and {0} more",
     "The drive {0}: is not mounted in WSL. A virtual drive (for example pCloud Drive) is not visible there. Use a normal folder, such as pCloud Sync or a folder on C: or E:.": "The drive {0}: is not mounted in WSL. A virtual drive (for example pCloud Drive) is not visible there. Use a normal folder, such as pCloud Sync or a folder on C: or E:.",
-    "WSL cannot write to this drive ({0}). Virtual drives such as pCloud Drive are not normal disks. Use a normal folder, such as pCloud Sync or a folder on C: or E:, and let the cloud program upload it.": "WSL cannot write to this drive ({0}). Virtual drives such as pCloud Drive are not normal disks. Use a normal folder, such as pCloud Sync or a folder on C: or E:, and let the cloud program upload it."
+    "WSL cannot write to this drive ({0}). Virtual drives such as pCloud Drive are not normal disks. Use a normal folder, such as pCloud Sync or a folder on C: or E:, and let the cloud program upload it.": "WSL cannot write to this drive ({0}). Virtual drives such as pCloud Drive are not normal disks. Use a normal folder, such as pCloud Sync or a folder on C: or E:, and let the cloud program upload it.",
+    "A folder you share with other people (for example in pCloud). Only the sources, the pages and the drafts go there; your settings, history and code stay yours. If they changed something, you are asked what to take and what to overwrite.": "A folder you share with other people (for example in pCloud). Only the sources, the pages and the drafts go there; your settings, history and code stay yours. If they changed something, you are asked what to take and what to overwrite."
   }
 }

@@ -2051,7 +2051,7 @@ const ago = (iso) => {
 };
 const SYNC_MODES = () => ({
   backup: { label: $t('Backup'), hint: $t('A copy for disaster recovery. Always writes yours to the folder; older versions and files you deleted go to _deleted.') },
-  sync: { label: $t('Shared folder'), hint: $t('A folder shared with other people. If they changed something, you are asked what to take and what to overwrite.') },
+  sync: { label: $t('Shared folder'), hint: $t('A folder you share with other people (for example in pCloud). Only the sources, the pages and the drafts go there; your settings, history and code stay yours. If they changed something, you are asked what to take and what to overwrite.') },
   pull: { label: $t('Take from a copy'), hint: $t('Only takes what a colleague added. Nothing is written in their folder.') },
 });
 const jpost = async (url, body) => { try { return await (await api(url, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body || {}) })).json(); } catch { return { ok: false, error: $t('The server is not responding.') }; } };

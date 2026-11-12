@@ -19,6 +19,8 @@ const STATE_DIR = path.join(ROOT, 'outputs', '.sync');
 export const DATA_ITEMS = ['raw', 'wiki', 'drafts', 'outputs', '.library-git'];
 export const CODE_ITEMS = ['scripts', 'content', 'locales', 'docs', 'tests', '.claude', 'package.json', 'package-lock.json', 'CLAUDE.md', 'README.md', 'README.bg.md', 'LICENSE', 'SECURITY.md', 'CONTRIBUTING.md', 'CODE_OF_CONDUCT.md', 'PROJECT-HISTORY.md', 'install.sh', 'install.ps1', 'install.cmd', '.gitignore', '.npmrc'];
 const MACHINE = ['library.config.json'];
+/** Лично за всеки човек: в обща папка не се качва, за да не се презаписва чуждото (настройки, колекции, история за „Върни“) */
+const PERSONAL = ['outputs', '.library-git'];
 const SECRETS = ['.library-secrets.json', '.library-auth.json'];
 const PULL = ['raw/', 'wiki/', 'drafts/'];
 const PUSH_ONLY_FILES = new Set(['wiki/index.md', 'wiki/overview.md']);
@@ -146,9 +148,9 @@ function walkInto(out, root, relPath) {
 }
 
 /** rel → { abs, size, mtimeMs, sha }. */
-export function scan(root, { code = false } = {}) {
+export function scan(root, { code = false, personal = true } = {}) {
   const out = new Map();
-  for (const it of [...DATA_ITEMS, ...(code ? CODE_ITEMS : [])]) walkInto(out, root, it);
+  for (const it of [...DATA_ITEMS, ...(code ? CODE_ITEMS : [])]) if (personal || !PERSONAL.includes(it)) walkInto(out, root, it);
   for (const [r, f] of out) f.sha = fileHash(f.abs, f);
   saveCache();
   return out;
@@ -258,7 +260,8 @@ let report = null, lastReport = 0;
 export const onProgress = (fn) => { report = fn; };
 const tick = (force = false) => { if (report && (force || Date.now() - lastReport > 150)) { lastReport = Date.now(); report({ ...progress }); } };
 
-function view(t) { return { code: !!t.code }; }
+// Само резервното копие носи и личното (настройки, история, код). Общата папка е за raw, wiki и drafts.
+function view(t) { return { code: !!t.code && t.mode === 'backup', personal: t.mode === 'backup' }; }
 
 /** Какво ще се случи със синхронизацията, без да се пипа нищо. */
 export function plan(idOrTarget) {
@@ -399,9 +402,9 @@ export function run(id, { strategy = 'push', decisions = {} } = {}) {
         copyAtomic(lf(r), rf(r)); res.pushed++; res.bytes += fs.statSync(lf(r)).size;
       } catch (e) { res.warnings.push(`${r}: ${e.code || e.message}`); }
     }
-    if (t.mode !== 'pull') { // manifest: обединение; машинните файлове: еднопосочно
+    if (t.mode !== 'pull') { // manifest: обединение; машинните файлове: еднопосочно и само в резервно копие
       mergeManifest(rf(MANIFEST), lf(MANIFEST), null);
-      const machine = [...MACHINE, ...(t.secrets ? SECRETS : [])];
+      const machine = t.mode === 'backup' ? [...MACHINE, ...(t.secrets ? SECRETS : [])] : [];
       for (const f of machine) if (fs.existsSync(lf(f))) { try { copyAtomic(lf(f), path.join(root, '_machine', f)); } catch (e) { res.warnings.push(`${f}: ${e.code || e.message}`); } }
       if (t.mode === 'backup') for (const r of p.mirror) if (moveAway(root, r, bucket)) res.moved++; // изтритите при нас отиват в _deleted
       pruneDeleted(root, t.keepDays || 30);

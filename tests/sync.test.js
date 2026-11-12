@@ -176,3 +176,17 @@ test(T('library', 'Changing the processing mode does not bring back an old list 
     assert.equal((await api(s2.port, 'GET', '/api/sync')).json.targets.length, 2, 'the copy added after the start is still there');
   } finally { await s2?.stop(); box2.remove(); }
 });
+
+test(T('library', 'A shared folder gets only sources, pages and drafts, not your settings, history or code', 'Общата папка получава само източници, страници и чернови, не вашите настройки, история или код'), async () => {
+  box.write('outputs/collections.json', '{"mine":true}');
+  box.write('drafts/mine.md', ['---', 'title: Mine', '---', '', 'Text', ''].join('\n'));
+  const t = await make('pcloud', 'sync', { code: true });
+  const r = await run(t, { strategy: 'push' });
+  assert.ok(r.ok);
+  assert.ok(fs.existsSync(P('pcloud', 'wiki/concepts/entropy.md')));
+  assert.ok(fs.existsSync(P('pcloud', 'drafts/mine.md')));
+  assert.ok(!fs.existsSync(P('pcloud', 'outputs')), 'personal outputs stay home');
+  assert.ok(!fs.existsSync(P('pcloud', '.library-git')));
+  assert.ok(!fs.existsSync(P('pcloud', 'scripts')), 'code is not shared');
+  assert.ok(!fs.existsSync(P('pcloud', '_machine')), 'the machine settings are not shared');
+});
