@@ -161,3 +161,18 @@ test(T('library', 'Restore brings the library back into an empty copy of the app
     assert.match(fresh.read('wiki/concepts/entropy.md'), /Second paragraph, mine/);
   } finally { fresh.remove(); }
 });
+
+test(T('library', 'Changing the processing mode does not bring back an old list of copies', 'Смяната на режима на обработка не връща стар списък с копия'), async () => {
+  const box2 = makeSandbox();
+  let s2;
+  try {
+    const first = { id: 'told', name: 'Old', path: P('old-copy'), mode: 'backup', code: false, secrets: false, keepDays: 30 };
+    fs.writeFileSync(path.join(box2.root, 'library.config.json'), JSON.stringify({ contentLang: 'en', setupDone: true, sync: { targets: [first] } }));
+    s2 = await startServer(box2);
+    const add = await api(s2.port, 'POST', '/api/sync/targets', { name: 'New', path: P('new-copy'), mode: 'backup' });
+    assert.ok(add.json.ok);
+    assert.equal((await api(s2.port, 'GET', '/api/sync')).json.targets.length, 2);
+    await api(s2.port, 'POST', '/api/agent/settings', { mode: 'balanced' });
+    assert.equal((await api(s2.port, 'GET', '/api/sync')).json.targets.length, 2, 'the copy added after the start is still there');
+  } finally { await s2?.stop(); box2.remove(); }
+});

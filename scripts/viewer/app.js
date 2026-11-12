@@ -2072,7 +2072,10 @@ const SyncModal = defineComponent({
   beforeUnmount() { this.stopPoll(); },
   methods: {
     ago, modeLabel: (m) => SYNC_MODES()[m]?.label || m,
-    async load() { try { this.targets = (await (await api('/api/sync')).json()).targets || []; } catch { this.targets = []; } },
+    async load() { // сървърът казва истината; при грешка се показва грешка, а не „няма копия“
+      try { this.targets = (await (await api('/api/sync')).json()).targets || []; this.$root.syncInfo = this.targets; }
+      catch { this.targets = this.$root.syncInfo || []; this.error = $t('The server is not responding.'); }
+    },
     poll() { this.stopPoll(); this.timer = setInterval(async () => { try { this.progress = (await (await api('/api/sync')).json()).progress; } catch { /* следващият опит */ } }, 400); },
     stopPoll() { if (this.timer) clearInterval(this.timer); this.timer = null; this.progress = null; },
     async start(id) {
