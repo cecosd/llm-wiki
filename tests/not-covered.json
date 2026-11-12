@@ -2,51 +2,97 @@
   {
     "en": "Real providers other than Claude (OpenAI, Gemini, Groq, OpenRouter, DeepSeek, Mistral, Ollama, LM Studio) and the quality of pages written by small models",
     "bg": "Истинските доставчици освен Claude (OpenAI, Gemini, Groq, OpenRouter, DeepSeek, Mistral, Ollama, LM Studio) и качеството на страниците от малки модели",
-    "why": { "en": "The tests use a simulated server that follows the documented formats. A real provider can differ in details (limits, model names, JSON). Try the connection in Settings → Model and check the first processed source.", "bg": "Тестовете ползват симулиран сървър по документираните формати. Истинският доставчик може да се различава в детайли (лимити, имена на модели, JSON). Опитай връзката в Настройки → Модел и провери първия обработен източник." }
+    "why": {
+      "en": "The tests use a simulated server that follows the documented formats. A real provider can differ in details (limits, model names, JSON). Try the connection in Settings → Model and check the first processed source.",
+      "bg": "Тестовете ползват симулиран сървър по документираните формати. Истинският доставчик може да се различава в детайли (лимити, имена на модели, JSON). Опитай връзката в Настройки → Модел и провери първия обработен източник."
+    }
   },
   {
     "en": "Quality of what the real Claude writes (accuracy of summaries, citations, page numbers)",
     "bg": "Качеството на написаното от истинския Claude (точност на обобщенията, цитатите и страниците)",
-    "why": { "en": "Tests use a simulated Claude so that they cost nothing. Always check important claims against the source.", "bg": "Тестовете ползват симулиран Claude, за да не струват нищо. Важните твърдения винаги се проверяват в източника." }
+    "why": {
+      "en": "Tests use a simulated Claude so that they cost nothing. Always check important claims against the source.",
+      "bg": "Тестовете ползват симулиран Claude, за да не струват нищо. Важните твърдения винаги се проверяват в източника."
+    }
   },
   {
     "en": "Downloading from real publishers through “Add an article”",
     "bg": "Сваляне от истински издатели през „Добави статия“",
-    "why": { "en": "It depends on each publisher. Only the refusal of unsafe addresses is tested.", "bg": "Зависи от всеки издател. Тества се само отказът на опасни адреси." }
+    "why": {
+      "en": "It depends on each publisher. Only the refusal of unsafe addresses is tested.",
+      "bg": "Зависи от всеки издател. Тества се само отказът на опасни адреси."
+    }
   },
   {
     "en": "Installers on a clean computer (install.cmd, install.ps1, install.sh)",
     "bg": "Инсталаторите на чист компютър (install.cmd, install.ps1, install.sh)",
-    "why": { "en": "They install system software and need a clean machine of each kind.", "bg": "Инсталират системен софтуер и изискват чиста машина от всеки вид." }
+    "why": {
+      "en": "They install system software and need a clean machine of each kind.",
+      "bg": "Инсталират системен софтуер и изискват чиста машина от всеки вид."
+    }
   },
   {
     "en": "macOS and native Windows",
     "bg": "macOS и Windows без WSL",
-    "why": { "en": "This report comes from one environment (see above). Run npm test on your own system.", "bg": "Този отчет е от една среда (виж по-горе). Пуснете npm test на своята система." }
+    "why": {
+      "en": "This report comes from one environment (see above). Run npm test on your own system.",
+      "bg": "Този отчет е от една среда (виж по-горе). Пуснете npm test на своята система."
+    }
   },
   {
     "en": "OCR accuracy on real scanned books",
     "bg": "Точността на OCR върху истински сканирани книги",
-    "why": { "en": "Accuracy depends on the scan. Pages with many errors must be checked by hand.", "bg": "Точността зависи от сканирането. Страниците с много грешки се проверяват на ръка." }
+    "why": {
+      "en": "Accuracy depends on the scan. Pages with many errors must be checked by hand.",
+      "bg": "Точността зависи от сканирането. Страниците с много грешки се проверяват на ръка."
+    }
   },
   {
     "en": "Large libraries (over about 200 sources)",
     "bg": "Големи библиотеки (над около 200 източника)",
-    "why": { "en": "No automatic load test exists yet.", "bg": "Още няма автоматичен тест под натоварване." }
+    "why": {
+      "en": "No automatic load test exists yet.",
+      "bg": "Още няма автоматичен тест под натоварване."
+    }
   },
   {
     "en": "Your Anthropic privacy setting and Anthropic’s handling of the data",
     "bg": "Настройката ви за поверителност при Anthropic и начинът, по който Anthropic обработва данните",
-    "why": { "en": "This is outside the application and cannot be read or verified from it.", "bg": "Това е извън приложението и не може да се прочете или провери от него." }
+    "why": {
+      "en": "This is outside the application and cannot be read or verified from it.",
+      "bg": "Това е извън приложението и не може да се прочете или провери от него."
+    }
   },
   {
     "en": "Isolation (npm run serve:safe) on macOS and Windows without WSL",
     "bg": "Изолацията (npm run serve:safe) в macOS и Windows без WSL",
-    "why": { "en": "It uses bubblewrap, which exists only on Linux. There the packages of the program run with all your rights.", "bg": "Ползва bubblewrap, който го има само в Linux. Там пакетите на програмата работят с всичките ви права." }
+    "why": {
+      "en": "It uses bubblewrap, which exists only on Linux. There the packages of the program run with all your rights.",
+      "bg": "Ползва bubblewrap, който го има само в Linux. Там пакетите на програмата работят с всичките ви права."
+    }
   },
   {
     "en": "Updating real packages from Settings → Updates and the restart with the new versions",
     "bg": "Обновяването на истински пакети от „Настройки → Обновления“ и рестартът с новите версии",
-    "why": { "en": "The tests use a simulated npm, because a real update would change the node_modules that the test copy shares with the project. The restart through the isolation launcher was checked by hand (2026-11-10); the rollback when the new versions do not start was not.", "bg": "Тестовете ползват симулиран npm, защото истинско обновяване би сменило node_modules, които тестовото копие споделя с проекта. Рестартът през стартера на изолацията е проверен на ръка (2026-11-10); връщането, ако новите версии не тръгнат, не е." }
+    "why": {
+      "en": "The tests use a simulated npm, because a real update would change the node_modules that the test copy shares with the project. The restart through the isolation launcher was checked by hand (2026-11-10); the rollback when the new versions do not start was not.",
+      "bg": "Тестовете ползват симулиран npm, защото истинско обновяване би сменило node_modules, които тестовото копие споделя с проекта. Рестартът през стартера на изолацията е проверен на ръка (2026-11-10); връщането, ако новите версии не тръгнат, не е."
+    }
+  },
+  {
+    "en": "Backups and sync in a real browser, with Google Drive, Dropbox, pCloud or a network disk, and with a second person",
+    "bg": "Резервните копии и синхронизацията в истински браузър, с Google Drive, Dropbox, pCloud или мрежов диск и с втори човек",
+    "why": {
+      "en": "The tests use ordinary folders and call the API; the review window was only compiled, not looked at. Cloud drives can change file times and lock files while syncing. Try one backup and one shared folder with real data.",
+      "bg": "Тестовете ползват обикновени папки и викат API; прозорецът за преглед е само компилиран, не е гледан. Облачните дискове могат да променят времената на файловете и да заключват файлове, докато синхронизират. Опитайте едно резервно копие и една обща папка с истински данни."
+    }
+  },
+  {
+    "en": "Backups in the isolated mode (serve:safe)",
+    "bg": "Резервните копия в изолиран режим (serve:safe)",
+    "why": {
+      "en": "Not available yet: the sandbox sees only the project folder. The server says so in plain words.",
+      "bg": "Още не са налични: клетката вижда само папката на проекта. Сървърът го казва ясно."
+    }
   }
 ]

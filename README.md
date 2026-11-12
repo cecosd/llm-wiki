@@ -95,7 +95,19 @@ A pull request with a new locale file is welcome.
 - **Menu.** The sidebar is split into groups that fold: Learn and write, Library, Collections, Tags and System. The app remembers which groups are folded.
 - **Collections.** The page types come from the wiki itself, so “Chapters” and any new type appear without code changes. A **smart collection** fills itself from conditions: type, tag, area, format, confidence, reading status, author, years and a word in the title (AND between fields, OR within one field). A **list** is filled by hand with the “List” button on any page and ordered with arrows. The Collections screen (the gear next to “Collections” in the menu) orders and hides them. They are stored in `outputs/collections.json`; the pages themselves are not changed.
 - **Log.** The Log screen shows the entries of `log.md` newest first, grouped by day, with a filter by kind (processing, upgrade, synthesis, check, restructuring…) and a search.
-- **Settings.** A submenu on the left: Model, Updates, Data, Password, Archive and Tests. Each section has its own address (`#/settings/updates`).
+- **Settings.** A submenu on the left: Model, Updates, Data, Password, Backups and sync, Archive and Tests. Each section has its own address (`#/settings/updates`).
+
+### Backups and sharing
+
+Your library lives on one disk. If it dies, the reading archive is not enough: it has no original files. **Settings → Backups and sync** copies the whole working library to another folder (another disk, a network disk, or a folder that pCloud, Dropbox or Google Drive uploads), without `node_modules`, so it can bring the library back on a new computer. You press **Copy now** (the button is also in the left menu); nothing runs by itself.
+
+There are three kinds of copy:
+
+- **Backup:** only you write in the folder. It always writes yours; older versions and files you deleted go to `_deleted/`.
+- **Shared folder:** you and other people write in it. It compares before it writes and, if somebody else changed something, asks you: take it, leave it, overwrite it, or merge paragraph by paragraph. Only `raw/`, `wiki/` and `drafts/` are shared.
+- **Take from a copy:** only takes what a colleague added. Their deletions are ignored, and nothing is written in their folder.
+
+Before each copy the window lists which files will be sent and what kind they are. A backup folder that two people write to will overwrite each other's work, so use a Shared folder for that. After a disaster: `npm ci`, then `npm run restore -- <folder> --apply`. Read the full guide, with the pCloud example, the rules for two people and the Windows and WSL notes, in [docs/backup-and-sharing.md](docs/backup-and-sharing.md) ([Bulgarian](docs/backup-and-sharing.bg.md)). Copies are not available in the isolated mode (`serve:safe`) yet, and they are tested with ordinary folders, not yet with real cloud drives.
 
 ### Processing modes
 
@@ -170,6 +182,8 @@ Groq is fast, but its free plan counts tokens, not only requests.
 | `npm run index` | Rebuild `index.md`, `log.md`, `overview.md` from the pages |
 | `npm run dupes` | Possible duplicate pages and author spellings (`-- <keep> <drop> [--apply]` merges) |
 | `npm run merge-sources` | Merge separately uploaded files (e.g. chapters) into a book with chapters |
+| `npm run sync -- list` / `plan <name>` / `run <name>` | Backups and sharing: list the copies, show what a copy would do, copy (see [the guide](docs/backup-and-sharing.md)) |
+| `npm run restore -- <folder> [--apply]` | Bring the library back from a copy (without `--apply` it only shows) |
 | `npm run remove -- <slug>` | Preview removal of a source and what cites only it (`--apply` removes) |
 | `npm run new -- concept my-concept "My concept"` | New page from a template |
 | `npm run i18n:check` | Check translation files |

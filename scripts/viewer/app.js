@@ -210,6 +210,7 @@ const ICONS = {
   arrowUp: 'M12 19V5M6 11l6-6 6 6',
   arrowDown: 'M12 5v14M6 13l6 6 6-6',
   refresh: 'M20 11a8 8 0 0 0-14.6-4.5M4 4v4h4M4 13a8 8 0 0 0 14.6 4.5M20 20v-4h-4',
+  cloud: 'M7 18a4 4 0 0 1-.6-8A6 6 0 0 1 18 9.5 4.5 4.5 0 0 1 17.5 18H7zM12 12v5M9.5 14.5 12 12l2.5 2.5',
   shield: 'M12 3l7 3v6c0 4.4-3 7.6-7 9-4-1.4-7-4.6-7-9V6z',
   key: 'M7.5 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7zM11 12h10M17 12v3M20 12v2',
   box: 'M3 4h18v4H3zM5 8v12h14V8M10 12h4',
@@ -1462,6 +1463,7 @@ const SETTINGS_SECTIONS = [
   { id: 'updates', icon: 'refresh', label: $t('Updates') },
   { id: 'data', icon: 'shield', label: $t('Data and privacy') },
   { id: 'password', icon: 'key', label: $t('Password') },
+  { id: 'backup', icon: 'cloud', label: $t('Backups') },
   { id: 'archive', icon: 'box', label: $t('Archive for reading') },
   { id: 'tests', icon: 'check', label: $t('Tests') },
 ];
@@ -2039,12 +2041,143 @@ function parseRoute() {
   return { name: 'page', slug: parts[0] }; // стари връзки #/slug
 }
 
+
+// ---------- Резервни копии и синхронизация (scripts/sync.js) ----------
+const ago = (iso) => {
+  if (!iso) return '';
+  const m = Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 60000));
+  if (m < 2) return $t('just now');
+  if (m < 60) return $t('{0} min ago', [m]);
+  if (m < 1440) return $t('{0} h ago', [Math.round(m / 60)]);
+  return $t('{0} days ago', [Math.round(m / 1440)]);
+};
+const SYNC_MODES = () => ({
+  backup: { label: $t('Backup'), hint: $t('A copy for disaster recovery. Always writes yours to the folder; older versions and files you deleted go to _deleted.') },
+  sync: { label: $t('Shared folder'), hint: $t('A folder you share with other people (for example in pCloud). Only the sources, the pages and the drafts go there; your settings, history and code stay yours. If they changed something, you are asked what to take and what to overwrite.') },
+  pull: { label: $t('Take from a copy'), hint: $t('Only takes what a colleague added. Nothing is written in their folder.') },
+});
+const jpost = async (url, body) => { try { return await (await api(url, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body || {}) })).json(); } catch { return { ok: false, error: $t('The server is not responding.') }; } };
+const SyncModal = defineComponent({
+  template: '#tpl-sync-modal',
+  props: { req: Object },
+  emits: ['close'],
+  data: () => ({ showFiles: false, targets: [], tid: '', stage: 'pick', plan: null, dec: {}, choices: {}, segs: {}, previews: {}, open: {}, result: null, error: '', progress: null, timer: null }),
+  computed: {
+    target() { return this.targets.find((t) => t.id === this.tid); },
+    items() { return this.plan ? [...this.plan.conflicts.map((c) => ({ ...c, conflict: true })), ...this.plan.incoming] : []; },
+  },
+  async mounted() {
+    await this.load();
+    const id = this.req?.id || (this.targets.length === 1 && this.targets[0].online ? this.targets[0].id : '');
+    if (id) this.start(id);
+  },
+  beforeUnmount() { this.stopPoll(); },
+  methods: {
+    ago, size, modeLabel: (m) => SYNC_MODES()[m]?.label || m,
+    catInfo(c) {
+      return ({
+        raw: [$t('Original files'), $t('Your books, articles and other sources (PDF, EPUB, DOCX…)')],
+        extracted: [$t('Extracted text'), $t('Text taken from the sources, used for reading and searching')],
+        wiki: [$t('Pages'), $t('The pages {ai} wrote: sources, chapters, concepts, people, topics, the index and the log')],
+        drafts: [$t('Drafts'), $t('Your articles from “Write with the wiki”')],
+        outputs: [$t('Settings and history'), $t('Your collections, saved paths, history of processing and reports')],
+        history: [$t('Undo history'), $t('The history that “Undo” uses (.library-git)')],
+        code: [$t('Program code'), $t('The program itself, without node_modules')],
+      })[c] || [c, ''];
+    },
+    pushCats() { return Object.entries(this.plan?.pushSummary || {}).map(([c, g]) => ({ c, ...g, label: this.catInfo(c)[0], hint: this.catInfo(c)[1] })); },
+    async load() { // сървърът казва истината; при грешка се показва грешка, а не „няма копия“
+      try { this.targets = (await (await api('/api/sync')).json()).targets || []; this.$root.syncInfo = this.targets; }
+      catch { this.targets = this.$root.syncInfo || []; this.error = $t('The server is not responding.'); }
+    },
+    poll() { this.stopPoll(); this.timer = setInterval(async () => { try { this.progress = (await (await api('/api/sync')).json()).progress; } catch { /* следващият опит */ } }, 400); },
+    stopPoll() { if (this.timer) clearInterval(this.timer); this.timer = null; this.progress = null; },
+    async start(id) {
+      this.tid = id; this.stage = 'loading'; this.error = ''; this.plan = null; this.poll();
+      const p = await jpost(`/api/sync/${id}/plan`);
+      this.stopPoll();
+      if (!p.ok) { this.error = p.error || $t('I could not'); this.stage = this.req?.id ? 'plan' : 'pick'; return; }
+      this.plan = p; this.stage = 'plan';
+    },
+    startReview() {
+      this.dec = {}; this.choices = {}; this.segs = {}; this.open = {};
+      for (const it of this.items) { this.dec[it.rel] = 'skip'; }
+      this.stage = 'review';
+    },
+    options(it) {
+      const o = [{ v: 'skip', t: $t('Skip') }, { v: 'theirs', t: it.conflict ? $t('Take theirs') : $t('Take') }];
+      if (it.conflict) o.splice(1, 0, { v: 'mine', t: $t('Keep mine') });
+      if (it.text && it.kind !== 'log' && (it.conflict || it.kind === 'changed')) o.push({ v: 'merge', t: $t('By paragraph') });
+      return o;
+    },
+    takeAll(changed) { for (const it of this.items) if (it.conflict ? changed && !it.text : (changed || it.kind === 'new' || it.kind === 'log')) this.dec[it.rel] = 'theirs'; },
+    skipAll() { for (const it of this.items) this.dec[it.rel] = 'skip'; },
+    async toggle(it) {
+      this.open[it.rel] = !this.open[it.rel];
+      if (!this.open[it.rel] || this.segs[it.rel] || this.previews[it.rel]) return;
+      const d = await jpost(`/api/sync/${this.tid}/diff`, { rel: it.rel });
+      if (d.segments) {
+        let k = 0; this.segs[it.rel] = d.segments.map((g) => (g.same ? g : { ...g, k: k++ }));
+        this.choices[it.rel] = Array.from({ length: k }, () => (it.conflict ? 'm' : 't'));
+      } else this.previews[it.rel] = d.preview || '';
+    },
+    choose(rel, k, v) { this.choices[rel][k] = v; this.dec[rel] = 'merge'; },
+    async forget() { await jpost(`/api/sync/${this.tid}/forget`); this.start(this.tid); },
+    confirmOverwrite() {
+      if (window.confirm($t('Overwrite the changes by others with yours? Their versions stay in _deleted in that folder.'))) this.run('overwrite');
+    },
+    async run(strategy) {
+      const decisions = {};
+      if (strategy === 'review') for (const it of this.items) {
+        const d = this.dec[it.rel];
+        if (d === 'merge') decisions[it.rel] = { choices: (this.choices[it.rel] || []).slice() };
+        else if (d && d !== 'skip') decisions[it.rel] = d;
+      }
+      this.stage = 'running'; this.error = ''; this.poll();
+      const r = await jpost(`/api/sync/${this.tid}/run`, { strategy, decisions });
+      this.stopPoll();
+      this.result = r; this.stage = 'result';
+      this.$root.refresh(); this.$root.loadSync();
+      if (r.ok && (r.pulled || r.merged)) this.$root.loadAgent?.();
+    },
+    close() { if (this.stage === 'running') return; this.$emit('close'); },
+  },
+});
+
+const BackupSettings = defineComponent({
+  template: '#tpl-backup-settings',
+  data: () => ({ targets: [], isolated: false, form: { name: '', path: '', mode: 'backup', code: true, secrets: false, keepDays: 30 }, probe: null, error: '', busy: false, checks: {} }),
+  mounted() { this.load(); },
+  watch: { '$root.syncReq'(v) { if (!v) this.load(); } },
+  methods: {
+    ago, size, modeLabel: (m) => SYNC_MODES()[m].label, modeHint: (m) => SYNC_MODES()[m].hint,
+    async load() { try { const d = await (await api('/api/sync')).json(); this.targets = d.targets || []; this.isolated = !!d.isolated; } catch { this.targets = []; } this.$root.loadSync(); },
+    async test() { this.probe = this.form.path.trim() ? await jpost('/api/sync/check', { path: this.form.path }) : null; },
+    async add() {
+      this.busy = true; this.error = '';
+      const r = await jpost('/api/sync/targets', this.form);
+      this.busy = false;
+      if (!r.ok) { this.error = r.error || $t('I could not'); return; }
+      this.form = { name: '', path: '', mode: 'backup', code: true, secrets: false, keepDays: 30 }; this.probe = null;
+      this.$root.toast({ text: $t('The copy was added.') });
+      await this.load();
+    },
+    async remove(t) {
+      if (!window.confirm($t('Remove “{0}” from the list? The files in the folder stay where they are.', [t.name]))) return;
+      await api('/api/sync/targets/' + encodeURIComponent(t.id), { method: 'DELETE' });
+      this.load();
+    },
+    async verify(t) { this.checks[t.id] = { ok: true, files: 0, missingCount: 0, differentCount: 0, wait: true }; this.checks[t.id] = await jpost(`/api/sync/${t.id}/verify`); },
+  },
+});
+
 const app = createApp({
   template: '#tpl-app',
   data: () => ({
     ...shared, I18N, route: parseRoute(), pages: [], stats: {}, version: 0, live: false, setupLeft: 0,
     drawer: false, palette: false, pq: '', hits: [], pi: 0, toasts: [], agent: null, reader: null, cost: null,
     manual: [], manualHidden: false, manualShow: false, manualText: '', manualBusy: false, manualError: '', // ръчен режим (копиране в чат)
+    syncReq: null, syncInfo: [], // резервни копия: отвореният прозорец и целите (за бутона в менюто)
     focus: store.get('focus', '0') === '1', // режим фокус: само текстът на страницата (запомня се на този компютър)
     navHidden: store.get('nav:hidden', '0') === '1', // страничното меню скрито (запомня се на този компютър)
     theme: store.get('theme', 'system'), isMac: /Mac|iPhone|iPad/.test(navigator.platform),
@@ -2052,6 +2185,12 @@ const app = createApp({
     navClosed: (() => { try { return JSON.parse(store.get('nav:closed', '{}')) || {}; } catch { return {}; } })(), // свитите групи в менюто
   }),
   computed: {
+    syncStale() { if (!this.syncInfo.length) return false; const t = this.syncInfo.map((x) => x.last?.at).filter(Boolean).sort().pop(); return !t || Date.now() - new Date(t).getTime() > 7 * 86400000; },
+    syncLine() {
+      if (!this.syncInfo.length) return $t('Your library is only on this computer');
+      const t = this.syncInfo.map((x) => x.last?.at).filter(Boolean).sort().pop();
+      return t ? $t('Last copy: {0}', [ago(t)]) : $t('Never copied');
+    },
     focusOn() { return this.focus && this.route.name === 'page' && !['index', 'log', 'overview'].includes(this.route.slug); },
     countBy() { return this.pages.reduce((a, p) => (p.special ? a : ((a[p.type] = (a[p.type] || 0) + 1), a)), {}); },
     // Видовете, които ги има в wiki/: първо в реда, избран от човека, после по подразбиране, после новите по азбучен ред
@@ -2078,6 +2217,10 @@ const app = createApp({
     },
   },
   methods: {
+    async loadSync() { if (window.LIB_STATIC) return; try { this.syncInfo = (await (await api('/api/sync')).json()).targets || []; } catch { /* бутонът остава както е */ } },
+    openSync(id) { this.syncReq = { id: id || '' }; },
+    closeSync() { this.syncReq = null; this.loadSync(); },
+    syncButton() { this.drawer = false; if (this.syncInfo.length) this.openSync(); else location.hash = '#/settings/backup'; },
     setNav(show) { this.navHidden = !show; store.set('nav:hidden', show ? '0' : '1'); },
     setFocus(v) { this.focus = !!v; store.set('focus', v ? '1' : '0'); },
     // В архива екраните, които пишат или викат Claude, не работят: връщаме към началото
@@ -2276,13 +2419,15 @@ const app = createApp({
     });
     matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => this.theme === 'system' && this.setTheme('system'));
     this.guardArchive();
-    await Promise.all([this.refresh(), this.loadCollections(), window.LIB_STATIC ? null : this.loadAgent()]);
+    await Promise.all([this.refresh(), this.loadCollections(), window.LIB_STATIC ? null : this.loadAgent(), this.loadSync()]);
     if (!window.LIB_STATIC) this.connect(); // архивът няма сървър и живи събития
   },
 });
 
 app.config.globalProperties.$t = $t;
 app.component('ic', Ic);
+app.component('sync-modal', SyncModal);
+app.component('backup-settings', BackupSettings);
 app.component('page-card', PageCard);
 app.component('home-view', HomeView);
 app.component('page-view', PageView);

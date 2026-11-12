@@ -286,7 +286,7 @@ export function createAgent({ broadcast }) {
     history: readJSON(HISTORY_FILE, []),
     paused: null,       // { reason, at }
     // „ai“ (доставчикът) се чете и пише от providers.js, затова не се пази тук (иначе стара версия би го презаписала)
-    settings: (({ ai, ...rest }) => ({ autoIngest: true, autoResume: true, mode: 'economy', synthesisBest: true, lang: 'both', confirmCost: true, ...rest }))(readJSON(SETTINGS_FILE, {})),
+    settings: (({ ai, sync, ...rest }) => ({ autoIngest: true, autoResume: true, mode: 'economy', synthesisBest: true, lang: 'both', confirmCost: true, ...rest }))(readJSON(SETTINGS_FILE, {})),
     batch: { total: 0, done: 0 }, // за „файл 2 от 5“
   };
   let child = null, seq = Date.now(), pushTimer = null, retryTimer = null;
@@ -627,9 +627,10 @@ export function createAgent({ broadcast }) {
   function setSettings(s) {
     const { ai, ...rest } = s || {};
     state.settings = { ...state.settings, ...rest };
-    delete state.settings.ai;
+    delete state.settings.ai; delete state.settings.sync;
     // Слива се с файла: другите модули също пишат в него (contentLang, ai, prices)
-    writeJSON(SETTINGS_FILE, { ...readJSON(SETTINGS_FILE, {}), ...state.settings });
+    // Пише се само промененото (rest), не снимката от старта: иначе се връщат старите ai, sync, contentLang и цени
+    writeJSON(SETTINGS_FILE, { ...readJSON(SETTINGS_FILE, {}), ...rest });
     if ('autoResume' in s) scheduleRetry();
     push();
     return state.settings;
