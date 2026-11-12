@@ -1127,7 +1127,7 @@
     "Read-only archive": "Read-only archive",
     "A copy of the library made on {0}, with {1} pages. You can read, search and learn from it. {ai} does not change it, and the original files are not included.": "A copy of the library made on {0}, with {1} pages. You can read, search and learn from it. {ai} does not change it, and the original files are not included.",
     "Archive for reading": "Archive for reading",
-    "A copy of the library in one ZIP file, for reading on another computer. It has the pages with their links and tags, and the markdown files. The original files from raw/ are not included, and the copy cannot be changed by {ai}.": "A copy of the library in one ZIP file, for reading on another computer. It has the pages with their links and tags, and the markdown files. The original files from raw/ are not included, and the copy cannot be changed by {ai}.",
+    "A copy of the library in one ZIP file, for reading on another computer. It has the pages with their links and tags, the markdown files, and the extracted text of the books and articles from raw/ (for the reader). The original files (PDF, EPUB, DOCX) are not included, and the copy cannot be changed by {ai}.": "A copy of the library in one ZIP file, for reading on another computer. It has the pages with their links and tags, the markdown files, and the extracted text of the books and articles from raw/ (for the reader). The original files (PDF, EPUB, DOCX) are not included, and the copy cannot be changed by {ai}.",
     "Make the archive": "Make the archive",
     "Making the archive…": "Making the archive…",
     "The archive could not be made.": "The archive could not be made.",
@@ -1505,6 +1505,8 @@
     "Lists": "Lists",
     "Pages you choose by hand, in your own order. You add a page with the “List” button at the top of it.": "Pages you choose by hand, in your own order. You add a page with the “List” button at the top of it.",
     "New list": "New list",
-    "None yet.": "None yet."
+    "None yet.": "None yet.",
+    "Hide the sidebar": "Hide the sidebar",
+    "Show the sidebar": "Show the sidebar"
   }
 }

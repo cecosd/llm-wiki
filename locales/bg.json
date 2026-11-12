@@ -1126,7 +1126,7 @@
     "Read-only archive": "Архив за четене",
     "A copy of the library made on {0}, with {1} pages. You can read, search and learn from it. {ai} does not change it, and the original files are not included.": "Копие на библиотеката от {0}, със {1} страници. Можеш да четеш, да търсиш и да учиш от него. {ai} не го променя, а оригиналните файлове не са включени.",
     "Archive for reading": "Архив за четене",
-    "A copy of the library in one ZIP file, for reading on another computer. It has the pages with their links and tags, and the markdown files. The original files from raw/ are not included, and the copy cannot be changed by {ai}.": "Копие на библиотеката в един ZIP файл, за четене на друг компютър. Съдържа страниците с техните връзки и етикети, и markdown файловете. Оригиналните файлове от raw/ не са включени, а {ai} не може да промени копието.",
+    "A copy of the library in one ZIP file, for reading on another computer. It has the pages with their links and tags, the markdown files, and the extracted text of the books and articles from raw/ (for the reader). The original files (PDF, EPUB, DOCX) are not included, and the copy cannot be changed by {ai}.": "Копие на библиотеката в един ZIP файл, за четене на друг компютър. Съдържа страниците с техните връзки и етикети, markdown файловете и извлечения текст на книгите и статиите от raw/ (за четеца). Оригиналните файлове (PDF, EPUB, DOCX) не са включени, а {ai} не може да промени копието.",
     "Make the archive": "Направи архива",
     "Making the archive…": "Архивът се прави…",
     "The archive could not be made.": "Архивът не можа да се направи.",
@@ -1505,6 +1505,8 @@
     "Lists": "Списъци",
     "Pages you choose by hand, in your own order. You add a page with the “List” button at the top of it.": "Страници, които избираш на ръка, в твой ред. Страница добавяш с бутона „Списък“ в горната ѝ част.",
     "New list": "Нов списък",
-    "None yet.": "Още няма."
+    "None yet.": "Още няма.",
+    "Hide the sidebar": "Скрий страничното меню",
+    "Show the sidebar": "Покажи страничното меню"
   }
 }
