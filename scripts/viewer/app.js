@@ -2059,7 +2059,7 @@ const SyncModal = defineComponent({
   template: '#tpl-sync-modal',
   props: { req: Object },
   emits: ['close'],
-  data: () => ({ targets: [], tid: '', stage: 'pick', plan: null, dec: {}, choices: {}, segs: {}, previews: {}, open: {}, result: null, error: '', progress: null, timer: null }),
+  data: () => ({ showFiles: false, targets: [], tid: '', stage: 'pick', plan: null, dec: {}, choices: {}, segs: {}, previews: {}, open: {}, result: null, error: '', progress: null, timer: null }),
   computed: {
     target() { return this.targets.find((t) => t.id === this.tid); },
     items() { return this.plan ? [...this.plan.conflicts.map((c) => ({ ...c, conflict: true })), ...this.plan.incoming] : []; },
@@ -2071,7 +2071,19 @@ const SyncModal = defineComponent({
   },
   beforeUnmount() { this.stopPoll(); },
   methods: {
-    ago, modeLabel: (m) => SYNC_MODES()[m]?.label || m,
+    ago, size, modeLabel: (m) => SYNC_MODES()[m]?.label || m,
+    catInfo(c) {
+      return ({
+        raw: [$t('Original files'), $t('Your books, articles and other sources (PDF, EPUB, DOCX…)')],
+        extracted: [$t('Extracted text'), $t('Text taken from the sources, used for reading and searching')],
+        wiki: [$t('Pages'), $t('The pages {ai} wrote: sources, chapters, concepts, people, topics, the index and the log')],
+        drafts: [$t('Drafts'), $t('Your articles from “Write with the wiki”')],
+        outputs: [$t('Settings and history'), $t('Your collections, saved paths, history of processing and reports')],
+        history: [$t('Undo history'), $t('The history that “Undo” uses (.library-git)')],
+        code: [$t('Program code'), $t('The program itself, without node_modules')],
+      })[c] || [c, ''];
+    },
+    pushCats() { return Object.entries(this.plan?.pushSummary || {}).map(([c, g]) => ({ c, ...g, label: this.catInfo(c)[0], hint: this.catInfo(c)[1] })); },
     async load() { // сървърът казва истината; при грешка се показва грешка, а не „няма копия“
       try { this.targets = (await (await api('/api/sync')).json()).targets || []; this.$root.syncInfo = this.targets; }
       catch { this.targets = this.$root.syncInfo || []; this.error = $t('The server is not responding.'); }

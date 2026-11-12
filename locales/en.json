@@ -1614,6 +1614,27 @@
     "Add": "Add",
     "Bringing the library back": "Bringing the library back",
     "On a new computer: clone the program from GitHub (or take the code from a copy that includes it), run “npm ci”, then restore the library from the copy folder:": "On a new computer: clone the program from GitHub (or take the code from a copy that includes it), run “npm ci”, then restore the library from the copy folder:",
-    "The first command only shows what would be restored. The second restores it.": "The first command only shows what would be restored. The second restores it."
+    "The first command only shows what would be restored. The second restores it.": "The first command only shows what would be restored. The second restores it.",
+    "Original files": "Original files",
+    "Your books, articles and other sources (PDF, EPUB, DOCX…)": "Your books, articles and other sources (PDF, EPUB, DOCX…)",
+    "Extracted text": "Extracted text",
+    "Text taken from the sources, used for reading and searching": "Text taken from the sources, used for reading and searching",
+    "Pages": "Pages",
+    "The pages {ai} wrote: sources, chapters, concepts, people, topics, the index and the log": "The pages {ai} wrote: sources, chapters, concepts, people, topics, the index and the log",
+    "Drafts": "Drafts",
+    "Your articles from “Write with the wiki”": "Your articles from “Write with the wiki”",
+    "Settings and history": "Settings and history",
+    "Your collections, saved paths, history of processing and reports": "Your collections, saved paths, history of processing and reports",
+    "Undo history": "Undo history",
+    "The history that “Undo” uses (.library-git)": "The history that “Undo” uses (.library-git)",
+    "Program code": "Program code",
+    "The program itself, without node_modules": "The program itself, without node_modules",
+    "{0} files, {1}": "{0} files, {1}",
+    "new: {0}": "new: {0}",
+    "changed: {0}": "changed: {0}",
+    "Show the files": "Show the files",
+    "Hide the files": "Hide the files",
+    "changed": "changed",
+    "… and {0} more": "… and {0} more"
   }
 }

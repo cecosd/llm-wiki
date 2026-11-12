@@ -1614,6 +1614,27 @@
     "Add": "Добави",
     "Bringing the library back": "Връщане на библиотеката",
     "On a new computer: clone the program from GitHub (or take the code from a copy that includes it), run “npm ci”, then restore the library from the copy folder:": "На нов компютър: клонирайте програмата от GitHub (или вземете кода от копие, което го включва), пуснете „npm ci“ и възстановете библиотеката от папката с копието:",
-    "The first command only shows what would be restored. The second restores it.": "Първата команда само показва какво би се възстановило. Втората го възстановява."
+    "The first command only shows what would be restored. The second restores it.": "Първата команда само показва какво би се възстановило. Втората го възстановява.",
+    "Original files": "Оригинални файлове",
+    "Your books, articles and other sources (PDF, EPUB, DOCX…)": "Вашите книги, статии и други източници (PDF, EPUB, DOCX…)",
+    "Extracted text": "Извлечен текст",
+    "Text taken from the sources, used for reading and searching": "Текст, взет от източниците, за четене и търсене",
+    "Pages": "Страници",
+    "The pages {ai} wrote: sources, chapters, concepts, people, topics, the index and the log": "Страниците, които {ai} написа: източници, глави, понятия, личности, теми, индексът и дневникът",
+    "Drafts": "Чернови",
+    "Your articles from “Write with the wiki”": "Вашите статии от „Писане с wiki“",
+    "Settings and history": "Настройки и история",
+    "Your collections, saved paths, history of processing and reports": "Вашите колекции, запазени пътеки, история на обработките и отчети",
+    "Undo history": "История за „Върни“",
+    "The history that “Undo” uses (.library-git)": "Историята, която ползва „Върни“ (.library-git)",
+    "Program code": "Код на програмата",
+    "The program itself, without node_modules": "Самата програма, без node_modules",
+    "{0} files, {1}": "{0} файла, {1}",
+    "new: {0}": "нови: {0}",
+    "changed: {0}": "променени: {0}",
+    "Show the files": "Покажи файловете",
+    "Hide the files": "Скрий файловете",
+    "changed": "променен",
+    "… and {0} more": "… и още {0}"
   }
 }

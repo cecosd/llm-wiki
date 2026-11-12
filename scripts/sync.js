@@ -295,6 +295,12 @@ export function plan(idOrTarget) {
     } else if (base.declined[r] === R.sha && t.mode === 'pull') out.declined.push(r);
     else out.conflicts.push({ rel: r, cat: cat(r), text: TEXT.test(r), mine: { size: L.size, mtime: L.mtimeMs }, theirs: { size: R.size, mtime: R.mtimeMs } });
   }
+  // Какво точно ще се изпрати: по видове, и списък (до 400 реда) за прозореца
+  out.pushSummary = {};
+  out.pushInfo = out.push.map((r) => ({ rel: r, kind: remote.has(r) ? 'changed' : 'new', cat: cat(r), size: local.get(r)?.size || 0 }));
+  for (const f of out.pushInfo) { const g = (out.pushSummary[f.cat] ||= { n: 0, bytes: 0, new: 0, changed: 0 }); g.n++; g.bytes += f.size; g[f.kind]++; }
+  out.pushInfo = out.pushInfo.slice(0, 400);
+  out.mirrorMore = Math.max(0, out.mirror.length - 100); out.mirror = out.mirror.slice(0, 100);
   out.needsAnswer = t.mode !== 'backup' && (out.incoming.length > 0 || out.conflicts.length > 0);
   out.counts = { push: out.push.length, incoming: out.incoming.length, conflicts: out.conflicts.length, declined: out.declined.length, same: out.same };
   out.last = base.last;
