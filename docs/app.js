@@ -825,6 +825,7 @@ const SET_ICO = {
   model: '<rect x="6" y="6" width="12" height="12" rx="2"/><path d="M9 2v4M15 2v4M9 18v4M15 18v4M2 9h4M2 15h4M18 9h4M18 15h4"/>',
   pwd: '<rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/>',
   archive: '<path d="M21 8v13H3V8M1 3h22v5H1zM10 12h4"/>',
+  backup: '<path d="M21 12a9 9 0 1 1-3-6.7L21 8"/><path d="M12 7v5l3 2"/>',
   setup: '<path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>',
   updates: '<path d="M21 12a9 9 0 1 1-3-6.7L21 8"/><path d="M21 3v5h-5"/>',
   tests: '<path d="M9 3h6M10 3v6L4.5 18.5A2 2 0 0 0 6.2 21h11.6a2 2 0 0 0 1.7-2.5L14 9V3"/><path d="M7 15h10"/>',
@@ -837,7 +838,7 @@ const SettingsDemo = defineComponent({
       store, TESTS, ICO: SET_ICO, tab: 'model', seen: { model: true }, pulseTests: false,
       mdl: { sel: 'claude', step: -1, busy: false, done: false, test: { busy: false, ok: false, s: '' } },
       pw: { set: '', next: '', cur: '', msg: '', bad: false }, login: { open: false, pw: '', msg: '', ok: false, fails: 0, wait: 0 },
-      arc: { busy: false, done: false, step: -1, name: archName(), list: [] }, chk: { busy: false, at: 99 }, conn: { busy: false, ok: false, s: '' },
+      arc: { busy: false, done: false, step: -1, name: archName(), list: [] }, bk: { mode: '', busy: false, step: -1, done: false, stage: '', pc: 't' }, chk: { busy: false, at: 99 }, conn: { busy: false, ok: false, s: '' },
       ver: { busy: false, done: false }, pkg: { busy: false, done: false, act: '', restarting: false, updated: [], msg: '' }, run: { busy: false, done: false, n: 0 },
     };
   },
@@ -895,6 +896,16 @@ const SettingsDemo = defineComponent({
       A.step = 99; A.busy = false; A.done = true; if (!A.list.includes(A.name)) A.list.unshift(A.name); this.mark();
     },
     delArchive(i) { this.arc.list.splice(i, 1); toast(this.S.arc.deleted); },
+    /* Резервни копия: две копия в паметта на страницата. Резервното не пита; общата папка показва чужди промени и пита */
+    async runBk(kind) {
+      const B = this.bk; if (B.busy) return;
+      Object.assign(B, { mode: kind, busy: true, done: false, stage: '', step: 0, pc: 't' });
+      const n = kind === 'backup' ? this.S.bk.steps.length : 1;
+      for (let i = 0; i < n; i++) { B.step = i; await sleep(REDUCED ? 60 : 650); }
+      B.busy = false;
+      if (kind === 'backup') { B.done = true; this.mark(); } else B.stage = 'notice';
+    },
+    endBk(stage) { this.bk.stage = stage; this.mark(); },
     async recheck() { if (this.chk.busy) return; this.chk.busy = true; for (let i = 0; i < this.S.setup.items.length; i++) { this.chk.at = i; await sleep(REDUCED ? 30 : 260); } this.chk.at = 99; this.chk.busy = false; this.mark(); },
     async testConn() { if (this.conn.busy) return; this.conn.busy = true; this.conn.ok = false; await sleep(REDUCED ? 100 : 1400); this.conn.busy = false; this.conn.ok = true; this.conn.s = (1.4).toLocaleString(this.loc); this.mark(); },
     async checkVer() { if (this.ver.busy) return; this.ver.busy = true; this.ver.done = false; await sleep(REDUCED ? 100 : 1100); this.ver.busy = false; this.ver.done = true; this.mark(); },
