@@ -30,19 +30,27 @@ Three layers: `raw/` (originals), `wiki/` (generated pages), `CLAUDE.md` (the sc
 ## Requirements
 
 - Node.js 24 or newer
-- A model. By default [Claude Code](https://code.claude.com), signed in once (run `claude` in a terminal); the app runs it in the background (`claude -p`) with your own subscription. Other models are chosen in **Settings → Model** (see “Other models” below), and then Claude Code is needed only for the agent.
+- A model, chosen inside the app (**Settings → Model**, see “Other models” below): [Claude Code](https://code.claude.com) with your subscription, another provider with a key, a local model (Ollama, LM Studio), or manual copy and paste. **Nothing is required up front**: the installer installs no AI, and Claude Code is needed only if you pick it.
 - Optional: Git (gives the “Undo” button), `pdftotext` from poppler (better PDF text; without it the built-in `unpdf` is used), Obsidian.
 
 > **Privacy.** Everything runs on your machine and the server accepts requests only from `localhost`. When you ask Claude to process a source, the text of that source is sent to Anthropic through Claude Code. Nothing is sent before you confirm; the app shows an estimate of tokens and cost first.
 
 ## Quick start
 
-**On a computer with nothing installed**, download the repository (the green Code button, then Download ZIP, or `git clone`) and run the installer. It checks Node.js, the libraries, Claude Code and your Claude sign-in, asks before installing anything that is missing, and then starts the library and opens it in the browser:
+**On a computer with nothing installed**, download the repository (the green Code button, then Download ZIP, or `git clone`) and run the installer:
 
-- Windows: double-click `install.cmd`
-- macOS, Linux, WSL: `./install.sh`
+- **Windows:** double-click `install.cmd`. A setup window opens (no black screen). It installs the latest Node.js if it is missing or older than 24 (the file is checked against the checksums that nodejs.org publishes), installs the program's libraries, and optionally writes a name for your local site (for example `biblioteka.test`) into the hosts file and makes shortcuts. Windows asks for permission where needed.
+- **macOS, Linux, WSL:** `./install.sh` (asks before each step; `--yes` answers yes to all; `--site-name x.test` also sets the site name).
 
-Every step is also listed on the **Setup** page inside the app (`#/setup`) with the exact command for your system. The installer needs an internet connection and, for a Claude account, a Claude subscription (Pro or Max) or an Anthropic API key.
+After that you open the library with its **shortcut**: it opens in its own app window, there is no server window, and **closing the window stops the server**. Choose the AI in the app: the welcome screen explains the four ways and takes you to **Settings → Model**. A built-in **documentation** (Help → Documentation) covers everyday use and the terminal.
+
+Every requirement is also listed on the **Setup** page inside the app (`#/setup`) with the exact command for your system. The installer needs an internet connection.
+
+### App window, modes and site name
+
+- **App launcher** (`npm run app`, or the shortcut): starts the server hidden, opens an Edge, Chrome, Chromium or Brave window in app mode, and stops the server when that window closes. Without such a browser it uses the default one and stops about 30 seconds after the last tab closes. `--no-window` runs only the server, `--check` prints what it would do. Log: `outputs/server.log`.
+- **Normal and safe mode**, switchable in **Settings → Mode and safety** (the current mode is also shown in the menu). Safe mode has two kinds of protection, chosen automatically and **without WSL**: *strong* (Linux and WSL with `bubblewrap`: the program sees only this folder) and *basic* (Windows, macOS, Linux: `node --permission` limits the files Node.js can reach; it is a seat belt, not a cage, because programs the server starts such as `git` or Claude Code run with your rights, and scanned-PDF OCR is off). The page lists what each protects from and what not; the choice is also available from the terminal (`npm run app -- --safe`).
+- **Name of the local site**, in **Settings → Site address**: a name such as `biblioteka.test` is written to the hosts file between `# llm-wiki begin` and `# llm-wiki end` (administrator permission is asked by the system; a backup of the file is kept). Terminal: `node scripts/hosts.js set|show|remove`.
 
 If you prefer to do it by hand:
 
@@ -50,11 +58,10 @@ If you prefer to do it by hand:
 git clone <this repository> llm-wiki
 cd llm-wiki
 npm install
-claude               # sign in once
-npm run serve        # http://localhost:4321
+npm run app          # app window; or `npm run serve` for http://localhost:4321 in a terminal
 ```
 
-Open the page, drop files into the upload field, press “Sort and extract text”, and Claude starts processing. On Windows the recommended setup is WSL (see `scripts/launch/`).
+Open the app, drop files into the upload field, press “Sort and extract text”, choose the model in **Settings → Model**, and processing starts. WSL is no longer needed on Windows: install Node.js there with `install.cmd`. (The older `scripts/launch/wsl-start.sh` still works.)
 
 ## Languages (interface)
 
@@ -173,7 +180,9 @@ Groq is fast, but its free plan counts tokens, not only requests.
 | Command | What it does |
 |---|---|
 | `npm run serve` | The web app (`PORT=5000 npm run serve` for another port) |
-| `npm run serve:safe` | The web app in isolation (Linux and WSL, needs `sudo apt install bubblewrap`): the program and its packages see only this folder. See [SECURITY.md](SECURITY.md) |
+| `npm run app` | App launcher: hidden server plus an app window; closing the window stops the server. Flags: `--safe`, `--normal`, `--no-window`, `--check` |
+| `npm run hosts -- set <name>` | Writes a name for the local site into the hosts file (`show`, `remove` too); needs administrator rights |
+| `npm run serve:safe` | The web app in isolation (Linux and WSL, needs `sudo apt install bubblewrap`): the program and its packages see only this folder. See [SECURITY.md](SECURITY.md). Safe mode without WSL (Node permissions) is chosen by `npm run app -- --safe` |
 | `npm run sandbox:check` | Shows what can and cannot be seen from inside the isolation |
 | `npm run inbox` | Sort `raw/inbox/` (`-- --dry` to preview) |
 | `npm run extract` | Extract text from all raw files (`-- --force` to redo) |

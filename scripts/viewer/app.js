@@ -198,6 +198,10 @@ const ICONS = {
   arrowLeft: 'M19 12H5M11 18l-6-6 6-6',
   arrowRight: 'M5 12h14M13 6l6 6-6 6',
   x: 'M6 6l12 12M18 6L6 18',
+  lock: 'M7 11V8a5 5 0 0 1 10 0v3M5 11h14v10H5zM12 15v2',
+  power: 'M12 3v9M6.3 6.3a8 8 0 1 0 11.4 0',
+  docs: 'M5 4h10l4 4v12H5zM15 4v4h4M8 12h8M8 16h8',
+  flag: 'M5 21V4M5 4h11l-2 4 2 4H5',
   terminal: 'M4 5h16v14H4zM8 10l3 2-3 2M13 15h3',
   grid: 'M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z',
   route: 'M6 20a2 2 0 1 0 0-4 2 2 0 0 0 0 4zM18 8a2 2 0 1 0 0-4 2 2 0 0 0 0 4zM8 18h7a3.5 3.5 0 0 0 0-7H9a3.5 3.5 0 0 1 0-7h7',
@@ -1391,6 +1395,9 @@ const AiSettings = defineComponent({
     async load() {
       try { this.s = await (await fetch('/api/ai')).json(); } catch { this.s = null; return; }
       if (!this.sel) this.sel = this.s.current.provider;
+      // Адрес като #/settings/model?pick=ollama (от началния екран) отваря направо този профил
+      const want = new URLSearchParams(location.hash.split('?')[1] || '').get('pick');
+      if (want && this.s.presets.some((p) => p.id === want)) this.sel = want;
       this.fill();
     },
     fill() {
@@ -1460,6 +1467,8 @@ const AiSettings = defineComponent({
 // Разделите на настройките (подменюто вляво, адрес #/settings/<раздел>)
 const SETTINGS_SECTIONS = [
   { id: 'model', icon: 'sparkle', label: $t('Model') },
+  { id: 'mode', icon: 'lock', label: $t('Mode and safety') },
+  { id: 'address', icon: 'globe', label: $t('Site address') },
   { id: 'updates', icon: 'refresh', label: $t('Updates') },
   { id: 'data', icon: 'shield', label: $t('Data and privacy') },
   { id: 'password', icon: 'key', label: $t('Password') },
@@ -1468,6 +1477,264 @@ const SETTINGS_SECTIONS = [
   { id: 'tests', icon: 'check', label: $t('Tests') },
 ];
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+
+// ---------- Приложение: режим (обикновен или защитен), име на сайта (hosts), спиране ----------
+// Сървърът не може да пипа hosts или да се рестартира сам: иска го от стартера (scripts/app.js) през scripts/app-control.js.
+const HOST_RE = /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?){0,3}$/;
+const SAFE_SUFFIXES = ['localhost', 'test', 'local', 'lan', 'internal', 'home.arpa', 'wiki', 'library'];
+const postJson = (url, body) => api(url, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body || {}) }).then((r) => r.json());
+/** Чака сървърът да тръгне отново: при всяко пускане /api/app/presence връща друг `boot`. */
+async function waitForRestart(oldBoot) {
+  await wait(1200);
+  for (let i = 0; i < 90; i++) {
+    try { const d = await (await fetch('/api/app/presence', { cache: 'no-store' })).json(); if (d.boot && d.boot !== oldBoot) return true; } catch {}
+    await wait(1000);
+  }
+  return false;
+}
+const AppSettings = defineComponent({
+  template: '#tpl-app-settings',
+  props: { part: { type: String, default: 'mode' } },
+  data: () => ({ ...shared, info: null, boot: '', busy: false, msg: '', bad: false, name: '', force: false, cmd: '', shown: '' }),
+  computed: {
+    isSafe() { return this.info?.mode === 'safe'; },
+    iso() { return this.info?.isolation || 'none'; },
+    isoLabel() { return { bubblewrap: $t('Strong protection (bubblewrap)'), permission: $t('Basic protection (Node permissions)'), none: $t('No protection') }[this.iso]; },
+    check() {
+      const n = this.name.trim().toLowerCase().replace(/^https?:\/\//, '').replace(/\/.*$/, '');
+      if (!n) return { ok: false, empty: true };
+      if (n.length > 100 || !HOST_RE.test(n) || /^\d+(\.\d+)*$/.test(n) || n === 'localhost') return { ok: false, error: $t('Use letters, digits and hyphens, with dots between the parts (for example biblioteka.test).') };
+      const safe = SAFE_SUFFIXES.some((s) => n === s || n.endsWith('.' + s));
+      return { ok: true, name: n, real: !safe && n.includes('.'), bare: !n.includes('.') };
+    },
+    /** Какво пази и какво не пази режимът, който работи сега (или избраният за сравнение) */
+    protects() {
+      const w = this.shown || this.iso;
+      if (w === 'bubblewrap') return [
+        $t('A package of the program reading your other files: SSH keys, other projects, the Windows drives, browser data.'),
+        $t('Changing the program itself while it runs (scripts/ and node_modules/ are read-only inside).'),
+        $t('Starting Windows programs from inside Linux.'),
+        $t('Reading the keys and settings of other programs: only this library’s own folder is visible.'),
+      ];
+      if (w === 'permission') return [
+        $t('The server and its packages (Node code) reading or writing files outside the library folder.'),
+        $t('Changing the program’s own code (scripts/, node_modules/) while it runs.'),
+        $t('Text extraction and other Node helper processes: they get the same limits.'),
+      ];
+      return [$t('Nothing extra: the program has the same rights as your user account. The protections in “Always on” still apply.')];
+    },
+    notProtects() {
+      const w = this.shown || this.iso;
+      const common = [
+        $t('The network is open: it is needed for the AI provider and for “Add an article”. A hostile package could still send out what it can read, which is the library itself.'),
+        $t('Your own library files (raw/, wiki/) can still be changed by the program. Use “Undo” and backups.'),
+      ];
+      if (w === 'bubblewrap') return [...common, $t('Mistakes of the AI inside the library folder.')];
+      if (w === 'permission') return [
+        $t('Programs that the server starts (git, Claude Code, ocrmypdf, pdftotext) run with your normal rights. This is a seat belt, not a cage.'),
+        $t('A determined attacker: Node’s own documentation says this mode does not stop malicious code. For that, use strong protection (Linux or WSL with bubblewrap).'),
+        $t('Text recognition of scanned PDFs (OCR) is off in this mode because it needs a native add-on. Use normal mode for those files.'),
+        ...common,
+      ];
+      return [$t('Everything: any package in the program could read or change any file your account can.'), ...common];
+    },
+    always() {
+      return [
+        $t('The server listens only on your own computer (127.0.0.1), never on the network.'),
+        $t('Only the page of this program can talk to the server (checks of the Host name, the origin and a required header), so another website cannot read your library.'),
+        $t('Content security rules block inline code and outside addresses in the pages; HTML from sources is cleaned.'),
+        $t('A password for the page is optional (Settings → Password).'),
+      ];
+    },
+  },
+  created() { this.load(); },
+  methods: {
+    async load() {
+      try { this.info = await (await fetch('/api/app')).json(); } catch { this.info = null; return; }
+      try { this.boot = (await (await fetch('/api/app/presence')).json()).boot || ''; } catch {}
+      this.name = this.info.host || this.info.hostsEntry || '';
+    },
+    err(r) {
+      return ({
+        'no-launcher': $t('The program was not started with the app launcher, so it cannot do this from here.'),
+        timeout: $t('The launcher did not answer in time.'),
+        denied: $t('The system did not allow the change (the administrator window was closed or refused).'),
+        name: $t('This name is not valid.'),
+        mode: $t('This mode does not exist.'),
+        unavailable: $t('Safe mode is not available on this computer (Node.js 23 or newer is needed).'),
+        'real-domain': $t('This name looks like a real website. After this change that website would not open on this computer.'),
+      })[r?.error] || r?.error || $t('Something went wrong.');
+    },
+    async setMode(mode) {
+      const text = mode === 'safe'
+        ? $t('Restart the library in safe mode? The page reloads in a few seconds. Work that {ai} is doing now is stopped.')
+        : $t('Restart the library in normal mode? The page reloads in a few seconds. Work that {ai} is doing now is stopped.');
+      if (!confirm(text)) return;
+      this.busy = true; this.msg = ''; this.bad = false;
+      const r = await postJson('/api/app/mode', { mode }).catch(() => ({ ok: false, error: 'timeout' }));
+      if (!r.ok) { this.busy = false; this.msg = this.err(r); this.bad = true; return; }
+      this.msg = $t('Restarting…');
+      if (await waitForRestart(this.boot)) location.reload(); else { this.busy = false; this.msg = $t('The server did not come back. Close the window and open the library again.'); this.bad = true; }
+    },
+    async saveName(remove) {
+      if (!remove && !this.check.ok) return;
+      this.busy = true; this.msg = $t('Waiting for the administrator window…'); this.bad = false; this.cmd = '';
+      const r = await postJson('/api/app/host', { name: remove ? '' : this.check.name, force: this.force }).catch(() => ({ ok: false, error: 'timeout' }));
+      if (!r.ok) { this.busy = false; this.msg = this.err(r); this.bad = true; this.cmd = r.command || ''; return; }
+      this.msg = $t('Saved. Restarting…');
+      if (await waitForRestart(this.boot)) { location.href = r.url || location.origin + '/'; } else { this.busy = false; this.msg = $t('The server did not come back. Close the window and open the library again.'); this.bad = true; }
+    },
+    async quit() {
+      if (!confirm($t('Stop the library and close the window?'))) return;
+      await postJson('/api/app/quit').catch(() => {});
+      this.$root.stopped = true;
+    },
+  },
+});
+
+// ---------- Начален екран: как работи библиотеката, къде е какво, какво да настроя ----------
+const WelcomeView = defineComponent({
+  template: '#tpl-welcome',
+  props: { agent: { type: Object, default: null } },
+  emits: ['tour', 'finish'],
+  data: () => ({ ...shared, setup: null, info: null }),
+  computed: {
+    steps() {
+      return [
+        { icon: 'upload', title: $t('1. Add'), text: $t('Drop PDF, EPUB, Word, text or image files on the home page, or add an article by its DOI or address.'), where: $t('Home · Add an article'), href: '#/' },
+        { icon: 'sparkle', title: $t('2. Process'), text: $t('The AI reads each new file and writes linked pages: a summary of the source, its chapters, the concepts and the people. You see the cost before it starts.'), where: $t('Home · the “Process” button'), href: '#/' },
+        { icon: 'book', title: $t('3. Read and search'), text: $t('Open any page, follow the links, press the page numbers to open the original text, search with Ctrl K, or look at the link map.'), where: $t('Menu · Library'), href: '#/p/index' },
+        { icon: 'route', title: $t('4. Learn and write'), text: $t('Ask a question and get a reading path through your own sources. Compose an article with a bibliography from what you have read.'), where: $t('Menu · Learn and write'), href: '#/path' },
+      ];
+    },
+    models() {
+      return [
+        { id: 'claude-code', icon: 'sparkle', title: $t('Claude'), text: $t('You have a Claude subscription or key. The most capable choice: it works with files itself.') },
+        { id: 'gemini', icon: 'link', title: $t('Another provider with a key'), text: $t('ChatGPT, Gemini (a free tier exists), Groq, DeepSeek, Mistral and others. You paste one key.') },
+        { id: 'ollama', icon: 'monitor', title: $t('A model on this computer'), text: $t('Ollama or LM Studio. Free and private: nothing leaves the computer. Needs a capable computer.') },
+        { id: 'manual', icon: 'copy', title: $t('No account'), text: $t('Copy each request into any chat in your browser and paste the answer back. Slow but free.') },
+      ];
+    },
+    modelReady() { return !!this.setup && this.setup.steps.filter((s) => ['ai', 'claude', 'login'].includes(s.id)).every((s) => s.ok); },
+    firstReady() { return !!this.setup?.steps.find((s) => s.id === 'first')?.ok; },
+  },
+  async created() {
+    try { this.setup = await (await fetch('/api/setup')).json(); } catch {}
+    try { this.info = await (await fetch('/api/app')).json(); } catch {}
+  },
+});
+
+// ---------- Обиколка: осветява истинските бутони един по един ----------
+const TOUR_STEPS = () => [
+  { sel: 'home', title: $t('Home'), text: $t('Add your files here. They are sorted by type and wait to be processed.') },
+  { sel: 'search', title: $t('Search'), text: $t('Finds pages by title, alias and text. The shortcut is Ctrl K (⌘ K on a Mac).') },
+  { sel: 'work', title: $t('Learn and write'), text: $t('Ask a question to get a reading path, write an article from your sources, or add an article by DOI or address.') },
+  { sel: 'lib', title: $t('Library'), text: $t('The index of everything, the log of what the AI changed, the link map and the areas of knowledge.') },
+  { sel: 'cols', title: $t('Collections'), text: $t('Pages grouped by type, by tag, or in lists you build yourself. The plus sign makes a new one.') },
+  { sel: 'settings', title: $t('Settings'), text: $t('Choose the AI model, switch between normal and safe mode, set the name of your local site, back up and update.') },
+  { sel: 'docs', title: $t('Documentation'), text: $t('The full guide, for everyday use and for the terminal. You can come back to this tour from the welcome page.') },
+];
+const TourOverlay = defineComponent({
+  template: '#tpl-tour',
+  emits: ['close'],
+  data: () => ({ i: 0, rect: null, steps: TOUR_STEPS() }),
+  computed: {
+    step() { return this.steps[this.i]; },
+    card() {
+      const r = this.rect; const w = Math.min(340, innerWidth - 32);
+      if (!r || innerWidth < 1024) return { width: w + 'px', left: (innerWidth - w) / 2 + 'px', bottom: '16px' };
+      return { width: w + 'px', left: Math.min(r.right + 16, innerWidth - w - 16) + 'px', top: Math.max(16, Math.min(r.top - 8, innerHeight - 260)) + 'px' };
+    },
+    hole() {
+      const r = this.rect; if (!r) return null;
+      return { left: r.left - 6 + 'px', top: r.top - 6 + 'px', width: r.width + 12 + 'px', height: r.height + 12 + 'px' };
+    },
+  },
+  mounted() { this.place(); addEventListener('resize', this.place); addEventListener('keydown', this.key); },
+  unmounted() { removeEventListener('resize', this.place); removeEventListener('keydown', this.key); },
+  methods: {
+    place() {
+      this.$nextTick(() => {
+        const el = document.querySelector(`[data-tour="${this.step.sel}"]`);
+        if (!el || !el.offsetParent) { this.rect = null; return; }
+        el.scrollIntoView({ block: 'nearest' });
+        const r = el.getBoundingClientRect();
+        this.rect = r.width && r.left >= 0 && r.right <= innerWidth ? r : null;
+      });
+    },
+    go(d) { const n = this.i + d; if (n < 0) return; if (n >= this.steps.length) return this.$emit('close'); this.i = n; this.place(); },
+    key(e) { if (e.key === 'Escape') this.$emit('close'); else if (e.key === 'ArrowRight') this.go(1); else if (e.key === 'ArrowLeft') this.go(-1); },
+  },
+});
+
+// ---------- Документация: страници в scripts/viewer/help/<език>/<id>.md, списък в help/index.json ----------
+const DocsView = defineComponent({
+  template: '#tpl-docs',
+  props: { id: { type: String, default: '' } },
+  data: () => ({ ...shared, index: null, texts: {}, track: store.get('docs:track', 'all'), q: '', hits: [], html: '', toc: [], error: '', loading: false, all: false }),
+  computed: {
+    lang() { return I18N.lang; },
+    groups() {
+      if (!this.index) return [];
+      return this.index.groups.map((g) => ({ ...g, pages: g.pages.filter((p) => this.track === 'all' || p.track === 'both' || p.track === this.track) })).filter((g) => g.pages.length);
+    },
+    flat() { return this.groups.flatMap((g) => g.pages); },
+    curId() { return this.id || this.index?.groups[0]?.pages[0]?.id || ''; },
+    cur() { return this.index?.groups.flatMap((g) => g.pages).find((p) => p.id === this.curId) || null; },
+    pos() { return this.flat.findIndex((p) => p.id === this.curId); },
+    prev() { return this.pos > 0 ? this.flat[this.pos - 1] : null; },
+    next() { return this.pos >= 0 && this.pos < this.flat.length - 1 ? this.flat[this.pos + 1] : null; },
+  },
+  watch: {
+    curId() { this.show(); },
+    track(v) { store.set('docs:track', v); },
+    q() { this.search(); },
+  },
+  async created() {
+    try { this.index = await (await fetch('/help/index.json')).json(); } catch { this.error = $t('The documentation could not be loaded.'); return; }
+    await this.show();
+  },
+  methods: {
+    t(o) { return (o && (o[this.lang] || o.en || o.bg)) || ''; },
+    async text(id) {
+      if (this.texts[id] != null) return this.texts[id];
+      for (const l of [this.lang, 'en', 'bg']) {
+        try { const r = await fetch(`/help/${l}/${id}.md`); if (r.ok) { this.texts[id] = await r.text(); return this.texts[id]; } } catch {}
+      }
+      this.texts[id] = ''; return '';
+    },
+    async show() {
+      if (!this.curId) return;
+      this.loading = true;
+      const md = await this.text(this.curId);
+      let n = 0; const toc = [];
+      const out = sanitizeHtml(marked.parse(md, { gfm: true })).replace(/<h([23])>([\s\S]*?)<\/h\1>/g, (m, lvl, inner) => {
+        const id = 'h' + (++n); toc.push({ id, lvl: Number(lvl), text: inner.replace(/<[^>]+>/g, '') });
+        return `<h${lvl} id="${id}">${inner}</h${lvl}>`;
+      });
+      this.html = out; this.toc = toc; this.loading = false;
+      this.$nextTick(() => window.scrollTo({ top: 0 }));
+    },
+    jump(id) { document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' }); },
+    async search() {
+      const q = this.q.trim().toLowerCase();
+      if (q.length < 2) { this.hits = []; return; }
+      if (!this.all) { await Promise.all(this.index.groups.flatMap((g) => g.pages).map((p) => this.text(p.id))); this.all = true; }
+      if (q !== this.q.trim().toLowerCase()) return;
+      const out = [];
+      for (const g of this.index.groups) for (const p of g.pages) {
+        const body = this.texts[p.id] || ''; const low = body.toLowerCase();
+        const inTitle = this.t(p.title).toLowerCase().includes(q); const at = low.indexOf(q);
+        if (!inTitle && at < 0) continue;
+        const from = Math.max(0, at - 50);
+        out.push({ id: p.id, title: this.t(p.title), group: this.t(g.title), snippet: at < 0 ? '' : (from ? '…' : '') + body.slice(from, at + 110).replace(/[#*`>|]/g, ' ').replace(/\s+/g, ' ').trim() + '…', rank: inTitle ? 0 : 1 });
+      }
+      this.hits = out.sort((a, b) => a.rank - b.rank).slice(0, 25);
+    },
+    open(id) { this.q = ''; this.hits = []; location.hash = '#/docs/' + id; },
+  },
+});
+
 const SettingsView = defineComponent({
   template: '#tpl-settings',
   props: { section: { type: String, default: 'model' } },
@@ -2036,6 +2303,8 @@ function parseRoute() {
   if (parts[0] === 'find') return { name: 'find' };
   if (parts[0] === 'areas') return { name: 'areas' };
   if (parts[0] === 'setup') return { name: 'setup' };
+  if (parts[0] === 'welcome') return { name: 'welcome' };
+  if (parts[0] === 'docs') return { name: 'docs', id: parts[1] || '' };
   if (parts[0] === 'settings') return { name: 'settings', section: SETTINGS_SECTIONS.some((s) => s.id === parts[1]) ? parts[1] : 'model' };
   if (parts[0] === 'path') return { name: 'path', q: parts.slice(1).join('/'), mode: new URLSearchParams(hashQuery).get('m') || 'local' };
   return { name: 'page', slug: parts[0] }; // стари връзки #/slug
@@ -2174,7 +2443,7 @@ const BackupSettings = defineComponent({
 const app = createApp({
   template: '#tpl-app',
   data: () => ({
-    ...shared, I18N, route: parseRoute(), pages: [], stats: {}, version: 0, live: false, setupLeft: 0,
+    ...shared, I18N, route: parseRoute(), pages: [], stats: {}, version: 0, live: false, setupLeft: 0, tour: false, appInfo: null, stopped: false,
     drawer: false, palette: false, pq: '', hits: [], pi: 0, toasts: [], agent: null, reader: null, cost: null,
     manual: [], manualHidden: false, manualShow: false, manualText: '', manualBusy: false, manualError: '', // ръчен режим (копиране в чат)
     syncReq: null, syncInfo: [], // резервни копия: отвореният прозорец и целите (за бутона в менюто)
@@ -2224,7 +2493,7 @@ const app = createApp({
     setNav(show) { this.navHidden = !show; store.set('nav:hidden', show ? '0' : '1'); },
     setFocus(v) { this.focus = !!v; store.set('focus', v ? '1' : '0'); },
     // В архива екраните, които пишат или викат Claude, не работят: връщаме към началото
-    guardArchive() { if (window.LIB_STATIC && ['path', 'write', 'find', 'areas', 'setup', 'settings', 'collections'].includes(this.route.name)) location.hash = '#/'; },
+    guardArchive() { if (window.LIB_STATIC && ['path', 'write', 'find', 'areas', 'setup', 'settings', 'collections', 'welcome', 'docs'].includes(this.route.name)) location.hash = '#/'; },
     // ---------- Менюто: свиване на групите ----------
     navOpen(g) { return !this.navClosed[g]; },
     navToggle(g) { this.navClosed = { ...this.navClosed, [g]: !this.navClosed[g] }; store.set('nav:closed', JSON.stringify(this.navClosed)); },
@@ -2346,6 +2615,8 @@ const app = createApp({
     },
     async loadAgent() {
       try { this.agent = await (await fetch('/api/agent')).json(); } catch {}
+      // Първо пускане: приветствието излиза веднага, без да чака проверките на екрана за инсталация
+      if (this.agent?.settings && !this.agent.settings.welcomeDone && this.route.name === 'home') location.hash = '#/welcome';
       if (AI.engine === 'manual') { try { this.setManual(await (await fetch('/api/manual')).json()); } catch {} }
       this.loadSetup();
     },
@@ -2374,8 +2645,22 @@ const app = createApp({
       try {
         const s = await (await fetch('/api/setup')).json();
         this.setupLeft = s.blocking;
-        if (s.blocking && !this.agent?.settings?.setupDone && this.route.name === 'home') location.hash = '#/setup';
+        // Първо пускане: приветствие, после (ако нещо липсва) екранът за инсталация
+        if (this.agent?.settings && !this.agent.settings.welcomeDone && this.route.name === 'home') location.hash = '#/welcome';
+        else if (s.blocking && !this.agent?.settings?.setupDone && this.route.name === 'home') location.hash = '#/setup';
       } catch {}
+    },
+    async loadApp() { try { this.appInfo = await (await fetch('/api/app')).json(); } catch {} },
+    startTour() { this.drawer = false; location.hash = '#/'; this.tour = true; },
+    async finishWelcome(to) {
+      try { await api('/api/agent/settings', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ welcomeDone: true }) }); } catch {}
+      await this.loadAgent();
+      location.hash = to || '#/';
+    },
+    async quitApp() {
+      if (!confirm($t('Stop the library and close the window?'))) return;
+      try { await api('/api/app/quit', { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{}' }); } catch {}
+      this.stopped = true;
     },
     openPalette() { this.palette = true; this.pq = ''; this.hits = []; this.pi = 0; this.$nextTick(() => this.$refs.paletteInput?.focus()); },
     paletteSearch() {
@@ -2419,7 +2704,7 @@ const app = createApp({
     });
     matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => this.theme === 'system' && this.setTheme('system'));
     this.guardArchive();
-    await Promise.all([this.refresh(), this.loadCollections(), window.LIB_STATIC ? null : this.loadAgent(), this.loadSync()]);
+    await Promise.all([this.refresh(), this.loadCollections(), window.LIB_STATIC ? null : this.loadAgent(), this.loadSync(), window.LIB_STATIC ? null : this.loadApp()]);
     if (!window.LIB_STATIC) this.connect(); // архивът няма сървър и живи събития
   },
 });
@@ -2439,6 +2724,10 @@ app.component('find-view', FindView);
 app.component('areas-view', AreasView);
 app.component('setup-view', SetupView);
 app.component('settings-view', SettingsView);
+app.component('app-settings', AppSettings);
+app.component('welcome-view', WelcomeView);
+app.component('docs-view', DocsView);
+app.component('tour-overlay', TourOverlay);
 app.component('ai-settings', AiSettings);
 app.component('scope-bar', ScopeBar);
 app.component('view-toggle', ViewToggle);

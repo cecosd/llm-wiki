@@ -39,3 +39,7 @@ node_modules/
 .obsidian/workspace*.json
 Thumbs.db
 CLAUDE.md.bak
+
+# The launcher state (mode, site name, port)
+/.launch.json
+/scripts/launch/library.ico

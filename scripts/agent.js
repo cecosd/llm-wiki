@@ -146,7 +146,8 @@ export function findClaude() {
   if (!found.length) {
     // Обичайното място от официалния инсталатор, ако PATH още не е обновен
     const guess = path.join(process.env.HOME || process.env.USERPROFILE || '', '.local', 'bin', IS_WIN ? 'claude.exe' : 'claude');
-    return fs.existsSync(guess) ? { cmd: guess, shell: false } : null;
+    // В защитен режим (node --permission) проверка на път извън проекта хвърля грешка, затова е в try
+    try { return fs.existsSync(guess) ? { cmd: guess, shell: false } : null; } catch { return null; }
   }
   const exe = found.find((f) => /\.exe$/i.test(f)) || found[0];
   return { cmd: exe, shell: IS_WIN && /\.(cmd|bat)$/i.test(exe) };

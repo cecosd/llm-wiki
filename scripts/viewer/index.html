@@ -129,7 +129,7 @@
     </div>
 
     <div class="px-4">
-      <button @click="openPalette" class="flex w-full items-center gap-2.5 rounded-2xl border border-line bg-panel px-3.5 py-2.5 text-sm text-muted shadow-soft transition hover:border-sage-200 dark:border-night-line dark:bg-night-panel dark:text-night-muted">
+      <button data-tour="search" @click="openPalette" class="flex w-full items-center gap-2.5 rounded-2xl border border-line bg-panel px-3.5 py-2.5 text-sm text-muted shadow-soft transition hover:border-sage-200 dark:border-night-line dark:bg-night-panel dark:text-night-muted">
         <ic name="search" class="size-4"></ic>
         <span class="flex-1 text-left">{{ $t('Search') }}</span>
         <span class="kbd">{{ isMac ? '⌘' : 'Ctrl' }} K</span>
@@ -138,11 +138,11 @@
 
     <nav class="scrollbar-thin mt-4 flex-1 space-y-5 overflow-y-auto px-3 pb-6" :aria-label="$t('Menu')">
       <div class="space-y-0.5">
-        <a href="#/" :class="['nav-item', route.name==='home' && 'active']" @click="drawer=false"><ic name="home" class="size-4"></ic>{{ $t('Home') }}</a>
+        <a data-tour="home" href="#/" :class="['nav-item', route.name==='home' && 'active']" @click="drawer=false"><ic name="home" class="size-4"></ic>{{ $t('Home') }}</a>
       </div>
 
       <!-- Учене и писане: всичко, което работи с модела -->
-      <div v-if="!ro">
+      <div v-if="!ro" data-tour="work">
         <button type="button" class="nav-group" :aria-expanded="navOpen('work')" @click="navToggle('work')"><span class="flex-1">{{ $t('Learn and write') }}</span><ic name="chevron" :class="['size-3 transition', navOpen('work') && 'rotate-90']"></ic></button>
         <div v-show="navOpen('work')" class="space-y-0.5">
           <a href="#/path" :class="['nav-item', route.name==='path' && 'active']" @click="drawer=false"><ic name="route" class="size-4"></ic>{{ $t('Learn by question') }}</a>
@@ -152,7 +152,7 @@
       </div>
 
       <!-- Библиотеката като цяло -->
-      <div>
+      <div data-tour="lib">
         <button type="button" class="nav-group" :aria-expanded="navOpen('lib')" @click="navToggle('lib')"><span class="flex-1">{{ $t('Library') }}</span><ic name="chevron" :class="['size-3 transition', navOpen('lib') && 'rotate-90']"></ic></button>
         <div v-show="navOpen('lib')" class="space-y-0.5">
           <a href="#/p/index" :class="['nav-item', route.slug==='index' && 'active']" @click="drawer=false"><ic name="list" class="size-4"></ic>{{ $t('Index') }}</a>
@@ -163,7 +163,7 @@
       </div>
 
       <!-- Колекции: видовете от wiki/ (ред и скриване в #/collections), умните колекции и ръчните списъци -->
-      <div>
+      <div data-tour="cols">
         <div class="flex items-center">
           <button type="button" class="nav-group flex-1" :aria-expanded="navOpen('col')" @click="navToggle('col')"><span class="flex-1">{{ $t('Collections') }}</span><ic name="chevron" :class="['size-3 transition', navOpen('col') && 'rotate-90']"></ic></button>
           <template v-if="!ro">
@@ -202,10 +202,31 @@
         <button type="button" class="nav-group" :aria-expanded="navOpen('sys')" @click="navToggle('sys')"><span class="flex-1">{{ $t('System') }}</span><ic name="chevron" :class="['size-3 transition', navOpen('sys') && 'rotate-90']"></ic></button>
         <div v-show="navOpen('sys')" class="space-y-0.5">
           <a href="#/setup" :class="['nav-item', route.name==='setup' && 'active']" @click="drawer=false"><ic name="check" class="size-4"></ic><span class="flex-1">{{ $t('Setup') }}</span><span v-if="setupLeft" class="size-2 rounded-full bg-amber-500" :title="$t('{0} required steps are left.', [setupLeft])"></span></a>
-          <a href="#/settings" :class="['nav-item', route.name==='settings' && 'active']" @click="drawer=false"><ic name="gear" class="size-4"></ic>{{ $t('Settings') }}</a>
+          <a data-tour="settings" href="#/settings" :class="['nav-item', route.name==='settings' && 'active']" @click="drawer=false"><ic name="gear" class="size-4"></ic>{{ $t('Settings') }}</a>
+        </div>
+      </div>
+      <!-- Помощ: приветствие и документация -->
+      <div v-if="!ro">
+        <button type="button" class="nav-group" :aria-expanded="navOpen('help')" @click="navToggle('help')"><span class="flex-1">{{ $t('Help') }}</span><ic name="chevron" :class="['size-3 transition', navOpen('help') && 'rotate-90']"></ic></button>
+        <div v-show="navOpen('help')" class="space-y-0.5">
+          <a href="#/welcome" :class="['nav-item', route.name==='welcome' && 'active']" @click="drawer=false"><ic name="flag" class="size-4"></ic>{{ $t('Welcome and tour') }}</a>
+          <a data-tour="docs" href="#/docs" :class="['nav-item', route.name==='docs' && 'active']" @click="drawer=false"><ic name="docs" class="size-4"></ic>{{ $t('Documentation') }}</a>
         </div>
       </div>
     </nav>
+
+    <!-- Режим на работа: обикновен или защитен; отваря обяснението и превключвателя -->
+    <a v-if="!ro && appInfo" href="#/settings/mode" @click="drawer=false"
+       :class="['mx-3 mb-3 flex items-center gap-3 rounded-2xl border px-3 py-2 text-left text-sm transition', appInfo.mode==='safe' ? 'border-sage-200 bg-sage-50 text-sage-800 dark:border-sage-700 dark:bg-sage-900/40 dark:text-sage-200' : 'border-line text-muted hover:border-sage-200 dark:border-night-line dark:text-night-muted']">
+      <ic :name="appInfo.mode==='safe' ? 'lock' : 'monitor'" class="size-4 shrink-0"></ic>
+      <span class="min-w-0 flex-1">
+        <span class="block truncate font-medium">{{ appInfo.mode==='safe' ? $t('Safe mode') : $t('Normal mode') }}</span>
+        <span class="block truncate text-xs opacity-80">{{ appInfo.mode==='safe' ? $t('Protected. What does it cover?') : $t('Not protected. Learn about safe mode') }}</span>
+      </span>
+    </a>
+    <button v-if="!ro && appInfo?.launcher" type="button" class="mx-3 mb-3 flex items-center gap-3 rounded-2xl px-3 py-2 text-left text-sm text-muted transition hover:bg-ink/5 hover:text-ink dark:text-night-muted dark:hover:bg-white/5 dark:hover:text-night-ink" @click="quitApp">
+      <ic name="power" class="size-4 shrink-0"></ic>{{ $t('Quit the library') }}
+    </button>
 
     <a v-if="!ro && (agent?.current || agent?.paused?.reason==='limit')" href="#/" @click="drawer=false"
        :class="['mx-3 mb-3 flex items-center gap-3 rounded-2xl px-3 py-2.5 text-sm shadow-soft transition', agent.current ? 'bg-sage-600 text-white hover:bg-sage-700' : 'bg-amber-100 text-amber-800 dark:bg-amber-500/15 dark:text-amber-300']">
@@ -266,6 +287,8 @@
       <graph-view v-else-if="route.name==='graph'" :version="version"></graph-view>
       <find-view v-else-if="route.name==='find'" @toast="toast" @refresh="refresh"></find-view>
       <setup-view v-else-if="route.name==='setup'" @copy="copy" @done="loadAgent"></setup-view>
+      <welcome-view v-else-if="route.name==='welcome' && !ro" :agent="agent" @tour="startTour" @finish="finishWelcome"></welcome-view>
+      <docs-view v-else-if="route.name==='docs' && !ro" :id="route.id"></docs-view>
       <settings-view v-else-if="route.name==='settings'" :section="route.section" @copy="copy"></settings-view>
       <areas-view v-else-if="route.name==='areas'" :pages="pages" @toast="toast" @refresh="refresh"></areas-view>
       <write-view v-else-if="route.name==='write'" :id="route.id" :pages="pages" @toast="toast"></write-view>
@@ -334,6 +357,17 @@
   </transition>
 
   <sync-modal v-if="syncReq" :req="syncReq" @close="closeSync"></sync-modal>
+
+  <tour-overlay v-if="tour" @close="tour=false"></tour-overlay>
+
+  <!-- Сървърът е спрян от бутона „Спри библиотеката“ -->
+  <div v-if="stopped" class="fixed inset-0 z-[80] grid place-items-center bg-paper p-6 text-center dark:bg-night">
+    <div class="max-w-sm">
+      <span class="mx-auto grid size-14 place-items-center rounded-2xl bg-sage-600 text-white shadow-soft"><ic name="power" class="size-7"></ic></span>
+      <h1 class="mt-5 font-serif text-2xl font-semibold">{{ $t('The library has stopped') }}</h1>
+      <p class="mt-2 text-sm text-muted dark:text-night-muted">{{ $t('You can close this window. To open the library again, use its shortcut on the desktop or in the Start menu.') }}</p>
+    </div>
+  </div>
 
   <!-- Нова или съществуваща колекция: умна (по филтър) или ръчен списък -->
   <div v-if="colEdit" class="fixed inset-0 z-[58] flex items-center justify-center bg-ink/30 p-4 backdrop-blur-sm" @keydown.esc="colEdit=null" @mousedown.self="colEdit=null">
@@ -2130,6 +2164,247 @@ npm run restore -- /path/to/copy --apply</pre>
 </section>
 </script>
 
+<!-- ============================ РЕЖИМ, ИМЕ НА САЙТА ============================ -->
+<script type="text/x-template" id="tpl-app-settings">
+<div>
+  <p v-if="!info" class="mt-8 text-sm text-muted dark:text-night-muted">{{ $t('Loading…') }}</p>
+
+  <!-- Режим на работа -->
+  <template v-else-if="part==='mode'">
+    <section class="card mt-6 p-5">
+      <div class="flex flex-wrap items-center gap-3">
+        <span :class="['grid size-11 place-items-center rounded-2xl', isSafe ? 'bg-sage-600 text-white' : 'bg-ink/[.06] text-muted dark:bg-white/10']"><ic :name="isSafe ? 'lock' : 'monitor'" class="size-5"></ic></span>
+        <div class="min-w-0 flex-1">
+          <p class="font-serif text-xl font-semibold">{{ isSafe ? $t('You are in safe mode') : $t('You are in normal mode') }}</p>
+          <p class="text-sm text-muted dark:text-night-muted">{{ isoLabel }}</p>
+        </div>
+      </div>
+      <p class="mt-4 text-sm leading-relaxed">{{ $t('Safe mode is a way to run the program with fewer rights. The library uses many packages written by other people. If one of them were ever tampered with, it could read or send your files. Safe mode limits what such a package can reach. It is a precaution for the rare bad case, not something you need to think about every day.') }}</p>
+    </section>
+
+    <section class="mt-5 grid gap-3 sm:grid-cols-2">
+      <div :class="['card p-5', !isSafe && 'ring-2 ring-sage-400']">
+        <p class="flex items-center gap-2 font-semibold"><ic name="monitor" class="size-4"></ic>{{ $t('Normal mode') }}<span v-if="!isSafe" class="chip bg-sage-50 text-sage-700 dark:bg-sage-900/40 dark:text-sage-200">{{ $t('now') }}</span></p>
+        <p class="mt-2 text-sm text-muted dark:text-night-muted">{{ $t('Everything works, including text recognition of scanned PDFs. The program has the same rights as you.') }}</p>
+        <button class="btn-soft mt-4 !py-1.5 text-sm" :disabled="busy || !isSafe || !info.launcher" @click="setMode('normal')">{{ $t('Use normal mode') }}</button>
+      </div>
+      <div :class="['card p-5', isSafe && 'ring-2 ring-sage-400']">
+        <p class="flex items-center gap-2 font-semibold"><ic name="lock" class="size-4"></ic>{{ $t('Safe mode') }}<span v-if="isSafe" class="chip bg-sage-50 text-sage-700 dark:bg-sage-900/40 dark:text-sage-200">{{ $t('now') }}</span></p>
+        <p class="mt-2 text-sm text-muted dark:text-night-muted">{{ info.strongPossible ? $t('Strong protection: the program sees only the library folder (bubblewrap).') : info.canSafe ? $t('Basic protection: Node.js limits the files the program can reach. No extra software is needed.') : $t('Not available on this computer: it needs Node.js 23 or newer.') }}</p>
+        <button class="btn-primary mt-4 !py-1.5 text-sm" :disabled="busy || isSafe || !info.launcher || !info.canSafe" @click="setMode('safe')">{{ $t('Use safe mode') }}</button>
+      </div>
+    </section>
+    <p v-if="msg" :class="['mt-3 text-sm', bad ? 'text-clay-500' : 'text-sage-700 dark:text-sage-200']">{{ msg }}</p>
+    <p v-if="!info.launcher" class="mt-3 rounded-2xl bg-amber-50 p-3 text-sm text-amber-800 dark:bg-amber-500/10 dark:text-amber-300">{{ $t('The program was started from a terminal, not with the app launcher, so it cannot restart itself from here. Start it with the shortcut, or in a terminal:') }} <code class="font-mono text-xs">npm run app -- --safe</code> · <code class="font-mono text-xs">npm run app -- --normal</code></p>
+    <p v-if="info.canInstallBwrap" class="mt-3 text-sm text-muted dark:text-night-muted">{{ $t('To get strong protection on this computer, install bubblewrap once: sudo apt install bubblewrap. Then restart the library in safe mode.') }}</p>
+
+    <section class="card mt-6 p-5">
+      <div class="flex flex-wrap items-center gap-2">
+        <h2 class="mr-auto font-serif text-xl font-semibold">{{ $t('What does it cover?') }}</h2>
+        <div class="flex rounded-full border border-line p-0.5 text-xs dark:border-night-line" role="group" :aria-label="$t('Mode to describe')">
+          <button v-for="o in [{ id: '', label: $t('Current') }, { id: 'none', label: $t('Normal') }, { id: info.backend==='none' ? 'none' : info.backend, label: $t('Safe') }]" :key="o.label" type="button" @click="shown = o.id"
+                  :class="['rounded-full px-3 py-1 transition', shown===o.id ? 'bg-panel shadow-soft dark:bg-night-panel' : 'text-muted']">{{ o.label }}</button>
+        </div>
+      </div>
+      <div class="mt-4 grid gap-5 sm:grid-cols-2">
+        <div>
+          <p class="eyebrow text-sage-700 dark:text-sage-200">{{ $t('It protects from') }}</p>
+          <ul class="mt-2 list-disc space-y-1.5 pl-5 text-sm marker:text-sage-400"><li v-for="x in protects" :key="x">{{ x }}</li></ul>
+        </div>
+        <div>
+          <p class="eyebrow text-clay-500">{{ $t('It does not protect from') }}</p>
+          <ul class="mt-2 list-disc space-y-1.5 pl-5 text-sm marker:text-clay-400"><li v-for="x in notProtects" :key="x">{{ x }}</li></ul>
+        </div>
+      </div>
+      <p class="eyebrow mt-6">{{ $t('Always on, in both modes') }}</p>
+      <ul class="mt-2 list-disc space-y-1.5 pl-5 text-sm marker:text-sage-400"><li v-for="x in always" :key="x">{{ x }}</li></ul>
+      <p class="mt-5 text-sm"><a href="#/docs/safe-mode" class="font-medium underline">{{ $t('Read more in the documentation') }}</a></p>
+    </section>
+  </template>
+
+  <!-- Име на локалния сайт -->
+  <template v-else>
+    <section class="card mt-6 p-5">
+      <h2 class="font-serif text-xl font-semibold">{{ $t('A name for your local site') }}</h2>
+      <p class="mt-2 text-sm leading-relaxed text-muted dark:text-night-muted">{{ $t('The library lives on your own computer. By default you open it at localhost. If you prefer a name of your own, such as biblioteka.test, the program can add it to the “hosts” file of your system. The name then works only on this computer, in every browser.') }}</p>
+      <p class="eyebrow mt-5">{{ $t('Addresses that work now') }}</p>
+      <ul class="mt-2 space-y-1 text-sm">
+        <li><code class="font-mono text-xs">http://localhost:{{ info.port }}/</code> <span class="text-muted dark:text-night-muted">· {{ $t('always') }}</span></li>
+        <li v-if="info.host"><code class="font-mono text-xs">http://{{ info.host }}:{{ info.port }}/</code> <span class="text-muted dark:text-night-muted">· {{ $t('your name') }}</span></li>
+      </ul>
+
+      <label class="eyebrow mt-6 block" for="host-name">{{ $t('Name') }}</label>
+      <div class="mt-1 flex flex-wrap gap-2">
+        <input id="host-name" v-model="name" class="field max-w-xs" placeholder="biblioteka.test" autocomplete="off" spellcheck="false" @keydown.enter.prevent="saveName(false)">
+        <button class="btn-primary !py-1.5 text-sm" :disabled="busy || !check.ok || !info.launcher" @click="saveName(false)"><ic :name="busy ? 'spinner' : 'check'" :class="['size-4', busy && 'animate-spin']"></ic>{{ $t('Save the name') }}</button>
+        <button v-if="info.host || info.hostsEntry" class="btn-ghost !py-1.5 text-sm" :disabled="busy || !info.launcher" @click="saveName(true)">{{ $t('Remove the name') }}</button>
+      </div>
+      <p class="mt-2 flex flex-wrap gap-1.5 text-xs text-muted dark:text-night-muted">{{ $t('Ideas:') }}
+        <button v-for="s in ['biblioteka.test', 'my-library.test', 'wiki.localhost']" :key="s" type="button" class="chip border border-line hover:border-sage-200 dark:border-night-line" @click="name = s">{{ s }}</button>
+      </p>
+      <p v-if="check.error" class="mt-2 text-sm text-clay-500">{{ check.error }}</p>
+      <label v-if="check.real" class="mt-3 flex items-start gap-2 rounded-2xl bg-amber-50 p-3 text-sm text-amber-800 dark:bg-amber-500/10 dark:text-amber-300">
+        <input v-model="force" type="checkbox" class="mt-0.5">
+        <span>{{ $t('This name looks like a real website. If you save it, that website will not open on this computer any more. Tick the box only if you really want this.') }}</span>
+      </label>
+      <p v-if="check.bare" class="mt-2 text-xs text-muted dark:text-night-muted">{{ $t('A name without a dot works, but typing it in the address bar of a browser starts a web search. A name with an ending such as .test avoids that.') }}</p>
+
+      <p v-if="msg" :class="['mt-3 text-sm', bad ? 'text-clay-500' : 'text-sage-700 dark:text-sage-200']">{{ msg }}</p>
+      <div v-if="cmd" class="mt-3 rounded-2xl bg-ink/[.04] p-3 text-sm dark:bg-white/5">
+        <p>{{ $t('Run this command as administrator, then restart the library:') }}</p>
+        <p class="mt-1 flex items-center gap-2"><code class="min-w-0 flex-1 break-all font-mono text-xs">{{ cmd }}</code><button class="btn-ghost !p-1.5" :title="$t('Copy')" @click="$root.copy(cmd)"><ic name="copy" class="size-4"></ic></button></p>
+      </div>
+      <p v-if="!info.launcher" class="mt-3 rounded-2xl bg-amber-50 p-3 text-sm text-amber-800 dark:bg-amber-500/10 dark:text-amber-300">{{ $t('The program was not started with the app launcher, so it cannot ask for administrator rights from here. Use the command above, or start the library with its shortcut.') }}</p>
+    </section>
+
+    <section class="card mt-5 p-5 text-sm">
+      <h2 class="font-serif text-lg font-semibold">{{ $t('How it works, and why it asks for permission') }}</h2>
+      <ul class="mt-2 list-disc space-y-1.5 pl-5 marker:text-sage-400">
+        <li>{{ $t('Changing the hosts file needs administrator rights. Your system shows its own window to confirm. The library never sees your password.') }}</li>
+        <li>{{ $t('Only a small block between “# llm-wiki begin” and “# llm-wiki end” is written, and a backup copy of the file is kept next to it.') }}</li>
+        <li>{{ $t('The file is:') }} <code class="font-mono text-xs">{{ info.hostsFile }}</code><template v-if="info.wsl"> · {{ $t('In WSL the name is written to the hosts file of Windows, because the browser runs there.') }}</template></li>
+        <li>{{ $t('The port stays in the address (for example :4321). The server accepts only the names localhost and the one you saved, so a different website cannot reach your library.') }}</li>
+      </ul>
+      <p class="mt-4"><a href="#/docs/site-name" class="font-medium underline">{{ $t('Read more in the documentation') }}</a></p>
+    </section>
+  </template>
+</div>
+</script>
+
+<!-- ============================ ПРИВЕТСТВИЕ ============================ -->
+<script type="text/x-template" id="tpl-welcome">
+<div class="mx-auto max-w-5xl px-5 py-8 sm:px-8 lg:py-12">
+  <section class="card overflow-hidden p-6 sm:p-10">
+    <p class="eyebrow">{{ $t('Welcome') }}</p>
+    <h1 class="mt-2 max-w-2xl font-serif text-3xl font-semibold sm:text-4xl">{{ $t('Your personal library that reads for you') }}</h1>
+    <p class="mt-4 max-w-2xl text-base leading-relaxed text-ink/80 dark:text-night-ink/80">{{ $t('You choose what goes in: books, articles, notes. An AI model reads each file and writes linked pages: summaries, chapters, concepts, people. You read, search and learn from your own sources, and every claim points back to the page it came from.') }}</p>
+    <div class="mt-6 flex flex-wrap gap-3">
+      <button class="btn-primary" @click="$emit('tour')"><ic name="play" class="size-4"></ic>{{ $t('Take the 1-minute tour') }}</button>
+      <a href="#/docs" class="btn-soft"><ic name="docs" class="size-4"></ic>{{ $t('Open the documentation') }}</a>
+    </div>
+  </section>
+
+  <h2 class="mt-10 font-serif text-2xl font-semibold">{{ $t('How it works') }}</h2>
+  <p class="mt-1 text-sm text-muted dark:text-night-muted">{{ $t('Four steps. Each card says where to find it.') }}</p>
+  <div class="mt-4 grid gap-3 sm:grid-cols-2">
+    <a v-for="s in steps" :key="s.title" :href="s.href" class="card card-hover block p-5">
+      <span class="grid size-9 place-items-center rounded-xl bg-sage-50 text-sage-700 dark:bg-sage-900/40 dark:text-sage-200"><ic :name="s.icon" class="size-4"></ic></span>
+      <p class="mt-3 font-semibold">{{ s.title }}</p>
+      <p class="mt-1 text-sm text-muted dark:text-night-muted">{{ s.text }}</p>
+      <p class="mt-3 text-xs font-medium text-sage-700 dark:text-sage-200">{{ $t('Where:') }} {{ s.where }}</p>
+    </a>
+  </div>
+
+  <h2 class="mt-10 font-serif text-2xl font-semibold">{{ $t('Which AI will do the reading?') }}</h2>
+  <p class="mt-1 max-w-2xl text-sm text-muted dark:text-night-muted">{{ $t('You choose now, and you can change it at any time in Settings → Model. Nothing is installed for you and nothing is sent anywhere until you press a button.') }}</p>
+  <div class="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+    <a v-for="m in models" :key="m.id" :href="'#/settings/model?pick=' + m.id" class="card card-hover block p-4">
+      <span class="grid size-9 place-items-center rounded-xl bg-clay-100 text-clay-500 dark:bg-clay-500/15"><ic :name="m.icon" class="size-4"></ic></span>
+      <p class="mt-3 text-sm font-semibold">{{ m.title }}</p>
+      <p class="mt-1 text-xs text-muted dark:text-night-muted">{{ m.text }}</p>
+    </a>
+  </div>
+
+  <h2 class="mt-10 font-serif text-2xl font-semibold">{{ $t('Ready to start?') }}</h2>
+  <ul class="card mt-4 divide-y divide-line p-0 dark:divide-night-line">
+    <li class="flex flex-wrap items-center gap-3 px-5 py-3 text-sm">
+      <span :class="['grid size-6 place-items-center rounded-full', modelReady ? 'bg-sage-600 text-white' : 'bg-amber-100 text-amber-800 dark:bg-amber-500/20 dark:text-amber-300']"><ic :name="modelReady ? 'check' : 'alert'" class="size-3.5"></ic></span>
+      <span class="min-w-0 flex-1"><span class="font-medium">{{ $t('An AI model') }}</span><span class="block text-xs text-muted dark:text-night-muted">{{ modelReady ? $t('Ready.') : $t('Not set up yet. Choose one above.') }}</span></span>
+      <a href="#/settings/model" class="btn-ghost !py-1 text-xs">{{ $t('Open Model') }}</a>
+    </li>
+    <li class="flex flex-wrap items-center gap-3 px-5 py-3 text-sm">
+      <span class="grid size-6 place-items-center rounded-full bg-sage-50 text-sage-700 dark:bg-sage-900/40 dark:text-sage-200"><ic :name="info?.mode==='safe' ? 'lock' : 'monitor'" class="size-3.5"></ic></span>
+      <span class="min-w-0 flex-1"><span class="font-medium">{{ $t('Mode') }}: {{ info?.mode==='safe' ? $t('Safe') : $t('Normal') }}</span><span class="block text-xs text-muted dark:text-night-muted">{{ $t('Normal is fine to begin with. Safe mode limits what the program can reach.') }}</span></span>
+      <a href="#/settings/mode" class="btn-ghost !py-1 text-xs">{{ $t('Learn more') }}</a>
+    </li>
+    <li class="flex flex-wrap items-center gap-3 px-5 py-3 text-sm">
+      <span class="grid size-6 place-items-center rounded-full bg-sage-50 text-sage-700 dark:bg-sage-900/40 dark:text-sage-200"><ic name="globe" class="size-3.5"></ic></span>
+      <span class="min-w-0 flex-1"><span class="font-medium">{{ $t('A name for your site') }} <span class="text-xs font-normal text-muted dark:text-night-muted">{{ $t('optional') }}</span></span><span class="block text-xs text-muted dark:text-night-muted">{{ info?.host ? info.host : $t('You can add one later.') }}</span></span>
+      <a href="#/settings/address" class="btn-ghost !py-1 text-xs">{{ $t('Choose a name') }}</a>
+    </li>
+    <li class="flex flex-wrap items-center gap-3 px-5 py-3 text-sm">
+      <span :class="['grid size-6 place-items-center rounded-full', firstReady ? 'bg-sage-600 text-white' : 'bg-sage-50 text-sage-700 dark:bg-sage-900/40 dark:text-sage-200']"><ic :name="firstReady ? 'check' : 'upload'" class="size-3.5"></ic></span>
+      <span class="min-w-0 flex-1"><span class="font-medium">{{ $t('Your first file') }}</span><span class="block text-xs text-muted dark:text-night-muted">{{ firstReady ? $t('There are already files in the library.') : $t('Drop a PDF or a text file on the home page.') }}</span></span>
+      <a href="#/" class="btn-ghost !py-1 text-xs">{{ $t('Go to Home') }}</a>
+    </li>
+  </ul>
+  <div class="mt-6 flex flex-wrap gap-3">
+    <button class="btn-primary" @click="$emit('finish', modelReady ? '#/' : '#/settings/model')">{{ modelReady ? $t('Start using the library') : $t('Choose the model') }}</button>
+    <button class="btn-ghost" @click="$emit('finish', '#/')">{{ $t('Skip for now') }}</button>
+  </div>
+</div>
+</script>
+
+<!-- ============================ ОБИКОЛКА ============================ -->
+<script type="text/x-template" id="tpl-tour">
+<div class="fixed inset-0 z-[70]" role="dialog" aria-modal="true" :aria-label="$t('Tour')">
+  <div v-if="hole" class="pointer-events-none fixed rounded-2xl ring-2 ring-sage-400 transition-all duration-200" :style="{ ...hole, boxShadow: '0 0 0 9999px rgba(20,18,15,.6)' }"></div>
+  <div v-else class="fixed inset-0 bg-ink/60"></div>
+  <div class="card fixed animate-rise p-5 !shadow-lift" :style="card">
+    <p class="eyebrow">{{ $t('Step {0} of {1}', [i + 1, steps.length]) }}</p>
+    <h3 class="mt-1 font-serif text-xl font-semibold">{{ step.title }}</h3>
+    <p class="mt-2 text-sm leading-relaxed text-ink/80 dark:text-night-ink/80">{{ step.text }}</p>
+    <div class="mt-4 flex items-center gap-2">
+      <button class="btn-ghost !py-1.5 text-sm" @click="$emit('close')">{{ $t('Skip') }}</button>
+      <span class="flex-1"></span>
+      <button class="btn-ghost !py-1.5 text-sm" :disabled="i===0" @click="go(-1)">{{ $t('Back') }}</button>
+      <button class="btn-primary !py-1.5 text-sm" @click="go(1)">{{ i === steps.length - 1 ? $t('Finish') : $t('Next') }}</button>
+    </div>
+  </div>
+</div>
+</script>
+
+<!-- ============================ ДОКУМЕНТАЦИЯ ============================ -->
+<script type="text/x-template" id="tpl-docs">
+<div class="mx-auto max-w-7xl px-5 py-8 sm:px-8 lg:py-10">
+  <p class="eyebrow">{{ $t('Documentation') }}</p>
+  <p v-if="error" class="mt-4 text-sm text-clay-500">{{ error }}</p>
+  <p v-else-if="!index" class="mt-4 text-sm text-muted">{{ $t('Loading…') }}</p>
+  <div v-else class="mt-3 lg:grid lg:grid-cols-[16rem_minmax(0,1fr)] lg:gap-10 xl:grid-cols-[16rem_minmax(0,1fr)_13rem]">
+    <!-- Съдържание -->
+    <aside class="lg:sticky lg:top-6 lg:max-h-[calc(100dvh-3rem)] lg:self-start lg:overflow-y-auto lg:pr-2 scrollbar-thin">
+      <input v-model="q" type="search" class="field" :placeholder="$t('Search the documentation')" :aria-label="$t('Search the documentation')">
+      <div class="mt-3 flex rounded-full border border-line p-0.5 text-xs dark:border-night-line" role="group" :aria-label="$t('Who is reading')">
+        <button v-for="o in [{ id: 'all', label: $t('All') }, { id: 'user', label: $t('Everyday use') }, { id: 'terminal', label: $t('Terminal') }]" :key="o.id" type="button" @click="track=o.id"
+                :class="['flex-1 rounded-full px-2 py-1 transition', track===o.id ? 'bg-panel shadow-soft dark:bg-night-panel' : 'text-muted']">{{ o.label }}</button>
+      </div>
+      <ul v-if="q.trim().length >= 2" class="mt-4 space-y-2">
+        <li v-if="!hits.length" class="text-sm text-muted dark:text-night-muted">{{ $t('Nothing found.') }}</li>
+        <li v-for="h in hits" :key="h.id"><button type="button" class="block w-full rounded-xl p-2 text-left text-sm hover:bg-ink/5 dark:hover:bg-white/5" @click="open(h.id)"><span class="block font-medium">{{ h.title }}</span><span class="block text-xs text-muted dark:text-night-muted">{{ h.group }}</span><span v-if="h.snippet" class="mt-0.5 block text-xs text-muted dark:text-night-muted">{{ h.snippet }}</span></button></li>
+      </ul>
+      <nav v-else class="mt-4 space-y-4" :aria-label="$t('Documentation')">
+        <div v-for="g in groups" :key="g.id">
+          <p class="eyebrow px-3">{{ t(g.title) }}</p>
+          <a v-for="p in g.pages" :key="p.id" :href="'#/docs/' + p.id" :aria-current="p.id===curId ? 'page' : null" :class="['nav-item mt-0.5', p.id===curId && 'active']">
+            <span class="min-w-0 flex-1 truncate">{{ t(p.title) }}</span>
+            <span v-if="p.track==='terminal'" class="chip bg-ink/[.06] !px-1.5 !py-0 text-[10px] dark:bg-white/10">&gt;_</span>
+          </a>
+        </div>
+      </nav>
+    </aside>
+
+    <!-- Страницата -->
+    <article class="mt-8 min-w-0 lg:mt-0">
+      <p v-if="cur" class="text-xs text-muted dark:text-night-muted">{{ t(index.groups.find((g) => g.pages.some((p) => p.id===curId))?.title) }}</p>
+      <div v-if="loading && !html" class="text-sm text-muted">{{ $t('Loading…') }}</div>
+      <div class="reading docs-body max-w-3xl" v-html="html"></div>
+      <div class="mt-12 grid max-w-3xl gap-3 border-t border-line pt-6 sm:grid-cols-2 dark:border-night-line">
+        <a v-if="prev" :href="'#/docs/' + prev.id" class="card card-hover block p-4"><span class="eyebrow">{{ $t('Previous') }}</span><span class="mt-1 block font-medium">{{ t(prev.title) }}</span></a><span v-else></span>
+        <a v-if="next" :href="'#/docs/' + next.id" class="card card-hover block p-4 sm:text-right"><span class="eyebrow">{{ $t('Next') }}</span><span class="mt-1 block font-medium">{{ t(next.title) }}</span></a>
+      </div>
+    </article>
+
+    <!-- На тази страница -->
+    <aside v-if="toc.length > 1" class="hidden xl:sticky xl:top-6 xl:block xl:self-start">
+      <p class="eyebrow">{{ $t('On this page') }}</p>
+      <ul class="mt-3 space-y-1.5 border-l border-line pl-3 text-sm dark:border-night-line">
+        <li v-for="h in toc" :key="h.id" :class="h.lvl===3 && 'pl-3'"><a :href="'#/docs/' + curId" class="text-muted hover:text-ink dark:text-night-muted dark:hover:text-night-ink" @click.prevent="jump(h.id)">{{ h.text }}</a></li>
+      </ul>
+    </aside>
+  </div>
+</div>
+</script>
+
 <script type="text/x-template" id="tpl-settings">
 <div class="mx-auto max-w-6xl px-5 py-8 sm:px-8 lg:py-12">
   <p class="eyebrow">{{ $t('Settings') }}</p>
@@ -2147,6 +2422,9 @@ npm run restore -- /path/to/copy --apply</pre>
     <div class="mt-2 min-w-0 max-w-3xl lg:mt-0 lg:[&>:first-child]:!mt-0">
   <!-- Модел: доставчик, ключ, модели, име и надписи -->
   <ai-settings v-if="section==='model' && !ro"></ai-settings>
+
+  <!-- Режим (обикновен или защитен) и име на сайта -->
+  <app-settings v-else-if="(section==='mode' || section==='address') && !ro" :part="section" :key="section"></app-settings>
 
   <p v-else-if="!info" class="mt-8 text-sm text-muted">{{ $t('Loading…') }}</p>
   <template v-else>

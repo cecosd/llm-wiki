@@ -237,6 +237,8 @@ The sections are: Overview, Topics, Concepts, People and organizations, Sources 
 | `npm run lint` | Mechanical lint, writes `outputs/lint-mech-YYYY-MM-DD.md` |
 | `npm run lint:quick` | Only broken links, in the console |
 | `npm run serve` | Interface at http://localhost:4321: upload, sorting, browsing, graph. Refreshes itself while you write in wiki/ |
+| `npm run app` | App launcher: a hidden server and an app window (Edge, Chrome, Chromium, Brave); closing the window stops the server. `--safe`, `--normal`, `--no-window`, `--check`. The mode and the site name are changed from the interface (`.launch.json`) |
+| `npm run hosts -- set <name>\|show\|remove` | Name of the local site in the hosts file (block `# llm-wiki begin` to `# llm-wiki end`); needs administrator rights. Do not run it unless the person asks |
 | `npm run serve:safe` | The same in isolation (Linux and WSL, needs `bubblewrap`): the code and its packages see only the project folder and write only to the data. See SECURITY.md |
 | `npm run sandbox:check` | Checks the isolation from inside: what can and cannot be seen |
 | `npm run new -- <type> <slug>` | New page from a template |
