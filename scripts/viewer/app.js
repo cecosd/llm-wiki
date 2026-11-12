@@ -2160,6 +2160,7 @@ const app = createApp({
     ...shared, I18N, route: parseRoute(), pages: [], stats: {}, version: 0, live: false, setupLeft: 0,
     drawer: false, palette: false, pq: '', hits: [], pi: 0, toasts: [], agent: null, reader: null, cost: null,
     manual: [], manualHidden: false, manualShow: false, manualText: '', manualBusy: false, manualError: '', // ръчен режим (копиране в чат)
+    syncReq: null, syncInfo: [], // резервни копия: отвореният прозорец и целите (за бутона в менюто)
     focus: store.get('focus', '0') === '1', // режим фокус: само текстът на страницата (запомня се на този компютър)
     theme: store.get('theme', 'system'), isMac: /Mac|iPhone|iPad/.test(navigator.platform),
     collections: { menu: { order: [], hidden: [] }, items: [] }, colEdit: null, // колекциите на човека и прозорецът за тях
@@ -2198,6 +2199,10 @@ const app = createApp({
     },
   },
   methods: {
+    async loadSync() { if (window.LIB_STATIC) return; try { this.syncInfo = (await (await api('/api/sync')).json()).targets || []; } catch { /* бутонът остава както е */ } },
+    openSync(id) { this.syncReq = { id: id || '' }; },
+    closeSync() { this.syncReq = null; this.loadSync(); },
+    syncButton() { this.drawer = false; if (this.syncInfo.length) this.openSync(); else location.hash = '#/settings/backup'; },
     setFocus(v) { this.focus = !!v; store.set('focus', v ? '1' : '0'); },
     // В архива екраните, които пишат или викат Claude, не работят: връщаме към началото
     guardArchive() { if (window.LIB_STATIC && ['path', 'write', 'find', 'areas', 'setup', 'settings', 'collections'].includes(this.route.name)) location.hash = '#/'; },
