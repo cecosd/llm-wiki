@@ -7,7 +7,7 @@ The installer does everything needed to run and **does not require any AI**. You
 1. Unzip the library folder somewhere it can stay (for example `Documents\Biblioteka`).
 2. Double-click `install.cmd`. A setup wizard window opens, not a black screen.
 3. The wizard checks and, if needed, installs:
-   - **Node.js** (the latest version). If you have none or one older than 24, it is downloaded from nodejs.org (through `winget`, or as an installer if `winget` is missing). Windows may show a window asking for permission.
+   - **Node.js**. If you have none or one older than 24, the latest version that your system supports is downloaded from nodejs.org. If you already have a supported one (24 or newer), the "Options" step shows a list of newer versions so you can upgrade, or keep the current one (the default). In `install.sh` the same list appears in the terminal; `--node keep|latest|<version>` skips the question. Windows may show a window asking for permission.
    - **The program's libraries** (`npm install`). It needs the internet and takes a minute or two.
 4. Optionally it asks for a **site name** (for example `biblioteka.test`) and whether to create shortcuts on the desktop and in the Start menu. The name is written to `hosts` with a separate Windows permission window. You can skip it and set it later: [A name for the local site](#/docs/site-name).
 5. At the end press "Open the library".
