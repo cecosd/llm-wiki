@@ -32,6 +32,10 @@ The script asks before each installation (`--yes` answers yes to everything). On
 
 ## Removing
 
-Delete the library folder and the shortcuts. If you saved a site name, remove it first in [Settings → Site address](#/settings/address) (or delete the block between `# llm-wiki begin` and `# llm-wiki end` in `hosts`). Node.js is removed like any other program.
+**Windows:** double-click `uninstall.cmd`. A window opens. It stops the library, removes the shortcuts, the site name from `hosts` (Windows asks for permission) and the launcher state, and optionally the installed libraries (`node_modules`). **Your library is kept** (sources, wiki pages, drafts, settings) unless you tick "also delete this whole folder", which asks for a second confirmation. Make a backup first ([Backups](#/docs/backup)).
+
+**macOS, Linux, WSL:** `./uninstall.sh` (`--keep-modules` keeps `node_modules`; `--everything` also deletes the whole folder, including your library, after you type the folder name).
+
+Node.js (and nvm, bubblewrap) are never removed, because other programs may use them. Remove Node.js like any other program (Windows: Settings → Apps).
 
 Next: [First start](#/docs/first-run).
