@@ -41,6 +41,7 @@ Three layers: `raw/` (originals), `wiki/` (generated pages), `CLAUDE.md` (the sc
 
 - **Windows:** double-click `install.cmd`. A setup window opens (no black screen). It installs the latest Node.js if it is missing or older than 24 (the file is checked against the checksums that nodejs.org publishes), installs the program's libraries, and optionally writes a name for your local site (for example `biblioteka.test`) into the hosts file and makes shortcuts. Windows asks for permission where needed.
 - **macOS, Linux, WSL:** `./install.sh` (asks before each step; `--yes` answers yes to all; `--site-name x.test` also sets the site name).
+- **Uninstall:** Windows: double-click `uninstall.cmd`; macOS, Linux, WSL: `./uninstall.sh`. It removes the shortcuts, the site name from hosts, the launcher state and optionally `node_modules`. Your library (`raw/`, `wiki/`, `drafts/`) is kept unless you explicitly choose to delete the whole folder too (`--everything`). Node.js is not removed.
 
 After that you open the library with its **shortcut**: it opens in its own app window, there is no server window, and **closing the window stops the server**. Choose the AI in the app: the welcome screen explains the four ways and takes you to **Settings → Model**. A built-in **documentation** (Help → Documentation) covers everyday use and the terminal.
 

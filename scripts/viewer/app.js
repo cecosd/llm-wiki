@@ -2613,10 +2613,12 @@ const app = createApp({
       const n = Math.min(r.last, Math.max(r.first, r.page + d));
       if (n !== r.page) this.loadReader(this.reader.src, n);
     },
+    // Само ако адресът в браузъра наистина е началната страница (this.route може да изостава след бърза навигация)
+    onHome() { return parseRoute().name === 'home'; },
     async loadAgent() {
       try { this.agent = await (await fetch('/api/agent')).json(); } catch {}
       // Първо пускане: приветствието излиза веднага, без да чака проверките на екрана за инсталация
-      if (this.agent?.settings && !this.agent.settings.welcomeDone && this.route.name === 'home') location.hash = '#/welcome';
+      if (this.agent?.settings && !this.agent.settings.welcomeDone && this.onHome()) location.hash = '#/welcome';
       if (AI.engine === 'manual') { try { this.setManual(await (await fetch('/api/manual')).json()); } catch {} }
       this.loadSetup();
     },
@@ -2646,8 +2648,8 @@ const app = createApp({
         const s = await (await fetch('/api/setup')).json();
         this.setupLeft = s.blocking;
         // Първо пускане: приветствие, после (ако нещо липсва) екранът за инсталация
-        if (this.agent?.settings && !this.agent.settings.welcomeDone && this.route.name === 'home') location.hash = '#/welcome';
-        else if (s.blocking && !this.agent?.settings?.setupDone && this.route.name === 'home') location.hash = '#/setup';
+        if (this.agent?.settings && !this.agent.settings.welcomeDone && this.onHome()) location.hash = '#/welcome';
+        else if (s.blocking && !this.agent?.settings?.setupDone && this.onHome()) location.hash = '#/setup';
       } catch {}
     },
     async loadApp() { try { this.appInfo = await (await fetch('/api/app')).json(); } catch {} },
