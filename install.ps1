@@ -1,12 +1,13 @@
 ﻿# Setup for Windows with a window (no black screen). Started by install.cmd.
 #   install.cmd                          opens the setup window
 #   install.cmd -Silent -Yes -NoStart    no window: prints to the console (for scripts)
-#   options: -SiteName biblioteka.test   -NoShortcuts   -NoStart
+#   options: -SiteName biblioteka.test   -NoShortcuts   -NoStart   -Node keep|latest|<version, e.g. 24.22.3>
 #
-# What it does: (1) installs the latest Node.js if it is missing or older than 24, (2) installs the program's libraries,
+# What it does: (1) installs the latest Node.js that this system supports if it is missing or older than 24; if a supported
+# Node.js (24+) is already there, offers a list of newer versions to upgrade to (or keep the current one), (2) installs the program's libraries,
 # (3) optionally writes a name for the local site into the hosts file, (4) makes shortcuts.
 # It installs NO AI: the model (Claude, another provider, a local model or manual) is chosen later inside the app.
-param([switch]$Silent, [switch]$Yes, [switch]$NoStart, [string]$SiteName = '', [switch]$NoShortcuts)
+param([switch]$Silent, [switch]$Yes, [switch]$NoStart, [string]$SiteName = '', [switch]$NoShortcuts, [string]$Node = '')
 $ErrorActionPreference = 'Stop'
 $Root = $PSScriptRoot
 Set-Location -LiteralPath $Root
@@ -52,13 +53,43 @@ function Download([string]$url, [string]$out) {
     if ($t.IsFaulted) { throw $t.Exception.InnerException }
   } finally { $wc.Dispose() }
 }
-function Install-Node {
-  Log (T 'Looking for the latest Node.js release...' 'Търся последната версия на Node.js...')
+function Get-Arch { if ($env:PROCESSOR_ARCHITECTURE -eq 'ARM64') { return 'arm64' } else { return 'x64' } }
+# Latest release of every major version >= 24 that nodejs.org publishes as an installer for THIS system (newest first)
+function Get-NodeReleases {
   $wc = New-Object Net.WebClient
-  $idx = $wc.DownloadString('https://nodejs.org/dist/index.json') | ConvertFrom-Json
-  $wc.Dispose()
-  $latest = $idx[0].version
-  $arch = if ($env:PROCESSOR_ARCHITECTURE -eq 'ARM64') { 'arm64' } else { 'x64' }
+  try { $idx = $wc.DownloadString('https://nodejs.org/dist/index.json') | ConvertFrom-Json } finally { $wc.Dispose() }
+  $arch = Get-Arch; $seen = @{}; $out = @()
+  foreach ($r in $idx) {
+    if ($r.version -notmatch '^v(\d+)\.\d+\.\d+$') { continue }
+    $m = [int]$Matches[1]
+    if ($m -lt 24 -or $seen.ContainsKey($m)) { continue }
+    if ($r.files -notcontains "win-$arch-msi") { continue }
+    $seen[$m] = $true
+    $label = if ($r.lts) { 'LTS ' + $r.lts } else { 'Current' }
+    $out += [pscustomobject]@{ Version = $r.version; Major = $m; Label = $label }
+  }
+  return $out
+}
+function Version-Newer([string]$a, [string]$b) { return ([version]($a.TrimStart('v'))) -gt ([version]($b.TrimStart('v'))) }
+function Installed-Node-Version { $n = Find-Node; if (-not $n) { return '' }; try { return [string](& $n -v | Select-Object -First 1) } catch { return '' } }
+# Releases newer than the installed Node.js (empty when Node.js is missing or older than 24: then the latest is simply installed)
+function Get-UpgradeOptions {
+  if ((Node-Major) -lt 24) { return @() }
+  $cur = Installed-Node-Version
+  return @(Get-NodeReleases | Where-Object { Version-Newer $_.Version $cur })
+}
+function Install-Node([string]$want) {
+  Log (T 'Looking for the latest Node.js release for this system...' 'Търся последната версия на Node.js за тази система...')
+  $rel = @(Get-NodeReleases)
+  if ($rel.Count -eq 0) { throw (T 'nodejs.org has no Node.js 24 or newer installer for this system.' 'nodejs.org няма инсталатор на Node.js 24 или по-нов за тази система.') }
+  $latest = $rel[0].Version
+  if ($want -and $want -ne 'latest') {
+    $w = if ($want.StartsWith('v')) { $want } else { "v$want" }
+    $hit = $rel | Where-Object { $_.Version -eq $w -or $_.Version.StartsWith("$w.") } | Select-Object -First 1
+    if (-not $hit) { throw ((T 'Node.js {0} is not available for this system.' 'Node.js {0} не е достъпен за тази система.') -f $want) }
+    $latest = $hit.Version
+  }
+  $arch = Get-Arch
   $file = "node-$latest-$arch.msi"
   $tmp = Join-Path $env:TEMP $file
   Log ((T 'Downloading Node.js {0} (about 30 MB)...' 'Свалям Node.js {0} (около 30 MB)...') -f $latest)
@@ -129,15 +160,22 @@ function Make-Shortcut([string]$lnk, [string]$icon) {
 }
 
 # ---------- The whole installation ----------
-function Do-Install([string]$site, [bool]$shortcuts) {
+function Do-Install([string]$site, [bool]$shortcuts, [string]$nodeWant) {
   $warn = @()
   # 1. Node.js
-  if ((Node-Major) -ge 24) { Log ((T 'Node.js is ready: {0}' 'Node.js е готов: {0}') -f ((& (Find-Node) -v) | Select-Object -First 1)) }
+  if ((Node-Major) -ge 24) {
+    Log ((T 'Node.js is ready: {0}' 'Node.js е готов: {0}') -f (Installed-Node-Version))
+    if ($nodeWant -and $nodeWant -ne 'keep') {
+      Log ((T 'Upgrading Node.js to {0}...' 'Надграждам Node.js до {0}...') -f $nodeWant)
+      try { Install-Node $nodeWant; Log ((T 'Node.js is now {0}' 'Node.js вече е {0}') -f (Installed-Node-Version)) }
+      catch { $warn += ((T 'The Node.js upgrade did not work, so the current version stays: {0}' 'Надграждането на Node.js не успя, остава сегашната версия: {0}') -f $_.Exception.Message) }
+    }
+  }
   else {
-    if (Find-Node) { Log (T 'The Node.js on this computer is older than 24; installing the latest.' 'Node.js на този компютър е по-стар от 24; инсталирам последната.') }
-    Install-Node
+    if (Find-Node) { Log (T 'The Node.js on this computer is older than 24; installing the latest this system supports.' 'Node.js на този компютър е по-стар от 24; инсталирам последната, която системата поддържа.') }
+    Install-Node ''
     if ((Node-Major) -lt 24) { throw (T 'Node.js 24 or newer is still not available. Close this window, open it again and retry.' 'Node.js 24 или по-нов още не е достъпен. Затвори прозореца, отвори го пак и опитай отново.') }
-    Log ((T 'Node.js installed: {0}' 'Node.js е инсталиран: {0}') -f ((& (Find-Node) -v) | Select-Object -First 1))
+    Log ((T 'Node.js installed: {0}' 'Node.js е инсталиран: {0}') -f (Installed-Node-Version))
   }
   $node = Find-Node
 
@@ -185,7 +223,7 @@ function Open-Library { Start-Process -FilePath 'wscript.exe' -ArgumentList @('/
 # ---------- No window ----------
 if ($Silent) {
   try {
-    $w = @(Do-Install $SiteName (-not $NoShortcuts) | Where-Object { $_ -is [string] -and $_.Trim() })
+    $w = @(Do-Install $SiteName (-not $NoShortcuts) $Node | Where-Object { $_ -is [string] -and $_.Trim() })
     foreach ($x in $w) { Log ('! ' + $x) }
     Log (T 'Ready.' 'Готово.')
     if (-not $NoStart) { Open-Library }
@@ -220,15 +258,31 @@ function New-Label([string]$text, [int]$x, [int]$y, [int]$w, [int]$h) { $l = New
 # Page 0: welcome
 $p0 = New-Page
 $p0.Controls.Add((New-Label (T "This will get the library ready on this computer. It takes a few minutes and needs the internet.`n`nWhat will be done:" "Това ще подготви библиотеката на този компютър. Отнема няколко минути и иска интернет.`n`nКакво ще се направи:") 28 20 600 70))
-$p0.Controls.Add((New-Label (T "  1.  Install Node.js (the latest version) if it is missing or too old`n  2.  Install the libraries of the program`n  3.  Create shortcuts (optional) and a name for your local site (optional)`n`nNo AI is installed. You choose the AI model (Claude, another provider, or a model on your computer) inside the app, when you are ready." "  1.  Инсталира Node.js (последната версия), ако липсва или е твърде стар`n  2.  Инсталира библиотеките на програмата`n  3.  Прави преки пътища (по желание) и име за локалния ти сайт (по желание)`n`nНе се инсталира никакъв ИИ. Моделът (Claude, друг доставчик или модел на компютъра ти) се избира в самото приложение, когато си готов.") 28 96 600 190))
+$p0.Controls.Add((New-Label (T "  1.  Install Node.js (the latest version your system supports) if it is missing or too old, or offer an upgrade if you already have a supported one`n  2.  Install the libraries of the program`n  3.  Create shortcuts (optional) and a name for your local site (optional)`n`nNo AI is installed. You choose the AI model (Claude, another provider, or a model on your computer) inside the app, when you are ready." "  1.  Инсталира Node.js (последната версия, която системата поддържа), ако липсва или е твърде стар, или предлага надграждане, ако вече имаш поддържан`n  2.  Инсталира библиотеките на програмата`n  3.  Прави преки пътища (по желание) и име за локалния ти сайт (по желание)`n`nНе се инсталира никакъв ИИ. Моделът (Claude, друг доставчик или модел на компютъра ти) се избира в самото приложение, когато си готов.") 28 96 600 190))
 
 # Page 1: options
 $p1 = New-Page
 $p1.Controls.Add((New-Label (T 'A name for your local site (optional)' 'Име за локалния сайт (по желание)') 28 20 600 24))
 $txtSite = New-Object Windows.Forms.TextBox; $txtSite.Location = New-Object Drawing.Point(30, 50); $txtSite.Size = New-Object Drawing.Size(300, 28); $txtSite.Text = $SiteName; $p1.Controls.Add($txtSite)
 $p1.Controls.Add((New-Label (T "For example biblioteka.test. Leave it empty to use localhost. Windows will ask for permission to write the name into the hosts file. You can also do this later in the app (Settings -> Site address). Prefer endings like .test or .localhost." "Например biblioteka.test. Остави го празно, за да ползваш localhost. Windows ще поиска разрешение да запише името във файла hosts. Можеш да го направиш и по-късно в приложението (Настройки -> Адрес на сайта). Предпочитай окончания като .test или .localhost.") 28 86 600 70))
-$chkShort = New-Object Windows.Forms.CheckBox; $chkShort.Text = T 'Create shortcuts on the desktop and in the Start menu' 'Създай преки пътища на работния плот и в менюто Старт'; $chkShort.Checked = -not $NoShortcuts; $chkShort.Location = New-Object Drawing.Point(30, 176); $chkShort.Size = New-Object Drawing.Size(580, 26); $p1.Controls.Add($chkShort)
-$lblSiteErr = New-Label '' 30 206 600 40; $lblSiteErr.ForeColor = [Drawing.Color]::FromArgb(194, 112, 61); $p1.Controls.Add($lblSiteErr)
+$chkShort = New-Object Windows.Forms.CheckBox; $chkShort.Text = T 'Create shortcuts on the desktop and in the Start menu' 'Създай преки пътища на работния плот и в менюто Старт'; $chkShort.Checked = -not $NoShortcuts; $chkShort.Location = New-Object Drawing.Point(30, 154); $chkShort.Size = New-Object Drawing.Size(580, 26); $p1.Controls.Add($chkShort)
+$lblSiteErr = New-Label '' 30 182 600 36; $lblSiteErr.ForeColor = [Drawing.Color]::FromArgb(194, 112, 61); $p1.Controls.Add($lblSiteErr)
+$lblNode = New-Label '' 28 224 600 24; $p1.Controls.Add($lblNode)
+$cmbNode = New-Object Windows.Forms.ComboBox; $cmbNode.DropDownStyle = 'DropDownList'; $cmbNode.Location = New-Object Drawing.Point(30, 252); $cmbNode.Size = New-Object Drawing.Size(560, 28); $p1.Controls.Add($cmbNode)
+$lblNode.Visible = $false; $cmbNode.Visible = $false
+$script:nodeOpts = @()
+function Load-NodeOptions {
+  $script:nodeOpts = @(); $cmbNode.Items.Clear(); $lblNode.Visible = $false; $cmbNode.Visible = $false
+  if ($Node -and $Node -ne 'keep') { return }
+  try { $opts = @(Get-UpgradeOptions) } catch { return }
+  if ($opts.Count -eq 0) { return }
+  $script:nodeOpts = $opts
+  $lblNode.Text = (T 'Node.js {0} is installed and supported. Upgrade it?' 'Node.js {0} е инсталиран и се поддържа. Да го надградя ли?') -f (Installed-Node-Version)
+  [void]$cmbNode.Items.Add((T 'Keep the current version (recommended)' 'Запази сегашната версия (препоръчително)'))
+  foreach ($o in $opts) { [void]$cmbNode.Items.Add(((T 'Upgrade to {0} ({1})' 'Надгради до {0} ({1})') -f $o.Version, $o.Label)) }
+  $cmbNode.SelectedIndex = 0
+  $lblNode.Visible = $true; $cmbNode.Visible = $true
+}
 
 # Page 2: progress
 $p2 = New-Page
@@ -245,9 +299,10 @@ $pages = @($p0, $p1, $p2, $p3)
 $script:page = 0
 $script:busy = $false
 $script:ok = $false
+$script:nodeLoaded = $false
 $titles = @(
   @((T 'Welcome' 'Добре дошъл'), (T 'Your personal library, ready in a few minutes' 'Личната ти библиотека, готова за няколко минути')),
-  @((T 'Options' 'Настройки'), (T 'Both are optional' 'И двете са по желание')),
+  @((T 'Options' 'Настройки'), (T 'All optional' 'Всичко е по желание')),
   @((T 'Installing' 'Инсталиране'), (T 'Please wait. Windows may ask for permission once or twice.' 'Моля, изчакай. Windows може да поиска разрешение веднъж или два пъти.')),
   @((T 'Done' 'Готово'), (T 'Everything is in place' 'Всичко е на място'))
 )
@@ -256,6 +311,7 @@ function Show-Page([int]$i) {
   for ($k = 0; $k -lt $pages.Count; $k++) { $pages[$k].Visible = ($k -eq $i) }
   $title.Text = $titles[$i][0]; $sub.Text = $titles[$i][1]
   $btnBack.Visible = ($i -eq 1); $btnCancel.Visible = ($i -lt 3); $btnNext.Enabled = $true
+  if ($i -eq 1 -and -not $script:nodeLoaded) { $script:nodeLoaded = $true; $form.Cursor = 'WaitCursor'; Pump; Load-NodeOptions; $form.Cursor = 'Default' }
   switch ($i) { 0 { $btnNext.Text = T 'Next' 'Напред' } 1 { $btnNext.Text = T 'Install' 'Инсталирай' } 2 { $btnNext.Text = T 'Please wait' 'Изчакай'; $btnNext.Enabled = $false } 3 { $btnNext.Text = T 'Finish' 'Край' } }
 }
 $script:Sink = { param($line) $logBox.AppendText($line + "`r`n"); $m = $line -replace '^\[[^\]]*\]\s*', ''; if (-not $m.StartsWith('  ')) { $lblStep.Text = $m }; Pump }
@@ -265,7 +321,8 @@ function Run-Install {
   Show-Page 2
   $logBox.Clear()
   try {
-    $w = @(Do-Install ($txtSite.Text.Trim()) ([bool]$chkShort.Checked) | Where-Object { $_ -is [string] -and $_.Trim() })
+    $nodeWant = if ($Node) { $Node } elseif ($cmbNode.Visible -and $cmbNode.SelectedIndex -gt 0) { $script:nodeOpts[$cmbNode.SelectedIndex - 1].Version } else { 'keep' }
+    $w = @(Do-Install ($txtSite.Text.Trim()) ([bool]$chkShort.Checked) $nodeWant | Where-Object { $_ -is [string] -and $_.Trim() })
     $script:ok = $true
     $msg = T "The library is installed.`n`nOpen it with the shortcut `"Biblioteka`". It opens in its own window, and when you close that window the program stops. There is no extra window with a server.`n`nNext step: in the app, choose the AI model (Settings -> Model), or follow the welcome tour." "Библиотеката е инсталирана.`n`nОтваряш я с прекия път „Biblioteka“. Отваря се в собствен прозорец, а като го затвориш, програмата се спира. Няма допълнителен прозорец със сървър.`n`nСледваща стъпка: в приложението избери ИИ модел (Настройки -> Модел) или мини през обиколката."
     if ($w.Count -gt 0) { $msg += "`n`n" + (($w | ForEach-Object { '! ' + $_ }) -join "`n") }
