@@ -96,7 +96,7 @@ A pull request with a new locale file is welcome.
 2. **Sort:** “Sort and extract text” puts files into folders and extracts their text.
 3. **Process:** Claude reads each source, decides its emphasis, writes the source page (books also get one page per chapter) and updates concepts, people and topics. You see live what it reads and which page it writes.
 4. **Browse:** pages appear on their own. Search with `Ctrl K`, follow the link map, open the original page of a book from any “p. N” citation.
-5. **Learn and write:** “Learn by question” builds an ordered reading path; “Write with the wiki” writes a scientific article, an essay, a popular science article, a literature review or fiction from the library (APA 7 citations, a creativity level from 1 to 5), or opens a blank document you write yourself with help paragraph by paragraph.
+5. **Learn and write:** “Learn by question” builds an ordered reading path; “Write with the wiki” writes a scientific article, an essay, a popular science article, a literature review or fiction from the library (APA 7 citations, a creativity level from 1 to 5), or opens a blank document you write yourself with help paragraph by paragraph. “Review with the wiki” checks a finished text against the originals (every citation page by page, APA 7, unsupported claims, sentence length) and gives back a corrected text or only a report.
 
 ### Menu, collections and the log
 
@@ -173,6 +173,7 @@ Groq is fast, but its free plan counts tokens, not only requests.
 | `/wiki-chapters <book>` | Adds per-chapter pages to an already processed book |
 | `/wiki-upgrade <book>` | Upgrades an old source to the current standard |
 | `/wiki-synthesis [tag]` | Synthesis across sources |
+| `/wiki-review <file>` | Reviews a finished text against the library: every citation checked page by page in the original, APA 7, unsupported claims, natural sentences |
 | `/wiki-query <question>` | Answer with citations from the wiki |
 | `/wiki-lint` | Broken links, contradictions, gaps |
 

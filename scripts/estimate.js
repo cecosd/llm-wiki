@@ -40,6 +40,12 @@ export function tokensOf(text) {
 const readTokens = (file) => { try { return tokensOf(fs.readFileSync(file, 'utf8')); } catch { return 0; } };
 // Писане: по дължината на текста или, при дописване и абзац, по поискания брой думи
 const writeWords = (b) => (Number(b.words) > 0 ? Math.min(3000, Number(b.words)) : (LENGTHS[b.length] || LENGTHS.medium).words);
+// Преглед с wiki: целият текст влиза в заявката (и при поправка излиза отново), а за всяко цитирано произведение
+// се четат source страницата и цитираните страници от оригинала. sources = колко различни произведения цитира текстът.
+const reviewSize = (b) => {
+  const words = Math.min(30000, Math.max(100, Number(b.words) || 1500));
+  return { words, text: Math.round(words * 2.4), works: Math.min(80, Math.max(1, Number(b.sources) || Math.round(words / 250))), report: b.mode === 'report' };
+};
 const claudeMdTokens = () => readTokens(path.join(ROOT, 'CLAUDE.md'));
 const wikiTokens = () => wikiPages().reduce((n, p) => n + tokensOf(p.content), 0);
 
@@ -151,6 +157,12 @@ function pipelineEstimate(kind, b, settings) {
     const words = kind === 'write' ? writeWords(b) : 0;
     title = kind === 'path' ? $t('Learning path') : $t('Writing with {ai}');
     parts = [callCost(lvl, Math.min(budget, wikiTokens()) + 1600 + tokensOf(b.topic || b.q), kind === 'write' ? words * 2.4 + 700 : 2500)];
+  } else if (kind === 'review') {
+    if (!PATH_LEVELS[b.level]) return { ok: false, error: $t('Unknown level.') };
+    const s = reviewSize(b);
+    title = $t('Review with {ai}');
+    parts = [callCost(lvl, Math.min(budget, s.text + 4000 + s.works * 1200) + 2500, s.report ? 3500 : s.text + 3500)];
+    if (s.text > budget * 0.45) warn.push($t('The text is longer than the context of the model allows: only its beginning fits in the request.'));
   } else if (['ingest', 'upgrade', 'chapters'].includes(kind)) {
     let files = [];
     if (kind === 'ingest') {
@@ -261,6 +273,14 @@ export function estimate(kind, body = {}, { settings } = {}) {
     const words = kind === 'write' ? writeWords(b) : 0;
     title = kind === 'path' ? $t('Learning path') : $t('Writing with {ai}');
     parts = [runCost({ model: L.model, promptTokens: 1500 + tokensOf(b.topic || b.q), reads, out: kind === 'write' ? words * 2.4 + 700 : 3000, turns: kind === 'write' ? L.maxTurns / 2 : DEPTH_TURNS[L.depth] })];
+    extra.reads = Math.round(reads);
+  } else if (kind === 'review') {
+    const L = PATH_LEVELS[b.level];
+    if (!L) return { ok: false, error: $t('Unknown level.') };
+    const s = reviewSize(b), per = { light: 2500, medium: 6000, strong: 12000 }[L.depth] || 6000;
+    const reads = s.works * per + 3000; // скилът, index.md, source страниците и цитираните страници от оригиналите
+    title = $t('Review with {ai}');
+    parts = [runCost({ model: L.model, promptTokens: s.text + 2500, reads, out: s.report ? 3500 : s.text + 3500, turns: Math.min(L.maxTurns * 2 + 20, 10 + s.works * 2) })];
     extra.reads = Math.round(reads);
   } else if (kind === 'ingest' || kind === 'upgrade' || kind === 'chapters') {
     let files = [];

@@ -1865,6 +1865,27 @@
     "The quick draft arranges an article without {ai}. Light, Medium and Powerful let {ai} write; then you also choose the length and the creativity, from 1 (strict) to 5 (bold). Creativity changes the style and the interpretation: the facts and the citations always come only from your sources.": "Бързата чернова подрежда статия без {ai}. При „Лек“, „Среден“ и „Мощен“ пише {ai}; тогава избираш и дължината и креативността, от 1 (строг) до 5 (смел). Креативността сменя стила и тълкуването: фактите и цитатите идват винаги само от твоите източници.",
     "Your own text": "Твой собствен текст",
     "“Blank document” opens an empty text that you write yourself. In the editor, click the title to change it; in “Preview”, point at a paragraph to change it, rewrite it with {ai} or add a new one after it. The card “Help from {ai}” shows which areas and topics are used, and you can change them.": "„Празен документ“ отваря празен текст, който пишеш сам. В редактора щракни заглавието, за да го смениш; в „Преглед“ посочи абзац, за да го смениш, да го пренапишеш с {ai} или да добавиш нов след него. Картата „Помощ от {ai}“ показва кои области и теми се ползват и можеш да ги сменяш.",
-    "Ask a question and get a reading path through your own sources. Write an article, an essay, a review or a story from what you have read, as creative as you choose, or write yourself with help paragraph by paragraph.": "Задай въпрос и получи път за четене през своите източници. Напиши статия, есе, обзор или разказ от прочетеното, толкова креативно, колкото избереш, или пиши сам с помощ абзац по абзац."
+    "Ask a question and get a reading path through your own sources. Write an article, an essay, a review or a story from what you have read, as creative as you choose, or write yourself with help paragraph by paragraph.": "Задай въпрос и получи път за четене през своите източници. Напиши статия, есе, обзор или разказ от прочетеното, толкова креативно, колкото избереш, или пиши сам с помощ абзац по абзац.",
+    "Review with the wiki": "Прегледай с wiki",
+    "{ai} checks every citation against the page in the original, corrects the APA references, supports claims that have no source and makes the sentences read naturally. Nothing is invented: what only you know is marked [FILL IN: …].": "{ai} проверява всеки цитат по страницата в оригинала, поправя препратките по APA, подкрепя твърденията без източник и прави изреченията да звучат естествено. Нищо не се измисля: каквото знаеш само ти, се отбелязва с [ДОПЪЛНЕТЕ: …].",
+    "E.g. check the page numbers and shorten the long sentences (optional)": "Напр. провери номерата на страниците и съкрати дългите изречения (по желание)",
+    "What the review does": "Какво прави прегледът",
+    "Correct the text": "Поправи текста",
+    "The corrected text goes into the editor for you to check and save; a report says what changed.": "Поправеният текст влиза в редактора, за да го провериш и запазиш; отчет казва какво е сменено.",
+    "Report only": "Само отчет",
+    "The text is not changed: you get an assessment and a list of problems with their sources.": "Текстът не се променя: получаваш оценка и списък с проблемите и източниците им.",
+    "Reviewing…": "Преглеждам…",
+    "Review": "Прегледай",
+    "A careful review reads the cited pages one by one and can take several minutes.": "Внимателният преглед чете цитираните страници една по една и може да отнеме няколко минути.",
+    "Undo the review": "Върни прегледа",
+    "Review report": "Отчет от прегледа",
+    "The text changed while {ai} was working, so the corrected text was not put in. The report is below.": "Текстът се промени, докато {ai} работеше, затова поправеният текст не е сложен. Отчетът е по-долу.",
+    "The corrected text is in the editor. Read the report, check the text and press “Save”.": "Поправеният текст е в редактора. Прочети отчета, провери текста и натисни „Запази“.",
+    "Review with {ai}": "Преглед с {ai}",
+    "The text is too short to review.": "Текстът е твърде кратък за преглед.",
+    "The text is too long to review at once (over {0} characters). Review it in parts.": "Текстът е твърде дълъг за преглед наведнъж (над {0} знака). Прегледай го на части.",
+    "{ai} did not separate the report from the text: check the end of the text.": "{ai} не отдели отчета от текста: провери края на текста.",
+    "{ai} returned a much shorter text than the original, so it was not put in. Try again or with a more powerful level.": "{ai} върна много по-кратък текст от оригинала, затова не е сложен. Опитай пак или с по-мощно ниво.",
+    "The text is longer than the context of the model allows: only its beginning fits in the request.": "Текстът е по-дълъг, отколкото позволява контекстът на модела: в заявката влиза само началото му."
   }
 }

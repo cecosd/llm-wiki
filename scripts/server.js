@@ -18,6 +18,7 @@ import { planRemoval, applyRemoval } from './remove.js';
 import { rebuildAll } from './index.js';
 import { importPaper } from './discover.js';
 import { estimate } from './estimate.js';
+import { reviewWithAI, saveReport } from './review.js';
 import { checkSetup, testAI, accountTerms } from './setup.js';
 import { versionInfo, checkCode, checkPackages, latestResults, runTests, testsBusy, applyUpdates, supervised, RESTART_CODE } from './updates.js';
 import { readCollections, saveCollection, deleteCollection, changeList, saveMenu } from './collections.js';
@@ -605,6 +606,24 @@ app.post('/api/drafts/:id/block', async (req, res) => {
   const r = await blockWithClaude({ body, start, end, action, title, instruction, genre, creativity, level: b.level, voice: d.voice, words: n, hints: writeHints(sc, scored, ctx), ranked: scored.slice(0, 30).map((s) => s.p), pages: ctx.pages, signal: ac.signal });
   if (res.writableEnded || res.destroyed) return;
   r.ok ? res.json(r) : fail(res, r);
+});
+// Преглед с wiki (скилът wiki-review): проверка на цитатите в оригиналите, APA, опора и изказ.
+// mode: fix (връща поправения текст за преглед, без запис) или report (само отчет). Отчетът се пази в drafts/.reviews/.
+app.post('/api/drafts/:id/review', async (req, res) => {
+  const b = req.body || {}, d = readDraft(req.params.id);
+  if (!d) return res.status(404).json({ error: $t('There is no such text') });
+  if (!PATH_LEVELS[b.level]) return res.status(400).json({ error: $t('Choose a {ai} level.') });
+  const body = clipText(b.body, 200000) || d.body, instruction = clipText(b.instruction, 1000).trim();
+  const mode = b.mode === 'report' ? 'report' : 'fix', genre = genreParam(b.genre, d.genre);
+  const title = body.match(/^#\s+(.+)$/m)?.[1]?.trim() || d.title;
+  const sc = scopeOf(b), { scored, ctx } = rank(`${instruction} ${title} ${body.replace(/^#.*$/gm, '').slice(0, 800)}`.trim(), sc);
+  const ac = new AbortController();
+  res.on('close', () => { if (!res.writableEnded) ac.abort(); });
+  const r = await reviewWithAI({ body, title, instruction, genre, mode, level: b.level, ranked: scored.slice(0, 30).map((s) => s.p), pages: ctx.pages, signal: ac.signal });
+  if (res.writableEnded || res.destroyed) return;
+  if (!r.ok) return fail(res, r);
+  let reportPath = null; try { reportPath = saveReport(d.id, r.report); } catch { /* отчетът остава в отговора */ }
+  res.json({ ...r, reportPath });
 });
 app.get('/api/drafts', (req, res) => res.json(listDrafts(String(req.query.q || ''))));
 app.get('/api/drafts/:id', (req, res) => { const d = readDraft(req.params.id); d ? res.json({ ...d, bibHeads: bibHeads() }) : res.status(404).json({ error: $t('There is no such text') }); });

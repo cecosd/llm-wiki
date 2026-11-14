@@ -93,6 +93,19 @@ test(T('claude', 'Writing with Claude Code: the prompt carries the kind of text,
   assert.doesNotMatch(call.stdin, /^- $/m, 'no empty rule');
 });
 
+test(T('claude', 'Review with the wiki: Claude Code reads the skill and gets the text and the citation map, with read-only permissions', 'Преглед с wiki: Claude Code чете скила и получава текста и картата на цитатите, само с права за четене'), async () => {
+  const b = await api(srv.port, 'POST', '/api/drafts', { title: 'Order', genre: 'article' });
+  const body = `# Order\n\n${'Order fades in a closed room and work is needed to keep it. '.repeat(6)}Entropy grows (Sample, 2020, p. 1).\n\n## Bibliography\n\nSample, A. (2020). *Sample note*.\n`;
+  const r = await api(srv.port, 'POST', `/api/drafts/${b.json.id}/review`, { body, level: 'light', mode: 'fix' });
+  assert.equal(r.json.kind, 'format', 'the fake answer is far shorter than the text, so it is not put in');
+  const call = box.claudeCalls().at(-1);
+  assert.equal(call.args[call.args.indexOf('--allowedTools') + 1], 'Read(./**),Glob,Grep');
+  assert.match(call.stdin, /first read \.claude\/skills\/wiki-review\/SKILL\.md/);
+  assert.match(call.stdin, /Order fades in a closed room/);
+  assert.match(call.stdin, /CITATION MAP[^\n]*\n- Sample, 2020, p\. 1 → \[\[sample-2020-note\]\]/);
+  assert.doesNotMatch(call.stdin, /Page-by-page check/, 'the agent reads the skill itself; its text is not pasted in');
+});
+
 test(T('claude', 'A clear message appears when Claude Code is not signed in', 'При липсващ вход в Claude Code се показва ясно съобщение'), async () => {
   const other = await startServer(box, { FAKE_CLAUDE_MODE: 'auth' });
   try {

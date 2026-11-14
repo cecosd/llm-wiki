@@ -2995,9 +2995,39 @@ npm run restore -- /path/to/copy --apply</pre>
             </div>
             <p v-if="cont.error" class="mt-3 flex gap-2 rounded-2xl bg-clay-100 px-3 py-2 text-sm text-clay-500 dark:bg-clay-500/15"><ic name="alert" class="mt-0.5 size-4 shrink-0"></ic>{{ cont.error }}</p>
           </div>
+
+          <!-- Преглед с wiki (скилът wiki-review) -->
+          <div class="border-t border-line pt-4 dark:border-night-line">
+            <label class="text-sm font-medium" for="rev-ins">{{ $t('Review with the wiki') }}</label>
+            <p class="text-xs text-muted dark:text-night-muted">{{ $t('{ai} checks every citation against the page in the original, corrects the APA references, supports claims that have no source and makes the sentences read naturally. Nothing is invented: what only you know is marked [FILL IN: …].') }}</p>
+            <textarea id="rev-ins" v-model="rev.instruction" rows="2" maxlength="1000" :placeholder="$t('E.g. check the page numbers and shorten the long sentences (optional)')" class="mt-1.5 w-full resize-y rounded-2xl border border-line bg-paper px-3 py-2 text-sm outline-none transition focus:border-sage-400 dark:border-night-line dark:bg-night"></textarea>
+            <div class="mt-2 flex flex-wrap items-center gap-2">
+              <div class="flex rounded-full border border-line p-0.5 dark:border-night-line" role="radiogroup" :aria-label="$t('What the review does')">
+                <button v-for="m in [{id:'fix',l:$t('Correct the text'),h:$t('The corrected text goes into the editor for you to check and save; a report says what changed.')},{id:'report',l:$t('Report only'),h:$t('The text is not changed: you get an assessment and a list of problems with their sources.')}]" :key="m.id" type="button" role="radio" :aria-checked="rev.mode===m.id" :title="m.h" @click="setRevMode(m.id)"
+                        :class="['rounded-full px-3 py-1 text-sm transition', rev.mode===m.id ? 'bg-sage-600 text-white shadow-soft' : 'text-muted hover:text-ink dark:hover:text-night-ink']">{{ m.l }}</button>
+              </div>
+              <span class="flex-1"></span>
+              <button v-if="rev.busy" type="button" class="btn-ghost text-sm" @click="cancelRev">{{ $t('Cancel ({0} s)', [rev.waited]) }}</button>
+              <button type="button" class="btn-primary text-sm" :disabled="busyAny" @click="reviewDoc"><ic :name="rev.busy ? 'spinner' : 'check'" :class="['size-4', rev.busy && 'animate-spin']"></ic>{{ rev.busy ? $t('Reviewing…') : $t('Review') }}</button>
+            </div>
+            <p v-if="rev.busy" class="mt-2 text-xs text-muted dark:text-night-muted">{{ $t('A careful review reads the cited pages one by one and can take several minutes.') }}</p>
+            <p v-if="rev.error" class="mt-3 flex gap-2 rounded-2xl bg-clay-100 px-3 py-2 text-sm text-clay-500 dark:bg-clay-500/15"><ic name="alert" class="mt-0.5 size-4 shrink-0"></ic>{{ rev.error }}</p>
+          </div>
           <p class="text-xs text-muted dark:text-night-muted">{{ $t('In “Preview”, point at a paragraph (or tap it) to change it by hand, rewrite it with {ai}, add a paragraph after it or remove it.') }}</p>
         </div>
         <p v-if="cont.note" class="mt-3 flex flex-wrap items-center gap-2 rounded-2xl bg-sage-50 px-3 py-2 text-sm text-sage-700 dark:bg-sage-900/40 dark:text-sage-200"><ic name="check" class="size-4 shrink-0"></ic><span class="flex-1">{{ cont.note }}</span><button v-if="undoStack.length" type="button" class="underline" @click="undo">{{ $t('Undo the addition') }}</button></p>
+        <p v-if="rev.note" class="mt-3 flex flex-wrap items-center gap-2 rounded-2xl bg-sage-50 px-3 py-2 text-sm text-sage-700 dark:bg-sage-900/40 dark:text-sage-200"><ic name="check" class="size-4 shrink-0"></ic><span class="flex-1">{{ rev.note }}</span><button v-if="undoStack.length" type="button" class="underline" @click="undo">{{ $t('Undo the review') }}</button></p>
+        <!-- Отчетът от прегледа: пази се и в drafts/.reviews/ -->
+        <div v-if="rev.report" class="mt-3 rounded-2xl border border-line p-4 dark:border-night-line">
+          <div class="flex flex-wrap items-center gap-2">
+            <button type="button" class="flex items-center gap-2 text-left text-sm font-semibold" :aria-expanded="rev.open" @click="rev.open=!rev.open"><ic name="file" class="size-4 text-sage-600"></ic>{{ $t('Review report') }}<ic name="chevron" :class="['size-4 text-muted', rev.open ? '-rotate-90' : 'rotate-90']"></ic></button>
+            <button v-if="rev.reportPath" type="button" class="chip border border-line text-xs text-muted hover:text-ink dark:border-night-line" :title="$t('Copy the path')" @click="$root.copy(rev.reportPath)">{{ rev.reportPath }}</button>
+            <span class="flex-1"></span>
+            <button type="button" class="btn-ghost !py-1 text-sm" @click="$root.copy(rev.report)"><ic name="copy" class="size-4"></ic>{{ $t('Copy') }}</button>
+            <button type="button" class="btn-ghost !p-1.5 text-muted" :aria-label="$t('Hide')" @click="rev.report=''; rev.note=''"><ic name="x" class="size-4"></ic></button>
+          </div>
+          <div v-if="rev.open" class="reading mt-3 text-[15px]" v-html="reviewHtml"></div>
+        </div>
       </section>
 
       <textarea v-if="mode==='edit'" ref="raw" v-model="body" spellcheck="true" :aria-label="$t('The text in Markdown')" class="mt-3 min-h-[70vh] w-full resize-y rounded-3xl border border-line bg-panel p-5 font-mono text-[14px] leading-relaxed outline-none transition focus:border-sage-400 dark:border-night-line dark:bg-night-panel"></textarea>
