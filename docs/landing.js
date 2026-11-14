@@ -32,7 +32,7 @@ I18N.bg = {
   graph: { eye: 'Демо 4 · Карта на връзките', t1: 'Библиотеката ви', t2: 'на една карта.', lede: 'Точките са страниците, а линиите са връзките между тях. Посочете точка, за да видите съседите ѝ, преместете я с мишката или щракнете, за да я прочетете.',
     aria: n => `Карта на връзките: ${n} страници`, stats: (d, b) => `${d} връзки · ${b} препратки към нея`, read: 'Прочетете страницата', legend: 'Цветът показва вида на страницата, а размерът колко връзки има.' },
   learn: { eye: 'Демо 5 · Учене по въпрос', t1: 'Задайте въпрос и получете', t2: 'маршрут за четене.', lede: 'Библиотеката не само отговаря, но и подрежда страниците в реда, в който се разбират най-лесно. Бързият режим работи локално, без Claude и без разход, а с Claude получавате и обобщен отговор с препратки.' },
-  write: { eye: 'Демо 6 · Писане', t1: 'От библиотеката до чернова', t2: 'с библиография по APA 7.', lede: 'Изберете тема и ниво. Статията се сглобява от вашите страници: резюме, увод, теоретична рамка, анализ, дискусия, заключение и библиография. Цитатите идват от източниците, които сте обработили.' },
+  write: { eye: 'Демо 6 · Писане', t1: 'От библиотеката до текст:', t2: 'статия, есе, обзор или разказ.', lede: 'Изберете вид текст, тема, ниво и креативност. Текстът се сглобява от вашите страници, а цитатите идват от източниците, които сте обработили; креативността сменя стила и тълкуването, не фактите. Научната статия има резюме, раздели и библиография по APA 7, а разказът няма цитати в текста и източниците му са накрая. Или отворете празен документ и пишете сами, с помощ абзац по абзац.' },
   modes: { eye: 'Режими и цена', title: 'Вие решавате колко да струва.', lede: 'Моделът, който чете главите, и моделът, който пише страниците, се избират поотделно. Преди действие с Claude виждате приблизителния брой токени и цената, а обработката започва след вашето потвърждение. Тази проверка е включена по подразбиране.',
     reads: 'Чете главите', writes: 'Пише страниците',
     cards: [{ tag: 'По подразбиране', n: 'Икономичен', d: 'Подагентът chapter-reader на Haiku чете главите, а Sonnet пише. Подходящ, когато обработвате много книги наведнъж.' }, { tag: 'Баланс', n: 'Балансиран', d: 'Sonnet и чете, и пише. За случаите, когато Haiku пропуска нюанси.' }, { tag: 'Максимум', n: 'Най-добър', d: 'Opus и чете, и пише. За ключовите книги.' }],
@@ -128,12 +128,20 @@ I18N.bg = {
     answer: 'Отговор', pathH: (n, m) => `Маршрут за четене · ${n} стъпки · ≈ ${m} мин`, mark: i => `Отбележи стъпка ${i} като прочетена`, min: 'мин', freeAnswer: 'В демото свободните въпроси получават само локален маршрут. В приложението Claude пише и обобщен отговор с препратки към страниците по-долу.',
     why: { topic: 'Тема, която подрежда понятията около въпроса', concept: 'Понятие, върху което стъпва отговорът', comparison: 'Позициите една до друга', source: 'Първоизточникът с цитатите', chapter: 'Главата с подробностите и данните', entity: 'Човекът зад идеята', question: 'Записан отговор на близък въпрос' },
     fallback: [['topic-memory', 'Нищо не съвпадна точно, затова започнете от темите', 3], ['topic-knowledge-systems', 'Втората голяма тема в библиотеката', 3]] },
-  writeUI: { topic: 'Тема', level: 'Ниво', levels: [['Локално', 'без Claude'], ['Леко', 'Haiku'], ['Средно', 'Sonnet'], ['Задълбочено', 'Opus']], busy: 'Пише се…', go: 'Напиши черновата',
-    noteLocal: 'Локално: подрежда ключови изречения от страниците, без Claude и без разход.', noteClaude: 'С Claude: свързан текст с цитати, само от страниците в библиотеката.', emptyT: 'Празен лист', emptyP: 'Изберете тема и натиснете „Напиши черновата“.', draft: 'Чернова',
+  writeUI: { kind: 'Вид текст', kinds: [['article', 'Научна статия', 'резюме, раздели, APA'], ['essay', 'Есе', 'една мисъл, позиция'], ['popular', 'Научно-популярна', 'за широка публика'], ['review', 'Обзор', 'кой какво твърди'], ['story', 'Разказ', 'без цитати в текста']],
+    creat: 'Креативност', creatLv: [['Строг', 'Прост, точен език, без собствено тълкуване.'], ['Сдържан', 'Ясен език с малко цвят; свързва идеите само където ги свързват текстовете.'], ['Балансиран', 'Жив език с образи и примери; тълкуване, където следва от текстовете.'], ['Свободен', 'Изразителен език и метафори; смели тълкувания и неочаквани връзки.'], ['Смел', 'Оригинален текст със силен глас и игра с формата; хипотези като собствен прочит.']],
+    creatNote: 'На всяка степен фактите и цитатите са само от библиотеката.', creatStory: 'В разказа степента определя и колко свободно се измислят сюжетът и героите.', sample: 'Едно и също твърдение на тази степен',
+    localKind: 'Бързата чернова без Claude подрежда само научна статия.', basedOnH: 'По мотиви от', contKind: 'В демото дописването е само за научна статия; в приложението работи за всеки вид.',
+    blank: 'Празен документ', blankTitle: 'Текст без заглавие', blankFile: '2026-11-14-tekst-bez-zaglavie.md', blankHint: 'Пишете сами; Claude помага абзац по абзац.', firstPara: 'Първият абзац…', newPara: 'Новият абзац…',
+    titleTip: 'Щракнете, за да смените заглавието', paraTools: ['Смени на ръка', 'Пренапиши с Claude', 'Добави абзац след него', 'Махни'], add: 'Добави', apply: 'Приложи', cancel: 'Отказ', undo: 'Върни', removed: 'Абзацът е махнат. „Върни“ го връща.',
+    rewriteDemo: 'В приложението Claude пренаписва абзаца по ваше указание (напр. „по-кратко, с пример“) и новото се вижда оцветено до запис. В демото няма модел.',
+    toolsNote: 'Посочете абзац: смяна на ръка, пренаписване с Claude, нов абзац след него или махане. Заглавието се сменя с щракване, а „Върни“ отменя промените една по една.',
+    topic: 'Тема', level: 'Ниво', levels: [['Локално', 'без Claude'], ['Леко', 'Haiku'], ['Средно', 'Sonnet'], ['Задълбочено', 'Opus']], busy: 'Пише се…', go: 'Напиши черновата',
+    noteLocal: 'Локално: подрежда ключови изречения от страниците, без Claude и без разход.', noteClaude: 'С Claude: свързан текст с цитати, само от страниците в библиотеката.', emptyT: 'Празен лист', emptyP: 'Изберете вид текст и тема и натиснете „Напиши черновата“ или отворете празен документ.', draft: 'Чернова',
     pagesNote: 'Номерата на страниците са печатните: приложението ги изчислява от страниците в PDF чрез page_offset, както изисква APA.', cont: 'Допиши с Claude', contNeed: 'Достъпно при ниво, което използва Claude', uncont: 'Махни добавеното', copy: 'Копирай текста', save: 'Запази',
     localH1: 'Бележка', localNote: n => `Локален режим: ключови изречения от ${n} страници на библиотеката, подредени по темата. Без Claude и без разход. Свържете ги в свой текст или изберете ниво с Claude.`, localH2: 'Ключови изречения', bibH: 'Библиография', conclH: 'Заключение',
     toastCont: 'Добавено преди „Заключение“. Библиографията е запазена.', toastCopy: 'Текстът е копиран като Markdown.', toastSave: f => `Записано в drafts/${f}. Предишната версия отива в drafts/.history/.` },
-  tour: { title: 'Обиколка на демото', items: ['Обработете източник', 'Отворете страница от книга', 'Потърсете с Ctrl K', 'Редактирайте или махнете абзац', 'Попитайте Claude или поискайте план-конспект', 'Сменете заглавието на страница', 'Щракнете точка от картата', 'Поискайте маршрут за четене', 'Напишете чернова', 'Задайте парола, направете архив или пуснете тестовете'], done: 'Видяхте основното. Остава вашата библиотека:', finished: 'Готово!', btn: (n, k) => `Обиколка ${n}/${k}`, step: (n, k) => `Обиколка: ${n} от ${k}`, all: 'Видяхте основното. Остава вашата библиотека!' },
+  tour: { title: 'Обиколка на демото', items: ['Обработете източник', 'Отворете страница от книга', 'Потърсете с Ctrl K', 'Редактирайте или махнете абзац', 'Попитайте Claude или поискайте план-конспект', 'Сменете заглавието на страница', 'Щракнете точка от картата', 'Поискайте маршрут за четене', 'Напишете есе, разказ или статия', 'Задайте парола, направете архив или пуснете тестовете'], done: 'Видяхте основното. Остава вашата библиотека:', finished: 'Готово!', btn: (n, k) => `Обиколка ${n}/${k}`, step: (n, k) => `Обиколка: ${n} от ${k}`, all: 'Видяхте основното. Остава вашата библиотека!' },
 };
 
 /* ===== Interface text: English ===== */
@@ -165,7 +173,7 @@ I18N.en = {
   graph: { eye: 'Demo 4 · Link map', t1: 'Your library', t2: 'on one map.', lede: 'The dots are pages and the lines are the links between them. Hover over a dot to see its neighbors, drag it around, or click it to read the page.',
     aria: n => `Link map: ${n} pages`, stats: (d, b) => `${d} links · ${b} pages link here`, read: 'Read the page', legend: 'Color shows the type of page, size shows how many links it has.' },
   learn: { eye: 'Demo 5 · Learn by question', t1: 'Ask a question and get', t2: 'a reading path.', lede: 'The library does more than answer: it puts the pages in the order that makes them easiest to understand. Quick mode runs locally, with no Claude and no cost; with Claude you also get a summarized answer with citations.' },
-  write: { eye: 'Demo 6 · Writing', t1: 'From your library to a draft', t2: 'with an APA 7 bibliography.', lede: 'Pick a topic and a level. The article is assembled from your pages: abstract, introduction, theoretical framework, analysis, discussion, conclusion and references. Citations come from the sources you have processed.' },
+  write: { eye: 'Demo 6 · Writing', t1: 'From your library to a text:', t2: 'an article, an essay, a review or a story.', lede: 'Pick a kind of text, a topic, a level and a creativity. The text is assembled from your pages, and citations come from the sources you have processed; creativity changes the style and the interpretation, not the facts. A scientific article has an abstract, sections and an APA 7 bibliography, while a story has no citations in the text and lists its sources at the end. Or open a blank document and write yourself, with help paragraph by paragraph.' },
   modes: { eye: 'Modes and cost', title: 'You decide what it costs.', lede: 'The model that reads the chapters and the model that writes the pages are chosen separately. Before an action with Claude you see the approximate tokens and cost, and processing starts after you confirm. This check is on by default.',
     reads: 'Reads chapters', writes: 'Writes pages',
     cards: [{ tag: 'Default', n: 'Economy', d: 'The chapter-reader subagent on Haiku reads the chapters and Sonnet writes. Best when you process many books at once.' }, { tag: 'Balance', n: 'Balanced', d: 'Sonnet reads and writes. For when Haiku misses nuance.' }, { tag: 'Maximum', n: 'Best', d: 'Opus reads and writes. For your key books.' }],
@@ -261,12 +269,20 @@ I18N.en = {
     answer: 'Answer', pathH: (n, m) => `Reading path · ${n} steps · ≈ ${m} min`, mark: i => `Mark step ${i} as read`, min: 'min', freeAnswer: 'In the demo, free-form questions get a local path only. In the app, Claude also writes a summarized answer citing the pages below.',
     why: { topic: 'A topic that organizes the concepts around your question', concept: 'A concept the answer builds on', comparison: 'The positions side by side', source: 'The original source with the citations', chapter: 'The chapter with the details and data', entity: 'The person behind the idea', question: 'A saved answer to a similar question' },
     fallback: [['topic-memory', 'Nothing matched exactly, so start with the topics', 3], ['topic-knowledge-systems', 'The other big topic in the library', 3]] },
-  writeUI: { topic: 'Topic', level: 'Level', levels: [['Local', 'no Claude'], ['Light', 'Haiku'], ['Medium', 'Sonnet'], ['Deep', 'Opus']], busy: 'Writing…', go: 'Write the draft',
-    noteLocal: 'Local: collects key sentences from your pages, with no Claude and no cost.', noteClaude: 'With Claude: connected prose with citations, drawn only from your library.', emptyT: 'Blank page', emptyP: 'Pick a topic and press "Write the draft".', draft: 'Draft',
+  writeUI: { kind: 'Kind of text', kinds: [['article', 'Scientific article', 'abstract, sections, APA'], ['essay', 'Essay', 'one line of thought'], ['popular', 'Popular science', 'for a wide audience'], ['review', 'Review', 'who claims what'], ['story', 'Story', 'no citations in the text']],
+    creat: 'Creativity', creatLv: [['Strict', 'Plain, precise language, without its own interpretation.'], ['Restrained', 'Clear language with a little colour; connects ideas only where the texts do.'], ['Balanced', 'Lively language with images and examples; interpretation where it follows from the texts.'], ['Free', 'Expressive language and metaphors; bold interpretations and unexpected connections.'], ['Bold', 'An original text with a strong voice and play with form; hypotheses as its own reading.']],
+    creatNote: 'At every level the facts and the citations come only from the library.', creatStory: 'In a story the level also sets how freely the plot and the characters are invented.', sample: 'The same claim at this level',
+    localKind: 'The quick draft without Claude only arranges a scientific article.', basedOnH: 'Based on', contKind: 'In the demo, continuing works only for a scientific article; in the app it works for every kind.',
+    blank: 'Blank document', blankTitle: 'Untitled text', blankFile: '2026-11-14-untitled-text.md', blankHint: 'You write; Claude helps paragraph by paragraph.', firstPara: 'The first paragraph…', newPara: 'The new paragraph…',
+    titleTip: 'Click to change the title', paraTools: ['Change by hand', 'Rewrite with Claude', 'Add a paragraph after it', 'Remove'], add: 'Add', apply: 'Apply', cancel: 'Cancel', undo: 'Undo', removed: 'The paragraph was removed. “Undo” brings it back.',
+    rewriteDemo: 'In the app, Claude rewrites the paragraph as you ask (e.g. “shorter, with an example”), and the new text stays highlighted until you save. The demo has no model.',
+    toolsNote: 'Point at a paragraph: change it by hand, rewrite it with Claude, add a paragraph after it or remove it. Click the title to change it; “Undo” takes changes back one at a time.',
+    topic: 'Topic', level: 'Level', levels: [['Local', 'no Claude'], ['Light', 'Haiku'], ['Medium', 'Sonnet'], ['Deep', 'Opus']], busy: 'Writing…', go: 'Write the draft',
+    noteLocal: 'Local: collects key sentences from your pages, with no Claude and no cost.', noteClaude: 'With Claude: connected prose with citations, drawn only from your library.', emptyT: 'Blank page', emptyP: 'Pick a kind of text and a topic and press "Write the draft", or open a blank document.', draft: 'Draft',
     pagesNote: 'Page numbers are the printed ones: the app converts them from the PDF pages using page_offset, as APA requires.', cont: 'Continue with Claude', contNeed: 'Available with a level that uses Claude', uncont: 'Remove the addition', copy: 'Copy text', save: 'Save',
     localH1: 'Note', localNote: n => `Local mode: key sentences from ${n} library pages, ordered by topic. No Claude and no cost. Weave them into your own text or choose a level with Claude.`, localH2: 'Key sentences', bibH: 'References', conclH: 'Conclusion',
     toastCont: 'Added before "Conclusion". The references were kept.', toastCopy: 'Text copied as Markdown.', toastSave: f => `Saved to drafts/${f}. The previous version goes to drafts/.history/.` },
-  tour: { title: 'Demo tour', items: ['Process a source', 'Open a page of a book', 'Search with Ctrl K', 'Edit or remove a paragraph', 'Ask Claude or request an outline', 'Change the title of a page', 'Click a dot on the map', 'Ask for a reading path', 'Write a draft', 'Set a password, make an archive or run the tests'], done: 'You have seen the essentials. What is missing is your library:', finished: 'Done!', btn: (n, k) => `Tour ${n}/${k}`, step: (n, k) => `Tour: ${n} of ${k}`, all: 'You have seen the essentials. What is missing is your library!' },
+  tour: { title: 'Demo tour', items: ['Process a source', 'Open a page of a book', 'Search with Ctrl K', 'Edit or remove a paragraph', 'Ask Claude or request an outline', 'Change the title of a page', 'Click a dot on the map', 'Ask for a reading path', 'Write an essay, a story or an article', 'Set a password, make an archive or run the tests'], done: 'You have seen the essentials. What is missing is your library:', finished: 'Done!', btn: (n, k) => `Tour ${n}/${k}`, step: (n, k) => `Tour: ${n} of ${k}`, all: 'You have seen the essentials. What is missing is your library!' },
 };
 
 /* ===== Нови раздели: работа със страница и настройки ===== */
@@ -1381,6 +1397,162 @@ const TOPICS = {
       ],
       more: ['What is left for the person', ['The model can link, but it cannot decide what matters to you. Choosing the sources and checking key claims remain human work (Karpathy, 2026). A citation down to the exact page turns that check into a matter of seconds rather than hours.']] }],
 };
+
+/* Демо 6: другите видове текст по същите теми (есе, научно-популярна статия, обзор, разказ) и едно и също
+   твърдение на всяка от петте степени на креативност. Фактите и цитатите са същите като в научната статия. */
+const TOPIC_KINDS = {
+  bg: [
+    {
+      creat: [
+        'Ебингхаус установява, че най-голямата загуба на спестено време е през първия ден (Ebbinghaus, 1885/1913, с. 71).',
+        'Повечето от наученото се губи още през първия ден, както показват измерванията на Ебингхаус (Ebbinghaus, 1885/1913, с. 71).',
+        'Паметта изтича най-бързо в началото: до следващия ден от наученото на Ебингхаус е останала малка част (Ebbinghaus, 1885/1913, с. 71).',
+        'Забравянето не е бавно избледняване, а стръмен склон: Ебингхаус гледа как наученото се изплъзва още преди да е настъпила сутринта (Ebbinghaus, 1885/1913, с. 71).',
+        'Всяка нощ паметта тихо разчиства къщата си; Ебингхаус я хваща в крачка и записва колко изхвърля до сутринта (Ebbinghaus, 1885/1913, с. 71).',
+      ],
+      kinds: {
+        essay: { title: 'Да забравяш е нормално. Въпросът е какво правиш после', bib: ['ahrens', 'ebb', 'kar', 'luh'], doc: [
+          ['', ['Всеки читател познава това чувство: книгата е затворена, а след седмица от нея е останало само усещането, че е била хубава. Дълго мислех, че това е проблем на вниманието. Ебингхаус подсказва друго: забравянето е правило, не изключение (Ebbinghaus, 1885/1913, с. 71).']],
+          ['Срещу кривата', ['Ако загубата е най-голяма в първите часове, повторението не е зубрене, а навременна намеса. Разпределените повторения обръщат сметката в наша полза (Ebbinghaus, 1885/1913, с. 86). Възражението е ясно: никой няма време да преговаря всичко. Тук помага картотеката на Луман: бележката, сложена до свързаната с нея, връща старата идея без отделно усилие (Luhmann, 1981, с. 224).']],
+          ['Кой да пише', ['Остава въпросът дали моделът, който поддържа връзките, не ни лишава от самото запомняне (Karpathy, 2026). Моят отговор е не, стига преразказът да остане наш: точно в него, по думите на Аренс, се ражда разбирането (Ahrens, 2017).']],
+          ['', ['Забравянето не е враг, а мярка. То показва какво още не сме направили свое.']],
+        ] },
+        popular: { title: 'Защо забравяме прочетеното и какво да направим', bib: ['ahrens', 'ebb', 'luh'], doc: [
+          ['', ['Прочели сте книга в неделя. В понеделник помните половината, а след седмица само корицата. Това не е мързел: така работи паметта.']],
+          ['Кривата на забравянето', ['Преди повече от сто години Херман Ебингхаус учи безсмислени срички и мери колко време спестява, когато ги учи повторно. Тази „спестена работа“ показва колко е останало в паметта (Ebbinghaus, 1885/1913, с. 10). Най-много се губи в първите часове, после спадът се забавя (Ebbinghaus, 1885/1913, с. 71).']],
+          ['Повторение на интервали', ['Добрата новина: всяко повторение забавя спада. Вместо да препрочитате всичко наведнъж, върнете се след ден, после след седмица (Ebbinghaus, 1885/1913, с. 86).']],
+          ['Какво да направите още днес', ['Запишете една мисъл със свои думи и я сложете до свързана бележка. Така работи картотеката на Луман (Luhmann, 1981, с. 224), а Аренс показва, че точно преразказът ни помага да разберем (Ahrens, 2017).']],
+        ] },
+        review: { title: 'Забравяне и външна памет: обзор на литературата', bib: ['ahrens', 'ebb', 'kar', 'luh'], doc: [
+          ['Увод', ['Обзорът събира какво казват четирите текста в библиотеката за забравянето и за начините да му се противодейства.']],
+          ['Метод', ['Прегледани са експериментът на Ебингхаус, описанието на картотеката на Луман, книгата на Аренс за бележките и бележката на Карпати за LLM Wiki, групирани в две теми: как забравяме и как пазим знанието.']],
+          ['Как забравяме', ['Ебингхаус мери паметта чрез спестеното време при повторно учене (Ebbinghaus, 1885/1913, с. 10) и показва стръмна загуба в началото (Ebbinghaus, 1885/1913, с. 71). Другите автори приемат забравянето за даденост и не го измерват.']],
+          ['Как пазим знанието', ['Тук позициите се разделят. Луман разчита на постоянни номера и препратки (Luhmann, 1981, с. 224), Аренс на преразказа със собствени думи (Ahrens, 2017), а Карпати на модел, който поддържа връзките вместо човека (Karpathy, 2026).']],
+          ['Обобщение на позициите', ['Ебингхаус: повторение на интервали · Луман: връзки между бележките · Аренс: собствен преразказ · Карпати: поддръжка от модел.']],
+          ['Празнини', ['Нито един от текстовете не проверява дали бележка, написана от модел, се помни толкова добре, колкото бележка, написана от човек. Това е следващото, което си струва да се прочете.']],
+        ] },
+        story: { title: 'Чекмеджето с номерата', bib: ['ahrens', 'ebb', 'luh'], doc: [
+          ['', ['Професорът затвори чекмеджето и написа номер 21/3d на нова бележка. Студентката го гледаше с недоверие.']],
+          ['', ['„Защо не я сложите при другите за паметта?“, попита тя. „Защото там ще я забравя“, отвърна той. „Тук, до бележката за навиците, някой ден ще се натъкна на нея, когато търся съвсем друго.“']],
+          ['', ['Вечерта тя отвори учебника на страницата, която беше чела сутринта, и с изненада откри, че помни само заглавието. Спомни си думите му и не препрочете главата. Затвори книгата и написа три изречения със свои думи.']],
+          ['', ['След седмица ги прочете отново. Този път главата се върна цялата, като стар познат.']],
+        ] },
+      },
+    },
+    {
+      creat: [
+        'Буш противопоставя изкуственото подреждане на асоциативния начин, по който работи умът (Bush, 1945, с. 106).',
+        'Според Буш каталозите подреждат изкуствено, докато умът свързва по асоциация (Bush, 1945, с. 106).',
+        'Буш вижда в каталога чужда логика: умът не търси по азбучен ред, а скача от мисъл към мисъл (Bush, 1945, с. 106).',
+        'За Буш каталогът е карта на чужд град, а умът е пешеходец, който върви по собствените си следи (Bush, 1945, с. 106).',
+        'Буш почти обвинява библиотекаря: умът никога не е мислил по азбучен ред, а прескача като искра по жиците на асоциацията (Bush, 1945, с. 106).',
+      ],
+      kinds: {
+        essay: { title: 'Пътеките са самото знание', bib: ['ahrens', 'bush', 'kar', 'luh'], doc: [
+          ['', ['Свикнали сме да мислим, че знанието е в книгите. Буш още през 1945 г. забелязва, че то е по-скоро в пътя между тях: умът не търси по азбучен ред, а по асоциация (Bush, 1945, с. 106).']],
+          ['Кой върви по пътеката', ['Луман прави такива пътеки на хартия и ги поддържа сам цял живот (Luhmann, 1981, с. 224). Днес можем да ги поверим на модел (Karpathy, 2026). Изкушението е голямо, но възражението на Аренс тежи: стойността на бележката е и в усилието да я напишеш (Ahrens, 2017).']],
+          ['', ['Затова виждам разделението така: моделът да поддържа пътеките, а човекът да решава накъде води всяка от тях.']],
+        ] },
+        popular: { title: 'Машина, която помни вместо нас?', bib: ['bush', 'kar', 'luh'], doc: [
+          ['', ['През 1945 г. инженерът Ваневар Буш описва бюро, в което човек пази всичките си книги и бележки и ги свързва с „пътеки“. Нарича го memex (Bush, 1945, с. 106).']],
+          ['Пътеки вместо каталог', ['Идеята е проста: вместо да търсите по азбучен ред, вървите от една бележка към свързаната с нея, както мисли умът (Bush, 1945, с. 107).']],
+          ['От картотеката до езиковия модел', ['Социологът Никлас Луман прави същото с хартиени фишове, номера и препратки (Luhmann, 1981, с. 224). Днес LLM Wiki оставя поддръжката на тези връзки на езиков модел (Karpathy, 2026).']],
+          ['Какво значи това за вас', ['Машината може да пази пътеките, но вие избирате какво влиза в библиотеката и проверявате важното.']],
+        ] },
+        review: { title: 'Системи за лично знание: обзор на литературата', bib: ['ahrens', 'bush', 'kar', 'luh'], doc: [
+          ['Увод', ['Обзорът сравнява как четирите текста отговарят на въпроса кой поддържа връзките между записите.']],
+          ['Метод', ['Прегледани са Буш (1945), Луман (1981), Аренс (2017) и Карпати (2026), подредени според това кой върши работата: машина, човек или модел.']],
+          ['Машина и човек', ['Буш предлага трайни асоциативни пътеки, които човекът създава с помощта на машина (Bush, 1945, с. 107). Луман поддържа пътеките сам, с номера и препратки (Luhmann, 1981, с. 224).']],
+          ['Модел и човек', ['Карпати оставя поддръжката на модела (Karpathy, 2026), докато Аренс настоява, че писането на бележката е част от разбирането (Ahrens, 2017). Тук е основното несъгласие между текстовете.']],
+          ['Обобщение на позициите', ['Буш: машина с човешки пътеки · Луман: човек с хартиена система · Аренс: човек, който пише сам · Карпати: модел, който поддържа връзките.']],
+          ['Празнини', ['Няма данни дали връзките, поддържани от модел, се ползват толкова, колкото създадените на ръка.']],
+        ] },
+        story: { title: 'Бюрото', bib: ['ahrens', 'bush', 'kar'], doc: [
+          ['', ['През 1945 г. инженерът сънува бюро със стъклен плот. Под стъклото светеха страници, а между тях, като следи в сняг, минаваха тънки линии.']],
+          ['', ['Сутринта той ги нарече пътеки. „Умът не подрежда по азбука“, каза си. „Той върви по следите.“']],
+          ['', ['Осемдесет години по-късно една жена отвори лаптопа си. Някой беше свързал вечерната ѝ бележка за паметта със статия, прочетена преди месец. Не беше тя. Беше моделът, който подреждаше библиотеката ѝ нощем.']],
+          ['', ['Тя прочете връзката, поклати глава и я пренаписа със свои думи. Едва тогава пътеката стана нейна.']],
+        ] },
+      },
+    },
+  ],
+  en: [
+    {
+      creat: [
+        'Ebbinghaus finds that the largest loss of saved time occurs during the first day (Ebbinghaus, 1885/1913, p. 71).',
+        'Most of what is learned is lost within the first day, as Ebbinghaus\'s measurements show (Ebbinghaus, 1885/1913, p. 71).',
+        'Memory leaks fastest at the start: by the next day, little of what Ebbinghaus had learned was left (Ebbinghaus, 1885/1913, p. 71).',
+        'Forgetting is not a slow fading but a steep slope: Ebbinghaus watched his learning slip away before morning came (Ebbinghaus, 1885/1913, p. 71).',
+        'Every night memory quietly cleans house; Ebbinghaus caught it in the act and wrote down how much it throws out by morning (Ebbinghaus, 1885/1913, p. 71).',
+      ],
+      kinds: {
+        essay: { title: 'Forgetting is normal. The question is what you do next', bib: ['ahrens', 'ebb', 'kar', 'luh'], doc: [
+          ['', ['Every reader knows the feeling: the book is closed, and a week later all that is left is the sense that it was good. For a long time I thought this was a failure of attention. Ebbinghaus suggests something else: forgetting is the rule, not the exception (Ebbinghaus, 1885/1913, p. 71).']],
+          ['Against the curve', ['If the loss is greatest in the first hours, repetition is not cramming but timely intervention. Spaced repetitions turn the balance in our favour (Ebbinghaus, 1885/1913, p. 86). The objection is obvious: nobody has time to review everything. This is where Luhmann\'s slip box helps: a note placed next to a related one brings an old idea back without a separate effort (Luhmann, 1981, p. 224).']],
+          ['Who should write', ['The question remains whether a model that maintains the links takes away the remembering itself (Karpathy, 2026). My answer is no, as long as the rephrasing stays ours: that is where, in Ahrens\'s words, understanding is born (Ahrens, 2017).']],
+          ['', ['Forgetting is not the enemy but a measure. It shows what we have not yet made our own.']],
+        ] },
+        popular: { title: 'Why we forget what we read, and what to do about it', bib: ['ahrens', 'ebb', 'luh'], doc: [
+          ['', ['You read a book on Sunday. On Monday you remember half of it, and a week later only the cover. That is not laziness: it is how memory works.']],
+          ['The forgetting curve', ['More than a hundred years ago, Hermann Ebbinghaus learned nonsense syllables and measured how much time he saved when he learned them again. That "saved work" shows how much was left in memory (Ebbinghaus, 1885/1913, p. 10). Most is lost in the first hours, and then the decline slows down (Ebbinghaus, 1885/1913, p. 71).']],
+          ['Spaced repetition', ['The good news: every review slows the decline. Instead of rereading everything at once, come back after a day, then after a week (Ebbinghaus, 1885/1913, p. 86).']],
+          ['What to do today', ['Write one thought in your own words and put it next to a related note. That is how Luhmann\'s slip box worked (Luhmann, 1981, p. 224), and Ahrens shows that rephrasing is exactly what helps us understand (Ahrens, 2017).']],
+        ] },
+        review: { title: 'Forgetting and external memory: a review of the literature', bib: ['ahrens', 'ebb', 'kar', 'luh'], doc: [
+          ['Introduction', ['This review brings together what the four texts in the library say about forgetting and about ways to counter it.']],
+          ['Method', ['The texts reviewed are Ebbinghaus\'s experiment, Luhmann\'s account of his slip box, Ahrens\'s book on notes and Karpathy\'s note on LLM Wiki, grouped into two themes: how we forget and how we keep knowledge.']],
+          ['How we forget', ['Ebbinghaus measures memory by the time saved in relearning (Ebbinghaus, 1885/1913, p. 10) and shows a steep loss at first (Ebbinghaus, 1885/1913, p. 71). The other authors take forgetting as given and do not measure it.']],
+          ['How we keep knowledge', ['Here the positions diverge. Luhmann relies on fixed numbers and cross-references (Luhmann, 1981, p. 224), Ahrens on rephrasing in your own words (Ahrens, 2017), and Karpathy on a model that maintains the links instead of the person (Karpathy, 2026).']],
+          ['Summary of the positions', ['Ebbinghaus: repetition at intervals · Luhmann: links between notes · Ahrens: your own rephrasing · Karpathy: maintenance by a model.']],
+          ['Gaps', ['None of the texts tests whether a note written by a model is remembered as well as a note written by a person. That is the next thing worth reading about.']],
+        ] },
+        story: { title: 'The drawer with the numbers', bib: ['ahrens', 'ebb', 'luh'], doc: [
+          ['', ['The professor closed the drawer and wrote the number 21/3d on a new slip. The student watched him with suspicion.']],
+          ['', ['"Why not put it with the others on memory?" she asked. "Because there I would forget it," he replied. "Here, next to the note on habits, one day I will stumble on it while looking for something else entirely."']],
+          ['', ['That evening she opened her textbook at the page she had read in the morning and found, to her surprise, that she remembered only the title. She recalled his words and did not reread the chapter. She closed the book and wrote three sentences in her own words.']],
+          ['', ['A week later she read them again. This time the whole chapter came back, like an old acquaintance.']],
+        ] },
+      },
+    },
+    {
+      creat: [
+        'Bush contrasts artificial indexing with the associative way the mind works (Bush, 1945, p. 106).',
+        'For Bush, catalogs order things artificially, while the mind connects by association (Bush, 1945, p. 106).',
+        'Bush sees a foreign logic in the catalog: the mind does not search alphabetically, it jumps from thought to thought (Bush, 1945, p. 106).',
+        'For Bush, the catalog is a map of a foreign city, and the mind is a walker who follows its own tracks (Bush, 1945, p. 106).',
+        'Bush all but accuses the librarian: the mind has never thought in alphabetical order; it leaps like a spark along the wires of association (Bush, 1945, p. 106).',
+      ],
+      kinds: {
+        essay: { title: 'The trails are the knowledge', bib: ['ahrens', 'bush', 'kar', 'luh'], doc: [
+          ['', ['We are used to thinking that knowledge lives in books. As early as 1945, Bush noticed that it lives rather in the path between them: the mind does not search in alphabetical order but by association (Bush, 1945, p. 106).']],
+          ['Who walks the trail', ['Luhmann built such trails on paper and maintained them himself for a lifetime (Luhmann, 1981, p. 224). Today we can hand them to a model (Karpathy, 2026). The temptation is great, but Ahrens\'s objection carries weight: the value of a note lies partly in the effort of writing it (Ahrens, 2017).']],
+          ['', ['So I see the division like this: the model maintains the trails, and the person decides where each of them leads.']],
+        ] },
+        popular: { title: 'A machine that remembers for us?', bib: ['bush', 'kar', 'luh'], doc: [
+          ['', ['In 1945 the engineer Vannevar Bush described a desk in which a person keeps all their books and notes and links them with "trails". He called it the memex (Bush, 1945, p. 106).']],
+          ['Trails instead of a catalog', ['The idea is simple: instead of searching in alphabetical order, you go from one note to the one linked to it, the way the mind thinks (Bush, 1945, p. 107).']],
+          ['From the slip box to the language model', ['The sociologist Niklas Luhmann did the same with paper slips, numbers and cross-references (Luhmann, 1981, p. 224). Today LLM Wiki leaves the maintenance of those links to a language model (Karpathy, 2026).']],
+          ['What it means for you', ['The machine can keep the trails, but you choose what goes into the library and check what matters.']],
+        ] },
+        review: { title: 'Personal knowledge systems: a review of the literature', bib: ['ahrens', 'bush', 'kar', 'luh'], doc: [
+          ['Introduction', ['This review compares how the four texts answer the question of who maintains the links between records.']],
+          ['Method', ['The texts reviewed are Bush (1945), Luhmann (1981), Ahrens (2017) and Karpathy (2026), ordered by who does the work: a machine, a person or a model.']],
+          ['Machine and person', ['Bush proposes permanent associative trails that a person builds with the help of a machine (Bush, 1945, p. 107). Luhmann maintains the trails himself, with numbers and cross-references (Luhmann, 1981, p. 224).']],
+          ['Model and person', ['Karpathy leaves maintenance to the model (Karpathy, 2026), while Ahrens insists that writing the note is part of understanding (Ahrens, 2017). This is the main disagreement between the texts.']],
+          ['Summary of the positions', ['Bush: a machine with human trails · Luhmann: a person with a paper system · Ahrens: a person who writes their own notes · Karpathy: a model that maintains the links.']],
+          ['Gaps', ['There is no evidence on whether links maintained by a model are used as much as links made by hand.']],
+        ] },
+        story: { title: 'The desk', bib: ['ahrens', 'bush', 'kar'], doc: [
+          ['', ['In 1945 an engineer dreamed of a desk with a glass top. Pages glowed under the glass, and between them, like tracks in snow, ran thin lines.']],
+          ['', ['In the morning he called them trails. "The mind does not sort by the alphabet," he told himself. "It follows the tracks."']],
+          ['', ['Eighty years later a woman opened her laptop. Someone had linked her evening note on memory to an article she had read a month before. It was not her. It was the model that tidied her library at night.']],
+          ['', ['She read the link, shook her head and rewrote it in her own words. Only then did the trail become hers.']],
+        ] },
+      },
+    },
+  ],
+};
+['bg', 'en'].forEach(L => TOPICS[L].forEach((tp, i) => Object.assign(tp, TOPIC_KINDS[L][i])));
 
 /* ===== Поверителност / Privacy ===== */
 const ZONES = [

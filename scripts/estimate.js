@@ -38,6 +38,8 @@ export function tokensOf(text) {
   return Math.ceil(cyr / 2.2 + (s.length - cyr) / 3.8);
 }
 const readTokens = (file) => { try { return tokensOf(fs.readFileSync(file, 'utf8')); } catch { return 0; } };
+// Писане: по дължината на текста или, при дописване и абзац, по поискания брой думи
+const writeWords = (b) => (Number(b.words) > 0 ? Math.min(3000, Number(b.words)) : (LENGTHS[b.length] || LENGTHS.medium).words);
 const claudeMdTokens = () => readTokens(path.join(ROOT, 'CLAUDE.md'));
 const wikiTokens = () => wikiPages().reduce((n, p) => n + tokensOf(p.content), 0);
 
@@ -146,7 +148,7 @@ function pipelineEstimate(kind, b, settings) {
     parts = [callCost(lvl, Math.min(budget, reads) + 900, Math.min(5000, 1800 + Math.min(budget, reads) * 0.12))];
   } else if (kind === 'path' || kind === 'write') {
     if (!PATH_LEVELS[b.level]) return { ok: false, error: $t('Unknown level.') };
-    const words = kind === 'write' ? (LENGTHS[b.length] || LENGTHS.medium).words : 0;
+    const words = kind === 'write' ? writeWords(b) : 0;
     title = kind === 'path' ? $t('Learning path') : $t('Writing with {ai}');
     parts = [callCost(lvl, Math.min(budget, wikiTokens()) + 1600 + tokensOf(b.topic || b.q), kind === 'write' ? words * 2.4 + 700 : 2500)];
   } else if (['ingest', 'upgrade', 'chapters'].includes(kind)) {
@@ -256,7 +258,7 @@ export function estimate(kind, body = {}, { settings } = {}) {
     const L = PATH_LEVELS[b.level];
     if (!L) return { ok: false, error: $t('Unknown level.') };
     const reads = wikiTokens() * DEPTH_FRAC[L.depth];
-    const words = kind === 'write' ? (LENGTHS[b.length] || LENGTHS.medium).words : 0;
+    const words = kind === 'write' ? writeWords(b) : 0;
     title = kind === 'path' ? $t('Learning path') : $t('Writing with {ai}');
     parts = [runCost({ model: L.model, promptTokens: 1500 + tokensOf(b.topic || b.q), reads, out: kind === 'write' ? words * 2.4 + 700 : 3000, turns: kind === 'write' ? L.maxTurns / 2 : DEPTH_TURNS[L.depth] })];
     extra.reads = Math.round(reads);

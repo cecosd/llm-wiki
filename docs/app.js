@@ -969,23 +969,57 @@ const LearnDemo = defineComponent({
 
 /* ===== Демо 5: писане ===== */
 const ctWrap = s => s.replace(/\(([A-Z][^()]*?\d{4}[^()]*?)\)/g, '<span class="ct">($1)</span>');
+const unesc = s => String(s).replace(/<[^>]+>/g, '').replace(/&quot;/g, '"').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
+// Видове текст и креативност по подразбиране, както в приложението (scripts/write.js)
+const KIND_CREAT = { article: 2, essay: 3, popular: 3, review: 1, story: 4 };
 const WriteDemo = defineComponent({
   template: '#tpl-write',
-  data() { return { topic: 0, level: 2, busy: false, out: [], continued: false, gen: 0 }; },
+  data() { return { topic: 0, level: 2, kind: 'article', creat: 2, busy: false, out: [], continued: false, gen: 0, blank: false, title: null, titleEdit: null, undo: [], edit: null, ins: null, fresh: null }; },
   computed: {
+    W() { return this.t.writeUI; },
     topics() { return TOPICS[store.lang]; },
-    fileName() { return this.topics[this.topic].file; },
-    docTitle() { return this.topics[this.topic].title; },
+    tp() { return this.topics[this.topic]; },
+    variant() { return this.kind === 'article' ? null : this.tp.kinds[this.kind]; },
+    fileName() { return this.blank ? this.W.blankFile : this.variant ? this.tp.file.replace(/\.md$/, '-' + this.kind + '.md') : this.tp.file; },
+    docTitle() { return this.title ?? (this.blank ? this.W.blankTitle : (this.variant || this.tp).title); },
+    creatInfo() { return this.W.creatLv[this.creat - 1]; },
+    // едно и също твърдение, написано на избраната степен: показва какво сменя креативността
+    sample() { return ctWrap(esc(this.tp.creat[this.creat - 1])); },
   },
-  watch: { L() { this.gen++; this.out = []; this.busy = false; this.continued = false; } },
+  watch: {
+    L() { this.reset(); },
+    kind(k) { this.creat = KIND_CREAT[k]; if (k !== 'article' && this.level === 0) this.level = 2; },
+  },
   methods: {
+    reset() { this.gen++; this.out = []; this.busy = false; this.continued = false; this.blank = false; this.title = null; this.titleEdit = null; this.undo = []; this.edit = null; this.ins = null; this.fresh = null; },
+    focus() { nextTick(() => this.$el.querySelector('[data-focus]')?.focus()); },
+    snap() { this.undo.push(JSON.stringify(this.out)); if (this.undo.length > 30) this.undo.shift(); },
+    undoLast() { if (!this.undo.length) return; this.out = JSON.parse(this.undo.pop()); this.edit = null; this.ins = null; this.fresh = null; this.continued = this.out.some(b => b.added); },
+    // Празен документ: човекът пише сам, после работи абзац по абзац
+    blankDoc() { this.reset(); this.out = [{ h: '', ps: [] }]; this.blank = true; this.ins = { b: 0, j: -1, text: '' }; this.focus(); },
+    startTitle() { this.titleEdit = this.docTitle; this.focus(); },
+    saveTitle() { const t = String(this.titleEdit || '').trim(); this.titleEdit = null; if (t && t !== this.docTitle) this.title = t; },
+    editPara(i, j) { this.ins = null; this.edit = { b: i, j, text: unesc(this.out[i].ps[j]) }; this.focus(); },
+    applyEdit() {
+      const e = this.edit; if (!e) return; const t = e.text.trim(); this.snap();
+      if (t) { this.out[e.b].ps.splice(e.j, 1, ctWrap(esc(t))); this.fresh = e.b + ':' + e.j; } else this.out[e.b].ps.splice(e.j, 1);
+      this.edit = null;
+    },
+    addAfter(i, j) { this.edit = null; this.ins = { b: i, j, text: '' }; this.focus(); },
+    applyIns() {
+      const n = this.ins, t = n ? n.text.trim() : ''; if (!t) return; this.snap();
+      this.out[n.b].ps.splice(n.j + 1, 0, ctWrap(esc(t))); this.fresh = n.b + ':' + (n.j + 1); this.ins = null; store.tour.write = true;
+    },
+    removePara(i, j) { this.snap(); this.out[i].ps.splice(j, 1); this.edit = null; this.ins = null; this.fresh = null; toast(this.W.removed); },
+    rewrite() { toast(this.W.rewriteDemo); },
     localDoc(tp) {
       const W = this.t.writeUI, cite = slug => { const s = OUT[slug].map(x => PBY.bg[x].book || x).find(x => PBY.bg[x].type === 'source'); return s ? BY[s].short : 'LLM Wiki'; };
       return [{ h: W.localH1, ps: [W.localNote(tp.pages.length)] }, { h: W.localH2, ps: tp.pages.map(s => `${firstSentence(BY[s])} (${cite(s)})`) }];
     },
     async run() {
-      if (this.busy) return; const tok = ++this.gen; this.busy = true; this.out = []; this.continued = false;
-      const tp = this.topics[this.topic], blocks = this.level === 0 ? this.localDoc(tp) : tp.doc.map(([h, ps]) => ({ h, ps })), sp = REDUCED ? 0 : this.level === 0 ? 8 : 16;
+      if (this.busy) return; this.reset(); const tok = this.gen; this.busy = true;
+      const tp = this.tp, v = this.variant, sp = REDUCED ? 0 : this.level === 0 ? 8 : 16;
+      const blocks = this.level === 0 ? this.localDoc(tp) : (v ? v.doc : tp.doc).map(([h, ps]) => ({ h, ps }));
       for (const b of blocks) {
         const cur = { h: b.h, ps: [] }; this.out.push(cur); await sleep(sp * 6);
         for (const p of b.ps) {
@@ -994,19 +1028,20 @@ const WriteDemo = defineComponent({
           cur.ps[cur.ps.length - 1] = ctWrap(esc(p));
         }
       }
-      const bib = { h: this.t.writeUI.bibH, ps: [], bib: true }; this.out.push(bib);
-      for (const k of tp.bib) { if (tok !== this.gen) return; bib.ps.push(REF[k]); await sleep(sp * 8); }
+      // художественият текст няма цитати в текста: източниците му са под „По мотиви от“
+      const bib = { h: this.kind === 'story' && this.level !== 0 ? this.W.basedOnH : this.W.bibH, ps: [], bib: true }; this.out.push(bib);
+      for (const k of (v && this.level !== 0 ? v.bib : tp.bib)) { if (tok !== this.gen) return; bib.ps.push(REF[k]); await sleep(sp * 8); }
       this.busy = false; store.tour.write = true;
     },
     cont() {
-      const tp = this.topics[this.topic], i = this.out.findIndex(b => b.h === this.t.writeUI.conclH);
+      const tp = this.tp, i = this.out.findIndex(b => b.h === this.W.conclH);
+      this.snap();
       this.out.splice(i < 0 ? this.out.length - 1 : i, 0, { h: tp.more[0], ps: tp.more[1].map(p => ctWrap(esc(p))), added: true }); this.continued = true;
-      toast(this.t.writeUI.toastCont);
+      toast(this.W.toastCont);
     },
-    uncont() { this.out = this.out.filter(b => !b.added); this.continued = false; },
+    uncont() { this.snap(); this.out = this.out.filter(b => !b.added); this.continued = false; },
     async copyText() {
-      const strip = s => s.replace(/<[^>]+>/g, '').replace(/&amp;/g, '&').replace(/&quot;/g, '"');
-      const txt = '# ' + this.docTitle + '\n\n' + this.out.map(b => '## ' + b.h + '\n\n' + b.ps.map(strip).join('\n\n')).join('\n\n');
+      const txt = '# ' + this.docTitle + '\n\n' + this.out.filter(b => b.h || b.ps.length).map(b => (b.h ? '## ' + b.h + '\n\n' : '') + b.ps.map(unesc).join('\n\n')).join('\n\n');
       try { await navigator.clipboard.writeText(txt); toast(this.t.writeUI.toastCopy); } catch (_) { toast(this.t.common.copyFail); }
     },
     save() { toast(this.t.writeUI.toastSave(this.fileName)); },

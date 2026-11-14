@@ -77,6 +77,8 @@
       /* Четивен текст на wiki страниците */
       .reading { @apply font-serif text-[17.5px] leading-[1.75] text-ink/90 dark:text-night-ink/90; }
       .reading > * + * { @apply mt-5; }
+      .reading .blk > :first-child { @apply mt-0; } /* „Писане с wiki“: абзац по абзац, отстъпът е на обвивката */
+      .reading .blk > * + * { @apply mt-5; }
       .reading h1 { @apply font-serif text-3xl font-semibold tracking-tight; }
       .reading h2 { @apply mt-12 scroll-mt-24 border-b border-line pb-2 font-sans text-xl font-semibold tracking-tight text-ink dark:border-night-line dark:text-night-ink; }
       .reading h3 { @apply mt-8 scroll-mt-24 font-sans text-base font-semibold text-ink dark:text-night-ink; }
@@ -2829,15 +2831,20 @@ npm run restore -- /path/to/copy --apply</pre>
   <!-- Нов текст + списък -->
   <template v-if="!id">
     <p class="eyebrow">{{ $t('Write with the wiki') }}</p>
-    <h1 class="mt-2 font-serif text-3xl font-semibold tracking-tight sm:text-4xl">{{ $t('What article do you want to write?') }}</h1>
+    <h1 class="mt-2 font-serif text-3xl font-semibold tracking-tight sm:text-4xl">{{ $t('What do you want to write?') }}</h1>
     <form class="mt-5 max-w-3xl" @submit.prevent="create">
-      <div class="relative">
+      <div data-tour="write-kind" class="flex flex-wrap items-center gap-2" role="radiogroup" :aria-label="$t('Kind of text')">
+        <button v-for="g in GENRE_LIST" :key="g.id" type="button" role="radio" :aria-checked="genre===g.id" @click="genre=g.id"
+                :class="['chip border px-3 py-1 transition', genre===g.id ? 'border-sage-500 bg-sage-50 text-sage-700 dark:bg-sage-900/40 dark:text-sage-200' : 'border-line text-ink/70 hover:border-sage-200 dark:border-night-line dark:text-night-ink/70']">{{ g.label }}</button>
+      </div>
+      <p class="mt-2 text-xs text-muted dark:text-night-muted">{{ genreInfo.hint }}</p>
+      <div class="relative mt-4">
         <ic name="pen" class="pointer-events-none absolute left-4 top-4 size-4 text-muted"></ic>
-        <textarea v-model="topic" rows="2" :placeholder="$t('The topic or question, e.g. What caused the First World War and what do historians say about it')" @keydown.ctrl.enter.prevent="create"
+        <textarea v-model="topic" rows="2" :placeholder="genreInfo.ph" @keydown.ctrl.enter.prevent="create" :aria-label="$t('The topic')"
                   class="w-full resize-y rounded-3xl border border-line bg-panel py-3 pl-11 pr-4 text-base outline-none transition focus:border-sage-400 dark:border-night-line dark:bg-night-panel"></textarea>
       </div>
-      <div class="mt-3 flex flex-wrap items-center gap-2" role="radiogroup" :aria-label="$t('Who writes the text')">
-        <button v-for="l in LEVELS" :key="l.id" type="button" role="radio" :aria-checked="level===l.id" :title="hints[l.id]" @click="setLevel(l.id)"
+      <div data-tour="write-who" class="mt-3 flex flex-wrap items-center gap-2" role="radiogroup" :aria-label="$t('Who writes the text')">
+        <button v-for="l in levels" :key="l.id" type="button" role="radio" :aria-checked="level===l.id" :title="hints[l.id]" @click="setLevel(l.id)"
                 :class="['chip border px-3 py-1 transition', level===l.id ? 'border-sage-500 bg-sage-50 text-sage-700 dark:bg-sage-900/40 dark:text-sage-200' : 'border-line text-ink/70 hover:border-sage-200 dark:border-night-line dark:text-night-ink/70']">
           <ic :name="l.id==='local' ? 'search' : 'sparkle'" class="size-3"></ic>{{ l.id==='local' ? $t('Quick draft') : l.label }}
         </button>
@@ -2852,6 +2859,16 @@ npm run restore -- /path/to/copy --apply</pre>
                   :class="['chip border px-3 py-1 text-xs transition', length===k ? 'border-sage-500 bg-sage-50 text-sage-700 dark:bg-sage-900/40 dark:text-sage-200' : 'border-line text-ink/70 dark:border-night-line dark:text-night-ink/70']">{{ n }}</button>
         </div>
         <div>
+          <div class="flex flex-wrap items-center gap-2">
+            <span class="text-sm font-medium">{{ $t('Creativity') }}</span>
+            <div class="flex flex-wrap rounded-3xl border border-line p-0.5 dark:border-night-line" role="radiogroup" :aria-label="$t('Creativity')">
+              <button v-for="c in CREATIVITY" :key="c.n" type="button" role="radio" :aria-checked="creativity===c.n" :title="c.hint" @click="setCreativity(c.n)"
+                      :class="['rounded-full px-3 py-1 text-xs transition', creativity===c.n ? 'bg-sage-600 text-white shadow-soft' : 'text-muted hover:text-ink dark:hover:text-night-ink']">{{ c.n }} · {{ c.label }}</button>
+            </div>
+          </div>
+          <p class="mt-1.5 text-xs text-muted dark:text-night-muted">{{ creatInfo.hint }} {{ genre==='story' ? $t('In fiction the level also sets how freely the plot and the characters are invented.') : $t('At every level the facts and the citations come only from the library.') }}</p>
+        </div>
+        <div>
           <label class="text-sm font-medium" for="voice">{{ $t('How the text should sound') }} <span class="font-normal text-muted">{{ $t('(optional)') }}</span></label>
           <textarea id="voice" v-model="voice" rows="3" @input="saveVoice" :placeholder="$t('Paste 3 or 4 sentences of your own: {ai} will follow their tone and rhythm without copying them. They are remembered for next time.')"
                     class="mt-1.5 w-full resize-y rounded-2xl border border-line bg-paper px-3 py-2 text-sm outline-none transition focus:border-sage-400 dark:border-night-line dark:bg-night"></textarea>
@@ -2863,9 +2880,11 @@ npm run restore -- /path/to/copy --apply</pre>
         <button class="btn-primary !py-3" :disabled="topic.trim().length < 4 || loading"><ic :name="loading ? 'spinner' : (level==='local' ? 'pen' : 'sparkle')" :class="['size-4', loading && 'animate-spin']"></ic>{{ level==='local' ? $t('Compose a draft') : $t('Write with {ai}') }}</button>
         <button v-if="loading && level!=='local'" type="button" class="btn-soft !py-3" @click="cancel"><ic name="x" class="size-4"></ic>{{ $t('Cancel') }}</button>
         <span v-if="loading && level!=='local'" class="text-sm text-muted dark:text-night-muted">{{ $t('{ai} ({0} model) is reading the library and writing… {1} s', [levelLabel(level).toLowerCase(), waited]) }}</span>
+        <span class="flex-1"></span>
+        <button data-tour="write-blank" type="button" class="btn-soft !py-3" :disabled="blankBusy || loading" :title="$t('Opens an empty document: you write it yourself and ask {ai} for help paragraph by paragraph.')" @click="createBlank"><ic name="file" class="size-4"></ic>{{ $t('Blank document') }}</button>
       </div>
       <p v-if="error" class="mt-3 flex gap-2 rounded-2xl bg-clay-100 px-3 py-2 text-sm text-clay-500 dark:bg-clay-500/15"><ic name="alert" class="mt-0.5 size-4 shrink-0"></ic>{{ error }}</p>
-      <p class="mt-3 text-xs text-muted dark:text-night-muted">{{ $t('Structure: abstract, keywords, introduction, theoretical framework, analysis, discussion, conclusion and a bibliography in APA 7. Citations are converted automatically, and the bibliography contains only the sources actually cited. The text is saved as an .md file in the project’s drafts/ folder.') }}</p>
+      <p class="mt-3 text-xs text-muted dark:text-night-muted">{{ $t('Citations are converted automatically to APA 7, and the bibliography contains only the sources actually cited. “Blank document” opens an empty text with the title from the field above, if there is one. Every text is saved as an .md file in the project’s drafts/ folder.') }}</p>
     </form>
 
     <section class="mt-12">
@@ -2879,13 +2898,13 @@ npm run restore -- /path/to/copy --apply</pre>
       <ul v-if="drafts.length" class="card mt-4 divide-y divide-line overflow-hidden dark:divide-night-line">
         <li v-for="d in drafts" :key="d.id" class="flex items-stretch hover:bg-ink/[.03] dark:hover:bg-white/5">
           <a :href="'#/write/'+d.id" class="group flex min-w-0 flex-1 items-start gap-3 px-4 py-3 transition">
-            <span class="mt-0.5 grid size-8 shrink-0 place-items-center rounded-xl bg-sage-50 text-sage-600 dark:bg-sage-900/40 dark:text-sage-200"><ic name="file" class="size-4"></ic></span>
+            <span class="mt-0.5 grid size-8 shrink-0 place-items-center rounded-xl bg-sage-50 text-sage-600 dark:bg-sage-900/40 dark:text-sage-200"><ic :name="d.mode==='blank' ? 'pen' : 'file'" class="size-4"></ic></span>
             <span class="min-w-0 flex-1">
               <span class="block truncate font-medium transition group-hover:text-sage-700 dark:group-hover:text-sage-200">{{ d.title }}</span>
               <span class="block truncate text-xs text-muted dark:text-night-muted">{{ d.excerpt }}</span>
             </span>
             <span class="hidden shrink-0 text-right text-xs text-muted dark:text-night-muted sm:block">
-              <span class="block">{{ d.mode==='local' ? $t('Quick draft') : 'Claude · ' + levelLabel(d.mode) }}</span>
+              <span class="block">{{ genreLabel(d.genre) }} · {{ modeLabel(d.mode) }}</span>
               <span class="block tabular-nums">{{ $t('{0} words · {1}', [d.words, relDate(d.updated)]) }}</span>
             </span>
           </a>
@@ -2901,9 +2920,13 @@ npm run restore -- /path/to/copy --apply</pre>
     <a href="#/write" class="inline-flex items-center gap-1.5 text-sm text-muted hover:text-ink dark:text-night-muted dark:hover:text-night-ink"><ic name="arrowLeft" class="size-4"></ic>{{ $t('Write with the wiki') }}</a>
     <p v-if="loadError" class="mt-8 text-muted">{{ $t('This text was not found.') }}</p>
     <template v-else-if="doc">
-      <h1 class="mt-4 font-serif text-3xl font-semibold leading-tight tracking-tight sm:text-4xl">{{ docTitle }}</h1>
+      <!-- Заглавието: щракване = смяна (сменя реда „# …“ в текста) -->
+      <input v-if="titleEdit!==null" ref="titleInput" v-model="titleEdit" :aria-label="$t('Title')" @keydown.enter.prevent="saveTitle" @keydown.esc.prevent="titleEdit=null" @blur="saveTitle"
+             class="mt-4 w-full rounded-2xl border border-sage-400 bg-panel px-3 py-1 font-serif text-3xl font-semibold leading-tight tracking-tight outline-none dark:bg-night-panel sm:text-4xl">
+      <h1 v-else class="mt-4 cursor-text rounded-xl font-serif text-3xl font-semibold leading-tight tracking-tight outline-none transition hover:bg-ink/[.03] focus-visible:ring-2 focus-visible:ring-sage-400 dark:hover:bg-white/5 sm:text-4xl"
+          tabindex="0" :title="$t('Click to change the title')" @click="startTitle" @keydown.enter.prevent="startTitle">{{ docTitle || $t('Untitled text') }}</h1>
       <div class="mt-4 flex flex-wrap items-center gap-2">
-        <span class="chip bg-sage-50 text-sage-700 dark:bg-sage-900/40 dark:text-sage-200"><ic :name="doc.mode==='local' ? 'search' : 'sparkle'" class="size-3"></ic>{{ doc.mode==='local' ? $t('Quick draft') : 'Claude · ' + levelLabel(doc.mode) }}</span>
+        <span class="chip bg-sage-50 text-sage-700 dark:bg-sage-900/40 dark:text-sage-200"><ic :name="doc.mode==='local' ? 'search' : doc.mode==='blank' ? 'pen' : 'sparkle'" class="size-3"></ic>{{ genreLabel(ed.genre) }} · {{ modeLabel(doc.mode) }}</span>
         <span class="chip text-muted dark:text-night-muted tabular-nums">{{ $t('{0} words', [wordsN]) }}</span>
         <span :class="['chip', dirty ? 'bg-amber-50 text-amber-800 dark:bg-amber-500/10 dark:text-amber-300' : 'text-muted dark:text-night-muted']"><ic :name="dirty ? 'pen' : 'check'" class="size-3"></ic>{{ saving ? $t('Saving…') : dirty ? $t('There are unsaved changes') : $t('Saved') + (doc.updated ? ' · ' + relDate(doc.updated) : '') }}</span>
         <button class="chip border border-line text-muted hover:text-ink dark:border-night-line" :title="$t('Copy the path')" @click="$root.copy(doc.path)"><ic name="file" class="size-3"></ic>{{ doc.path }}</button>
@@ -2917,39 +2940,151 @@ npm run restore -- /path/to/copy --apply</pre>
                   :class="['rounded-full px-3 py-1 text-sm transition', mode===m.id ? 'bg-sage-600 text-white shadow-soft' : 'text-muted hover:text-ink dark:hover:text-night-ink']">{{ m.l }}</button>
         </div>
         <button class="btn-primary !py-1.5 text-sm" :disabled="!dirty || saving" @click="save()" title="Ctrl+S"><ic name="check" class="size-4"></ic>{{ $t('Save') }}</button>
+        <button class="btn-ghost !py-1.5 text-sm" :disabled="!undoStack.length || busyAny" :title="$t('Undo the last change made here')" @click="undo"><ic name="undo" class="size-4"></ic>{{ $t('Undo') }}</button>
         <span class="flex-1"></span>
         <button class="btn-ghost !py-1.5 text-sm" @click="$root.copy(body)"><ic name="copy" class="size-4"></ic>{{ $t('Copy') }}</button>
         <button class="btn-ghost !py-1.5 text-sm" @click="download"><ic name="upload" class="size-4 rotate-180"></ic>{{ $t('Download .md') }}</button>
         <button class="btn-ghost !py-1.5 text-sm text-muted" @click="remove"><ic name="x" class="size-4"></ic>{{ $t('Delete') }}</button>
       </div>
 
-      <!-- Дописване с Claude -->
+      <!-- Помощ от модела: вид, ниво, креативност, обхват и дописване -->
       <section class="card mt-4 max-w-3xl p-4">
-        <button type="button" class="flex w-full items-center gap-2 text-left text-sm font-semibold" :aria-expanded="cont.open" @click="cont.open=!cont.open"><ic name="sparkle" class="size-4 text-sage-600"></ic>{{ $t('Continue with {ai}') }}<span class="flex-1"></span><ic :name="cont.open ? 'x' : 'pen'" class="size-4 text-muted"></ic></button>
-        <div v-if="cont.open" class="mt-3">
-          <label class="text-xs text-muted dark:text-night-muted" for="cont-ins">{{ $t('What should it add? (optional; without guidance {ai} adds the most valuable thing that is missing)') }}</label>
-          <textarea id="cont-ins" v-model="cont.instruction" rows="3" maxlength="1000" :placeholder="$t('E.g. add a section on the role of the alliance system')" class="mt-1 w-full resize-y rounded-2xl border border-line bg-paper px-3 py-2 text-sm outline-none transition focus:border-sage-400 dark:border-night-line dark:bg-night"></textarea>
-          <div class="mt-3 flex flex-wrap items-center gap-2">
-            <div class="flex rounded-full border border-line p-0.5 dark:border-night-line" role="group" :aria-label="$t('Length of the addition')">
-              <button v-for="w in [{n:300,l:$t('Brief')},{n:600,l:$t('Moderate')},{n:1200,l:$t('Long')}]" :key="w.n" type="button" @click="cont.words=w.n" :aria-pressed="cont.words===w.n"
-                      :class="['rounded-full px-3 py-1 text-sm transition', cont.words===w.n ? 'bg-sage-600 text-white shadow-soft' : 'text-muted hover:text-ink dark:hover:text-night-ink']">{{ w.l }}</button>
+        <button type="button" class="flex w-full items-center gap-2 text-left text-sm font-semibold" :aria-expanded="ed.open" @click="toggleHelp"><ic name="sparkle" class="size-4 text-sage-600"></ic>{{ $t('Help from {ai}') }}<span class="font-normal text-muted dark:text-night-muted">· {{ genreLabel(ed.genre) }} · {{ $t('creativity {0} of 5', [ed.creativity]) }}</span><span class="flex-1"></span><ic :name="ed.open ? 'x' : 'chevron'" :class="['size-4 text-muted', !ed.open && 'rotate-90']"></ic></button>
+        <div v-if="ed.open" class="mt-4 space-y-4">
+          <div>
+            <p class="text-xs font-medium text-muted dark:text-night-muted">{{ $t('Kind of text') }}</p>
+            <div class="mt-1.5 flex flex-wrap gap-1.5" role="radiogroup" :aria-label="$t('Kind of text')">
+              <button v-for="g in GENRE_LIST" :key="g.id" type="button" role="radio" :aria-checked="ed.genre===g.id" :title="g.hint" @click="ed.genre=g.id"
+                      :class="['chip border px-3 py-1 text-xs transition', ed.genre===g.id ? 'border-sage-500 bg-sage-50 text-sage-700 dark:bg-sage-900/40 dark:text-sage-200' : 'border-line text-ink/70 hover:border-sage-200 dark:border-night-line dark:text-night-ink/70']">{{ g.label }}</button>
             </div>
-            <div class="flex rounded-full border border-line p-0.5 dark:border-night-line" role="group" :aria-label="$t('{ai} level')">
-              <button v-for="l in LEVELS.filter(x => x.id !== 'local')" :key="l.id" type="button" @click="cont.level=l.id" :aria-pressed="cont.level===l.id"
-                      :class="['rounded-full px-3 py-1 text-sm transition', cont.level===l.id ? 'bg-sage-600 text-white shadow-soft' : 'text-muted hover:text-ink dark:hover:text-night-ink']">{{ l.label }}</button>
-            </div>
-            <span class="flex-1"></span>
-            <button v-if="cont.busy" type="button" class="btn-ghost text-sm" @click="cancelCont">{{ $t('Cancel ({0} s)', [cont.waited]) }}</button>
-            <button type="button" class="btn-primary text-sm" :disabled="cont.busy" @click="continueDoc"><ic name="sparkle" class="size-4"></ic>{{ cont.busy ? $t('Writing…') : $t('Continue') }}</button>
           </div>
-          <p v-if="cont.error" class="mt-3 flex gap-2 rounded-2xl bg-clay-100 px-3 py-2 text-sm text-clay-500 dark:bg-clay-500/15"><ic name="alert" class="mt-0.5 size-4 shrink-0"></ic>{{ cont.error }}</p>
+          <div class="flex flex-wrap items-center gap-2">
+            <div class="flex rounded-full border border-line p-0.5 dark:border-night-line" role="radiogroup" :aria-label="$t('{ai} level')">
+              <button v-for="l in aiLevels" :key="l.id" type="button" role="radio" :aria-checked="ed.level===l.id" :title="hints[l.id]" @click="setEdLevel(l.id)"
+                      :class="['rounded-full px-3 py-1 text-sm transition', ed.level===l.id ? 'bg-sage-600 text-white shadow-soft' : 'text-muted hover:text-ink dark:hover:text-night-ink']">{{ l.label }}</button>
+            </div>
+            <div class="flex flex-wrap rounded-3xl border border-line p-0.5 dark:border-night-line" role="radiogroup" :aria-label="$t('Creativity')">
+              <button v-for="c in CREATIVITY" :key="c.n" type="button" role="radio" :aria-checked="ed.creativity===c.n" :title="c.label + ': ' + c.hint" @click="ed.creativity=c.n"
+                      :class="['rounded-full px-2.5 py-1 text-sm transition', ed.creativity===c.n ? 'bg-sage-600 text-white shadow-soft' : 'text-muted hover:text-ink dark:hover:text-night-ink']">{{ c.n }}<span v-if="ed.creativity===c.n"> · {{ c.label }}</span></button>
+            </div>
+          </div>
+          <p class="text-xs text-muted dark:text-night-muted">{{ edCreatInfo.hint }} {{ ed.genre==='story' ? $t('In fiction the level also sets how freely the plot and the characters are invented.') : $t('At every level the facts and the citations come only from the library.') }}</p>
+
+          <div>
+            <p class="text-xs font-medium text-muted dark:text-night-muted">{{ $t('What {ai} uses for this text') }}</p>
+            <p v-if="!scope.areas.length && !scope.focus.length" class="mt-1 text-xs text-muted dark:text-night-muted">{{ $t('No limits: {ai} looks in the whole library. Choose areas or topics below to narrow it.') }}</p>
+            <scope-bar class="mt-1.5 block" :q="scopeQ" :pages="pages"></scope-bar>
+            <p v-if="citedPages.length" class="mt-2 flex flex-wrap items-center gap-1.5 text-xs text-muted dark:text-night-muted">
+              <span>{{ $t('Cited in the text:') }}</span>
+              <a v-for="c in citedPages" :key="c.slug" :href="'#/p/'+encodeURIComponent(c.slug)" :class="['chip border border-line px-2 py-0.5 hover:border-sage-300 dark:border-night-line', c.missing && 'line-through opacity-60']">{{ c.title }}</a>
+            </p>
+          </div>
+
+          <div class="border-t border-line pt-4 dark:border-night-line">
+            <label class="text-sm font-medium" for="cont-ins">{{ $t('Continue the text') }}</label>
+            <p class="text-xs text-muted dark:text-night-muted">{{ $t('What should it add? (optional; without guidance {ai} adds the most valuable thing that is missing)') }}</p>
+            <textarea id="cont-ins" v-model="cont.instruction" rows="2" maxlength="1000" :placeholder="$t('E.g. add a section on the role of the alliance system')" class="mt-1.5 w-full resize-y rounded-2xl border border-line bg-paper px-3 py-2 text-sm outline-none transition focus:border-sage-400 dark:border-night-line dark:bg-night"></textarea>
+            <div class="mt-2 flex flex-wrap items-center gap-2">
+              <div class="flex rounded-full border border-line p-0.5 dark:border-night-line" role="group" :aria-label="$t('Length of the addition')">
+                <button v-for="w in [{n:300,l:$t('Brief')},{n:600,l:$t('Moderate')},{n:1200,l:$t('Long')}]" :key="w.n" type="button" @click="cont.words=w.n" :aria-pressed="cont.words===w.n"
+                        :class="['rounded-full px-3 py-1 text-sm transition', cont.words===w.n ? 'bg-sage-600 text-white shadow-soft' : 'text-muted hover:text-ink dark:hover:text-night-ink']">{{ w.l }}</button>
+              </div>
+              <span class="flex-1"></span>
+              <button v-if="cont.busy" type="button" class="btn-ghost text-sm" @click="cancelCont">{{ $t('Cancel ({0} s)', [cont.waited]) }}</button>
+              <button type="button" class="btn-primary text-sm" :disabled="busyAny" @click="continueDoc"><ic name="sparkle" class="size-4"></ic>{{ cont.busy ? $t('Writing…') : $t('Continue') }}</button>
+            </div>
+            <p v-if="cont.error" class="mt-3 flex gap-2 rounded-2xl bg-clay-100 px-3 py-2 text-sm text-clay-500 dark:bg-clay-500/15"><ic name="alert" class="mt-0.5 size-4 shrink-0"></ic>{{ cont.error }}</p>
+          </div>
+          <p class="text-xs text-muted dark:text-night-muted">{{ $t('In “Preview”, point at a paragraph (or tap it) to change it by hand, rewrite it with {ai}, add a paragraph after it or remove it.') }}</p>
         </div>
-        <p v-if="cont.note" class="mt-3 flex flex-wrap items-center gap-2 rounded-2xl bg-sage-50 px-3 py-2 text-sm text-sage-700 dark:bg-sage-900/40 dark:text-sage-200"><ic name="check" class="size-4 shrink-0"></ic><span class="flex-1">{{ cont.note }}</span><button v-if="cont.prev!=null" type="button" class="underline" @click="undoCont">{{ $t('Undo the addition') }}</button></p>
+        <p v-if="cont.note" class="mt-3 flex flex-wrap items-center gap-2 rounded-2xl bg-sage-50 px-3 py-2 text-sm text-sage-700 dark:bg-sage-900/40 dark:text-sage-200"><ic name="check" class="size-4 shrink-0"></ic><span class="flex-1">{{ cont.note }}</span><button v-if="undoStack.length" type="button" class="underline" @click="undo">{{ $t('Undo the addition') }}</button></p>
       </section>
 
-      <textarea v-if="mode==='edit'" v-model="body" spellcheck="true" class="mt-3 min-h-[70vh] w-full resize-y rounded-3xl border border-line bg-panel p-5 font-mono text-[14px] leading-relaxed outline-none transition focus:border-sage-400 dark:border-night-line dark:bg-night-panel"></textarea>
-      <article v-else class="reading mt-6 max-w-3xl" v-html="html"></article>
+      <textarea v-if="mode==='edit'" ref="raw" v-model="body" spellcheck="true" :aria-label="$t('The text in Markdown')" class="mt-3 min-h-[70vh] w-full resize-y rounded-3xl border border-line bg-panel p-5 font-mono text-[14px] leading-relaxed outline-none transition focus:border-sage-400 dark:border-night-line dark:bg-night-panel"></textarea>
       <p v-if="mode==='edit'" class="mt-2 text-xs text-muted dark:text-night-muted">{{ $t('Markdown. Ctrl+S saves. On every save the previous version is kept in drafts/.history/. The file can also be edited outside the library.') }}</p>
+
+      <!-- Преглед по абзаци: всеки абзац се сменя на ръка или с модела, след всеки може да се вмъкне нов -->
+      <div v-else class="reading mt-6 max-w-3xl">
+        <div v-for="s in [{ head: true, i: -1 }, ...shownBlocks]" :key="s.head ? 'head' : s.start + ':' + s.i"
+             :class="['group relative rounded-2xl transition', !s.head && '-mx-3 px-3 py-1', s.heading && '!mt-10', s.fresh && 'bg-sage-50 ring-1 ring-sage-200 dark:bg-sage-900/30 dark:ring-sage-800']"
+             @click="!s.head && (active = s.i)">
+          <!-- начало: нов абзац след заглавието -->
+          <template v-if="s.head">
+            <button v-if="shownBlocks.length && !isOpen('ins', s)" type="button" class="inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 font-sans text-xs text-muted transition hover:bg-ink/5 hover:text-ink disabled:opacity-50 dark:text-night-muted dark:hover:bg-white/10 dark:hover:text-night-ink" :disabled="busyAny" @click="openBlock('ins', s)"><ic name="plus" class="size-3.5"></ic>{{ $t('Add a paragraph at the beginning') }}</button>
+            <p v-if="!shownBlocks.length && !isOpen('ins', s)" class="font-sans text-sm text-muted dark:text-night-muted">{{ $t('The text is empty.') }} <button type="button" class="underline" @click="openBlock('ins', s)">{{ $t('Write the first paragraph') }}</button> {{ $t('or switch to “Editing”.') }}</p>
+          </template>
+
+          <!-- абзацът: ръчна смяна -->
+          <div v-else-if="isOpen('edit', s)" class="font-sans text-sm" @click.stop>
+            <textarea data-blk-focus v-model="blk.text" :rows="Math.min(18, Math.max(3, Math.ceil(blk.text.length / 75) + blk.text.split('\n').length))" :aria-label="$t('The paragraph in Markdown')" @keydown.ctrl.enter.prevent="applyEdit(s)" @keydown.esc.prevent="closeBlock"
+                      class="w-full resize-y rounded-2xl border border-sage-400 bg-panel p-3 font-mono text-[14px] leading-relaxed outline-none dark:bg-night-panel"></textarea>
+            <div class="mt-2 flex flex-wrap items-center gap-2">
+              <span class="text-xs text-muted dark:text-night-muted">{{ $t('Markdown. Ctrl+Enter applies, Esc cancels. An empty paragraph is removed.') }}</span>
+              <span class="flex-1"></span>
+              <button type="button" class="btn-ghost text-sm" @click="closeBlock">{{ $t('Cancel') }}</button>
+              <button type="button" class="btn-primary text-sm" @click="applyEdit(s)"><ic name="check" class="size-4"></ic>{{ $t('Apply') }}</button>
+            </div>
+          </div>
+          <template v-else>
+            <div class="blk" v-html="s.html"></div>
+            <div v-if="!busyAny" :class="['absolute -top-3 right-1 z-10 flex gap-0.5 rounded-full border border-line bg-panel p-0.5 font-sans shadow-soft transition dark:border-night-line dark:bg-night-panel', active===s.i ? 'opacity-100' : 'opacity-0 focus-within:opacity-100 group-hover:opacity-100']">
+              <button type="button" class="grid size-7 place-items-center rounded-full text-muted hover:bg-ink/5 hover:text-ink dark:hover:bg-white/10 dark:hover:text-night-ink" :title="$t('Change by hand')" :aria-label="$t('Change by hand')" @click.stop="openBlock('edit', s)"><ic name="pen" class="size-3.5"></ic></button>
+              <button v-if="!s.heading && !s.bib" type="button" class="grid size-7 place-items-center rounded-full text-sage-600 hover:bg-sage-50 dark:text-sage-200 dark:hover:bg-sage-900/40" :title="$t('Rewrite with {ai}')" :aria-label="$t('Rewrite with {ai}')" @click.stop="openBlock('ai', s)"><ic name="sparkle" class="size-3.5"></ic></button>
+              <button v-if="!s.bib" type="button" class="grid size-7 place-items-center rounded-full text-muted hover:bg-ink/5 hover:text-ink dark:hover:bg-white/10 dark:hover:text-night-ink" :title="$t('Add a paragraph after it')" :aria-label="$t('Add a paragraph after it')" @click.stop="openBlock('ins', s)"><ic name="plus" class="size-3.5"></ic></button>
+              <button type="button" class="grid size-7 place-items-center rounded-full text-muted hover:bg-clay-100 hover:text-clay-500 dark:hover:bg-clay-500/15" :title="$t('Remove')" :aria-label="$t('Remove')" @click.stop="removeBlock(s)"><ic name="trash" class="size-3.5"></ic></button>
+            </div>
+          </template>
+
+          <!-- пренаписване с модела -->
+          <div v-if="isOpen('ai', s)" class="mt-3 rounded-2xl border border-line bg-panel p-3 font-sans text-sm dark:border-night-line dark:bg-night-panel" @click.stop>
+            <label class="text-xs text-muted dark:text-night-muted" :for="'blk-ai-' + s.i">{{ $t('How should {ai} change it? (optional; without guidance it makes the paragraph clearer and better connected)') }}</label>
+            <textarea :id="'blk-ai-' + s.i" data-blk-focus v-model="blk.instruction" rows="2" maxlength="1000" :placeholder="$t('E.g. shorter, with an example, more vivid, closer to the sources')" @keydown.ctrl.enter.prevent="aiBlock('rewrite', s)"
+                      class="mt-1 w-full resize-y rounded-2xl border border-line bg-paper px-3 py-2 text-sm outline-none transition focus:border-sage-400 dark:border-night-line dark:bg-night"></textarea>
+            <div class="mt-2 flex flex-wrap items-center gap-2">
+              <span class="text-xs text-muted dark:text-night-muted">{{ genreLabel(ed.genre) }} · {{ $t('creativity {0} of 5', [ed.creativity]) }} · {{ levelLabel(ed.level) }}</span>
+              <span class="flex-1"></span>
+              <button v-if="blk.busy" type="button" class="btn-ghost text-sm" @click="cancelBlock">{{ $t('Cancel ({0} s)', [blk.waited]) }}</button>
+              <button v-else type="button" class="btn-ghost text-sm" @click="closeBlock">{{ $t('Cancel') }}</button>
+              <button type="button" class="btn-primary text-sm" :disabled="blk.busy" @click="aiBlock('rewrite', s)"><ic :name="blk.busy ? 'spinner' : 'sparkle'" :class="['size-4', blk.busy && 'animate-spin']"></ic>{{ blk.busy ? $t('Writing…') : $t('Rewrite') }}</button>
+            </div>
+            <p v-if="blk.error" class="mt-2 flex gap-2 rounded-2xl bg-clay-100 px-3 py-2 text-sm text-clay-500 dark:bg-clay-500/15"><ic name="alert" class="mt-0.5 size-4 shrink-0"></ic>{{ blk.error }}</p>
+          </div>
+
+          <!-- нов абзац след този (или в началото): свой текст или от модела -->
+          <div v-if="isOpen('ins', s)" class="mt-3 rounded-2xl border border-line bg-panel p-3 font-sans text-sm dark:border-night-line dark:bg-night-panel" @click.stop>
+            <div class="flex w-max rounded-full border border-line p-0.5 dark:border-night-line" role="group" :aria-label="$t('Who writes the paragraph')">
+              <button type="button" :aria-pressed="blk.own" @click="blk.own=true" :class="['rounded-full px-3 py-1 text-sm transition', blk.own ? 'bg-sage-600 text-white shadow-soft' : 'text-muted hover:text-ink dark:hover:text-night-ink']">{{ $t('I write it') }}</button>
+              <button type="button" :aria-pressed="!blk.own" @click="blk.own=false" :class="['rounded-full px-3 py-1 text-sm transition', !blk.own ? 'bg-sage-600 text-white shadow-soft' : 'text-muted hover:text-ink dark:hover:text-night-ink']">{{ $t('{ai} writes it') }}</button>
+            </div>
+            <template v-if="blk.own">
+              <textarea data-blk-focus v-model="blk.text" rows="4" :aria-label="$t('The new paragraph')" :placeholder="$t('The new paragraph. Markdown works: ## for a heading, - for a list.')" @keydown.ctrl.enter.prevent="insertOwn(s.head ? null : s)" @keydown.esc.prevent="closeBlock"
+                        class="mt-2 w-full resize-y rounded-2xl border border-line bg-paper px-3 py-2 font-serif text-[16px] leading-relaxed outline-none transition focus:border-sage-400 dark:border-night-line dark:bg-night"></textarea>
+              <div class="mt-2 flex flex-wrap items-center gap-2">
+                <span class="text-xs text-muted dark:text-night-muted">{{ $t('Ctrl+Enter adds it.') }}</span>
+                <span class="flex-1"></span>
+                <button type="button" class="btn-ghost text-sm" @click="closeBlock">{{ $t('Cancel') }}</button>
+                <button type="button" class="btn-primary text-sm" :disabled="!blk.text.trim()" @click="insertOwn(s.head ? null : s)"><ic name="plus" class="size-4"></ic>{{ $t('Add') }}</button>
+              </div>
+            </template>
+            <template v-else>
+              <textarea data-blk-focus v-model="blk.instruction" rows="2" maxlength="1000" :aria-label="$t('What should the new paragraph say?')" :placeholder="$t('What should the new paragraph say? (optional; without guidance {ai} adds what is most needed here)')" @keydown.ctrl.enter.prevent="aiBlock('insert', s.head ? null : s)"
+                        class="mt-2 w-full resize-y rounded-2xl border border-line bg-paper px-3 py-2 text-sm outline-none transition focus:border-sage-400 dark:border-night-line dark:bg-night"></textarea>
+              <div class="mt-2 flex flex-wrap items-center gap-2">
+                <div class="flex rounded-full border border-line p-0.5 dark:border-night-line" role="group" :aria-label="$t('Length of the addition')">
+                  <button v-for="w in [{n:80,l:$t('Brief')},{n:150,l:$t('Moderate')},{n:300,l:$t('Long')}]" :key="w.n" type="button" @click="blk.words=w.n" :aria-pressed="blk.words===w.n"
+                          :class="['rounded-full px-3 py-1 text-sm transition', blk.words===w.n ? 'bg-sage-600 text-white shadow-soft' : 'text-muted hover:text-ink dark:hover:text-night-ink']">{{ w.l }}</button>
+                </div>
+                <span class="text-xs text-muted dark:text-night-muted">{{ genreLabel(ed.genre) }} · {{ $t('creativity {0} of 5', [ed.creativity]) }} · {{ levelLabel(ed.level) }}</span>
+                <span class="flex-1"></span>
+                <button v-if="blk.busy" type="button" class="btn-ghost text-sm" @click="cancelBlock">{{ $t('Cancel ({0} s)', [blk.waited]) }}</button>
+                <button v-else type="button" class="btn-ghost text-sm" @click="closeBlock">{{ $t('Cancel') }}</button>
+                <button type="button" class="btn-primary text-sm" :disabled="blk.busy" @click="aiBlock('insert', s.head ? null : s)"><ic :name="blk.busy ? 'spinner' : 'sparkle'" :class="['size-4', blk.busy && 'animate-spin']"></ic>{{ blk.busy ? $t('Writing…') : $t('Write') }}</button>
+              </div>
+            </template>
+            <p v-if="blk.error" class="mt-2 flex gap-2 rounded-2xl bg-clay-100 px-3 py-2 text-sm text-clay-500 dark:bg-clay-500/15"><ic name="alert" class="mt-0.5 size-4 shrink-0"></ic>{{ blk.error }}</p>
+          </div>
+        </div>
+      </div>
     </template>
   </template>
 </div>

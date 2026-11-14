@@ -6,6 +6,8 @@ On the first opening you see the welcome screen. It has three jobs.
 
 The "1-minute tour" button highlights the real buttons one by one and says what each is for. You can run it again from the menu **Help → Welcome and tour**.
 
+Three of the steps open **Write with the wiki** and show the choices themselves: the kind of text (scientific article, essay, popular science, literature review, fiction), who writes and how freely (level and creativity from 1 to 5) and "Blank document" for a text of your own. At the end the tour takes you back where it started. In detail: [Learning and writing](#/docs/learn-write).
+
 ## 2. How it works
 
 Four cards (Add, Process, Read and search, Learn and write) show where each step is done.

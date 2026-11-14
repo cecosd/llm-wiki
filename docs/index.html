@@ -348,6 +348,23 @@
   .doc .bib p { padding-left: 2em; text-indent: -2em; font-size: .9rem; }
   .doc .added { background: rgba(111,179,157,.18); border-radius: 6px; animation: fade .6s; }
   .doc .ct { color: #2f6f62; }
+  /* Демо 6: работа по абзаци (смяна на ръка, пренаписване, нов абзац, махане) */
+  .doc .para { position: relative; margin: 0 -.5rem; padding: 0 .5rem; border-radius: 6px; transition: background .2s; }
+  .doc .para:hover { background: rgba(42,38,32,.045); }
+  .doc .para.fresh { background: rgba(111,179,157,.2); }
+  .doc .ptools { position: absolute; top: -.85rem; right: .3rem; display: flex; gap: 2px; padding: 2px; border-radius: 999px; background: #fff; border: 1px solid #e4dccb; box-shadow: 0 6px 16px -8px rgba(0,0,0,.35); opacity: 0; transition: opacity .15s; font-family: Inter, sans-serif; z-index: 2; }
+  .doc .para:hover .ptools, .doc .para:focus-within .ptools { opacity: 1; }
+  .doc .ptools button { width: 28px; height: 28px; border: 0; border-radius: 999px; background: transparent; color: #6b6253; cursor: pointer; font-size: .85rem; line-height: 1; }
+  .doc .ptools button:hover, .doc .ptools button:focus-visible { background: #efe8da; color: #1d1a15; }
+  @media (hover: none) { .doc .ptools { position: static; opacity: 1; justify-content: flex-end; margin-top: -.3rem; background: transparent; border: 0; box-shadow: none; } }
+  .doc .pedit { margin: .6em 0; font-family: Inter, sans-serif; }
+  .doc .pedit textarea, .doc .ttl-in { width: 100%; border: 1px solid #6fb39d; border-radius: 10px; padding: .6rem .7rem; background: #fff; color: #2a2620; font: inherit; font-size: .92rem; line-height: 1.55; resize: vertical; }
+  .doc .ttl-in { font-family: "Literata", serif; font-size: clamp(1.3rem,2.4vw,1.8rem); font-weight: 700; margin: .35em 0 .2em; padding: .15rem .5rem; }
+  .doc .prow { display: flex; align-items: center; justify-content: flex-end; gap: .4rem; margin-top: .4rem; }
+  .doc .prow .faintdoc { flex: 1; font-size: .75rem; color: #8a8172; }
+  .doc .pbtn { border: 1px solid #d9cfbb; background: #fff; color: #2a2620; border-radius: 999px; padding: .32rem .85rem; font: inherit; font-size: .8rem; font-weight: 600; cursor: pointer; }
+  .doc .pbtn.pri { background: #2f6f62; border-color: #2f6f62; color: #fff; }
+  .doc .pbtn:disabled { opacity: .5; cursor: default; }
 
   /* Още възможности */
   .bento { display: grid; grid-template-columns: repeat(6, minmax(0,1fr)); gap: 16px; }
@@ -1257,43 +1274,84 @@
 <script type="text/x-template" id="tpl-write">
   <div class="grid gap-6 lg:grid-cols-[340px_minmax(0,1fr)]">
     <div class="card p-6 self-start" style="border-radius:22px">
-      <div class="font-bold">{{ t.writeUI.topic }}</div>
+      <div class="font-bold">{{ W.kind }}</div>
+      <div class="mt-3 grid grid-cols-2 gap-2" role="radiogroup" :aria-label="W.kind">
+        <button v-for="k in W.kinds" :key="k[0]" class="mode" role="radio" :aria-checked="kind === k[0]" :class="{ on: kind === k[0] }" @click="kind = k[0]">
+          <b class="text-sm">{{ k[1] }}</b><div class="text-[11px] muted">{{ k[2] }}</div>
+        </button>
+      </div>
+      <div class="mt-5 font-bold">{{ W.topic }}</div>
       <div class="mt-3 grid gap-2">
         <button v-for="(tp, i) in topics" :key="i" class="mode" :class="{ on: topic === i }" @click="topic = i">
           <b class="text-sm">{{ tp.title }}</b><div class="text-xs muted">{{ tp.sub }}</div>
         </button>
       </div>
-      <div class="mt-5 font-bold">{{ t.writeUI.level }}</div>
+      <div class="mt-5 font-bold">{{ W.level }}</div>
       <div class="mt-2 grid grid-cols-2 gap-2">
-        <button v-for="(l, i) in t.writeUI.levels" :key="i" class="mode text-center" :class="{ on: level === i }" @click="level = i">
+        <button v-for="(l, i) in W.levels" :key="i" class="mode text-center" :class="{ on: level === i }" :disabled="i === 0 && kind !== 'article'" :title="i === 0 && kind !== 'article' ? W.localKind : ''" :style="i === 0 && kind !== 'article' ? 'opacity:.45;cursor:not-allowed' : ''" @click="level = i">
           <b class="text-sm">{{ l[0] }}</b><div class="text-[11px] muted">{{ l[1] }}</div>
         </button>
       </div>
-      <button class="btn btn-primary w-full mt-5" :disabled="busy" @click="run">{{ busy ? t.writeUI.busy : t.writeUI.go }}</button>
-      <p class="mt-3 text-xs faint">{{ level === 0 ? t.writeUI.noteLocal : t.writeUI.noteClaude }}</p>
+      <template v-if="level !== 0">
+        <div class="mt-5 font-bold">{{ W.creat }}</div>
+        <div class="mt-2 grid grid-cols-5 gap-1.5" role="radiogroup" :aria-label="W.creat">
+          <button v-for="n in 5" :key="n" class="mode text-center" style="padding:.45rem .2rem" role="radio" :aria-checked="creat === n" :class="{ on: creat === n }" :title="W.creatLv[n - 1][0]" @click="creat = n"><b class="text-sm">{{ n }}</b></button>
+        </div>
+        <p class="mt-2 text-xs"><b>{{ creatInfo[0] }}.</b> <span class="muted">{{ creatInfo[1] }} {{ kind === 'story' ? W.creatStory : W.creatNote }}</span></p>
+        <div class="mt-3 text-[11px] font-semibold uppercase tracking-wider faint">{{ W.sample }}</div>
+        <p class="mt-1 text-sm" style="font-family:Literata,serif;font-style:italic;line-height:1.55" v-html="sample"></p>
+      </template>
+      <button class="btn btn-primary w-full mt-5" :disabled="busy" @click="run">{{ busy ? W.busy : W.go }}</button>
+      <button class="btn btn-ghost w-full mt-2" :disabled="busy" :title="W.blankHint" @click="blankDoc">{{ W.blank }}</button>
+      <p class="mt-3 text-xs faint">{{ level === 0 ? W.noteLocal : W.noteClaude }}</p>
     </div>
     <div class="min-w-0">
       <div class="doc p-6 sm:p-10" style="min-height:520px">
         <div v-if="!out.length && !busy" class="grid place-items-center text-center" style="min-height:440px;color:#8a8172">
-          <div><div style="font-size:1.5rem;color:#2a2620">{{ t.writeUI.emptyT }}</div><p class="mt-2" style="font-family:Inter,sans-serif;font-size:.9rem">{{ t.writeUI.emptyP }}</p></div>
+          <div><div style="font-size:1.5rem;color:#2a2620">{{ W.emptyT }}</div><p class="mt-2" style="font-family:Inter,sans-serif;font-size:.9rem">{{ W.emptyP }}</p></div>
         </div>
         <div v-else>
-          <div style="font-family:Inter,sans-serif;font-size:.72rem;letter-spacing:.08em;text-transform:uppercase;color:#9a907f">{{ t.writeUI.draft }} · drafts/{{ fileName }}</div>
-          <h3 style="font-size:clamp(1.4rem,2.6vw,2rem);font-weight:700;line-height:1.2;margin:.4em 0 .2em;color:#1d1a15">{{ docTitle }}</h3>
+          <div style="font-family:Inter,sans-serif;font-size:.72rem;letter-spacing:.08em;text-transform:uppercase;color:#9a907f">{{ W.draft }} · drafts/{{ fileName }}</div>
+          <input v-if="titleEdit !== null" data-focus class="ttl-in" v-model="titleEdit" :aria-label="W.titleTip" @keydown.enter.prevent="saveTitle" @keydown.esc.prevent="titleEdit = null" @blur="saveTitle">
+          <h3 v-else tabindex="0" :title="W.titleTip" @click="startTitle" @keydown.enter.prevent="startTitle" style="font-size:clamp(1.4rem,2.6vw,2rem);font-weight:700;line-height:1.2;margin:.4em 0 .2em;color:#1d1a15;cursor:text">{{ docTitle }}</h3>
           <div v-for="(b, i) in out" :key="i" :class="{ added: b.added, bib: b.bib }">
             <h4 v-if="b.h">{{ b.h }}</h4>
-            <p v-for="(p, j) in b.ps" :key="j" v-html="p"></p>
+            <div v-if="ins && ins.b === i && ins.j === -1" class="pedit">
+              <textarea data-focus v-model="ins.text" rows="4" :placeholder="W.firstPara" @keydown.ctrl.enter.prevent="applyIns"></textarea>
+              <div class="prow"><span class="faintdoc">{{ W.blankHint }}</span><button class="pbtn pri" :disabled="!ins.text.trim()" @click="applyIns">{{ W.add }}</button></div>
+            </div>
+            <div v-for="(p, j) in b.ps" :key="j" class="para" :class="{ fresh: fresh === i + ':' + j }">
+              <div v-if="edit && edit.b === i && edit.j === j" class="pedit">
+                <textarea data-focus v-model="edit.text" rows="4" @keydown.ctrl.enter.prevent="applyEdit" @keydown.esc.prevent="edit = null"></textarea>
+                <div class="prow"><button class="pbtn" @click="edit = null">{{ W.cancel }}</button><button class="pbtn pri" @click="applyEdit">{{ W.apply }}</button></div>
+              </div>
+              <template v-else>
+                <p v-html="p"></p>
+                <div v-if="!busy && !b.bib" class="ptools">
+                  <button :title="W.paraTools[0]" :aria-label="W.paraTools[0]" @click="editPara(i, j)">✎</button>
+                  <button :title="W.paraTools[1]" :aria-label="W.paraTools[1]" @click="rewrite">✦</button>
+                  <button :title="W.paraTools[2]" :aria-label="W.paraTools[2]" @click="addAfter(i, j)">＋</button>
+                  <button :title="W.paraTools[3]" :aria-label="W.paraTools[3]" @click="removePara(i, j)">✕</button>
+                </div>
+              </template>
+              <div v-if="ins && ins.b === i && ins.j === j" class="pedit">
+                <textarea data-focus v-model="ins.text" rows="3" :placeholder="W.newPara" @keydown.ctrl.enter.prevent="applyIns" @keydown.esc.prevent="ins = null"></textarea>
+                <div class="prow"><button class="pbtn" @click="ins = null">{{ W.cancel }}</button><button class="pbtn pri" :disabled="!ins.text.trim()" @click="applyIns">{{ W.add }}</button></div>
+              </div>
+            </div>
           </div>
           <span v-if="busy" class="caret"></span>
-          <p v-if="!busy && level !== 0" style="font-family:Inter,sans-serif;font-size:.75rem;color:#8a8172;margin-top:1.5em">{{ t.writeUI.pagesNote }}</p>
+          <p v-if="!busy && level !== 0 && !blank && kind !== 'story'" style="font-family:Inter,sans-serif;font-size:.75rem;color:#8a8172;margin-top:1.5em">{{ W.pagesNote }}</p>
         </div>
       </div>
       <div v-if="out.length && !busy" class="mt-4 flex flex-wrap gap-2">
-        <button class="btn btn-ghost btn-sm" :disabled="continued || level === 0" @click="cont" :title="level === 0 ? t.writeUI.contNeed : ''">✦ {{ t.writeUI.cont }}</button>
-        <button v-if="continued" class="btn btn-ghost btn-sm" @click="uncont">{{ t.writeUI.uncont }}</button>
-        <button class="btn btn-ghost btn-sm" @click="copyText">{{ t.writeUI.copy }}</button>
-        <button class="btn btn-ghost btn-sm" @click="save">{{ t.writeUI.save }}</button>
+        <button class="btn btn-ghost btn-sm" :disabled="continued || level === 0 || kind !== 'article' || blank" @click="cont" :title="level === 0 ? W.contNeed : kind !== 'article' || blank ? W.contKind : ''">✦ {{ W.cont }}</button>
+        <button v-if="continued" class="btn btn-ghost btn-sm" @click="uncont">{{ W.uncont }}</button>
+        <button class="btn btn-ghost btn-sm" :disabled="!undo.length" @click="undoLast">↶ {{ W.undo }}</button>
+        <button class="btn btn-ghost btn-sm" @click="copyText">{{ W.copy }}</button>
+        <button class="btn btn-ghost btn-sm" @click="save">{{ W.save }}</button>
       </div>
+      <p v-if="out.length && !busy" class="mt-2 text-xs faint">{{ W.toolsNote }}</p>
     </div>
   </div>
 </script>
