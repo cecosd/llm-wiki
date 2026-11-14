@@ -1,18 +1,18 @@
 {
-  "version": "2.0.0",
-  "date": "2026-11-11T11:22:50.445Z",
-  "durationMs": 20446,
+  "version": "2.1.0",
+  "date": "2026-11-14T15:15:51.049Z",
+  "durationMs": 30616,
   "environment": {
     "platform": "linux",
     "node": "26.12.1"
   },
   "summary": {
-    "total": 102,
-    "pass": 99,
+    "total": 130,
+    "pass": 127,
     "fail": 0,
     "known": 1,
     "notRun": 2,
-    "notCovered": 10
+    "notCovered": 12
   },
   "groups": {
     "app": {
@@ -34,6 +34,10 @@
     "security": {
       "en": "Security",
       "bg": "Сигурност"
+    },
+    "launcher": {
+      "en": "App launcher, safe mode and site name",
+      "bg": "Стартер на приложението, защитен режим и име на сайта"
     },
     "updates": {
       "en": "Update check",
@@ -139,6 +143,42 @@
       "group": "ai",
       "en": "The agent cannot read the file with the keys",
       "bg": "Агентът не може да прочете файла с ключовете",
+      "status": "pass"
+    },
+    {
+      "group": "ai",
+      "en": "Fiction: the creativity becomes the temperature, the story has no citations and its sources are listed under “Based on”",
+      "bg": "Художествен текст: креативността става температура, в разказа няма цитати, а източниците са под „По мотиви от“",
+      "status": "pass"
+    },
+    {
+      "group": "ai",
+      "en": "A blank document: own text, a paragraph rewritten and a paragraph added, with one bibliography in any language",
+      "bg": "Празен документ: собствен текст, пренаписан и добавен абзац, с една библиография на всеки език",
+      "status": "pass"
+    },
+    {
+      "group": "ai",
+      "en": "Two blank documents with the same title keep their own kind of text and creativity",
+      "bg": "Два празни документа със същото заглавие пазят свой вид текст и креативност",
+      "status": "pass"
+    },
+    {
+      "group": "ai",
+      "en": "Continuing a scientific article puts the new text before the conclusion and keeps one bibliography, also with Bulgarian headings",
+      "bg": "Дописването на научна статия слага новия текст преди заключението и пази една библиография, и при български заглавия",
+      "status": "pass"
+    },
+    {
+      "group": "ai",
+      "en": "Review with the wiki: the cited page of the original goes to the model, the corrected text comes back unsaved with a report",
+      "bg": "Преглед с wiki: цитираната страница от оригинала отива към модела, поправеният текст се връща без запис и с отчет",
+      "status": "pass"
+    },
+    {
+      "group": "ai",
+      "en": "Review: citations, translations, secondary citations and a “#” bibliography are matched without a model",
+      "bg": "Преглед: цитатите, преводите, вторичните цитати и библиография с „#“ се свързват без модел",
       "status": "pass"
     },
     {
@@ -303,6 +343,18 @@
     },
     {
       "group": "claude",
+      "en": "Writing with Claude Code: the prompt carries the kind of text, the creativity and how deep to read",
+      "bg": "Писане с Claude Code: промптът носи вида текст, креативността и колко подробно да се чете",
+      "status": "pass"
+    },
+    {
+      "group": "claude",
+      "en": "Review with the wiki: Claude Code reads the skill and gets the text and the citation map, with read-only permissions",
+      "bg": "Преглед с wiki: Claude Code чете скила и получава текста и картата на цитатите, само с права за четене",
+      "status": "pass"
+    },
+    {
+      "group": "claude",
       "en": "A clear message appears when Claude Code is not signed in",
       "bg": "При липсващ вход в Claude Code се показва ясно съобщение",
       "status": "pass"
@@ -335,6 +387,72 @@
       "group": "security",
       "en": "Collections cannot be changed without the header of the page",
       "bg": "Колекциите не се променят без заглавката на страницата",
+      "status": "pass"
+    },
+    {
+      "group": "launcher",
+      "en": "A site name must be a plain host name, and names of real websites need a confirmation",
+      "bg": "Името на сайта е обикновено име, а името на истински сайт иска потвърждение",
+      "status": "pass"
+    },
+    {
+      "group": "launcher",
+      "en": "The hosts file gets one block that is replaced or removed, and the rest stays as it was",
+      "bg": "Във файла hosts има един блок, който се заменя или маха, а останалото си остава",
+      "status": "pass"
+    },
+    {
+      "group": "launcher",
+      "en": "Basic protection lets the server read the project and write only to the library data",
+      "bg": "Основната защита позволява на сървъра да чете проекта и да пише само в данните на библиотеката",
+      "status": "pass"
+    },
+    {
+      "group": "launcher",
+      "en": "The launcher picks the command for each mode and the protection the system can give",
+      "bg": "Стартерът избира командата за всеки режим и защитата, която системата може да даде",
+      "status": "pass"
+    },
+    {
+      "group": "launcher",
+      "en": "The launcher file keeps only valid values",
+      "bg": "Файлът на стартера пази само валидни стойности",
+      "status": "pass"
+    },
+    {
+      "group": "launcher",
+      "en": "Under node --permission the code cannot read or write outside the library, and its Node helpers get the same limits",
+      "bg": "Под node --permission кодът не чете и не пише извън библиотеката, а помощните му Node процеси имат същите ограничения",
+      "status": "pass"
+    },
+    {
+      "group": "launcher",
+      "en": "The launcher starts the server hidden and the page can see how it was started",
+      "bg": "Стартерът пуска сървъра скрито, а страницата вижда как е пуснат",
+      "status": "pass"
+    },
+    {
+      "group": "launcher",
+      "en": "Safe mode can be switched on and off from the interface, and the server restarts",
+      "bg": "Защитният режим се включва и изключва от интерфейса, а сървърът се рестартира",
+      "status": "pass"
+    },
+    {
+      "group": "launcher",
+      "en": "A bad mode or site name is refused and nothing is written to the hosts file",
+      "bg": "Невалиден режим или име на сайта се отказва и нищо не се пише във файла hosts",
+      "status": "pass"
+    },
+    {
+      "group": "launcher",
+      "en": "Quitting from the interface stops the server and the launcher",
+      "bg": "Спирането от интерфейса спира сървъра и стартера",
+      "status": "pass"
+    },
+    {
+      "group": "launcher",
+      "en": "Without the launcher the server says so and shows the command to run by hand",
+      "bg": "Без стартер сървърът го казва и показва командата за ръчно изпълнение",
       "status": "pass"
     },
     {
@@ -592,6 +710,60 @@
       }
     },
     {
+      "group": "library",
+      "en": "A target inside the library or a file is refused",
+      "bg": "Цел вътре в библиотеката или файл се отказва",
+      "status": "pass"
+    },
+    {
+      "group": "library",
+      "en": "A backup copies the library without node_modules or secrets, and later only the changes",
+      "bg": "Резервното копие взема библиотеката без node_modules и ключове, а после само промените",
+      "status": "pass"
+    },
+    {
+      "group": "library",
+      "en": "A file deleted here is moved to _deleted in a backup copy",
+      "bg": "Файл, изтрит при нас, отива в _deleted на резервното копие",
+      "status": "pass"
+    },
+    {
+      "group": "library",
+      "en": "A shared folder tells about changes by others and does not overwrite them",
+      "bg": "Обща папка казва за чужди промени и не ги презаписва",
+      "status": "pass"
+    },
+    {
+      "group": "library",
+      "en": "Reviewing a shared folder takes chosen files and merges a conflict by paragraph",
+      "bg": "Прегледът на обща папка взема избрани файлове и слива конфликт по абзаци",
+      "status": "pass"
+    },
+    {
+      "group": "library",
+      "en": "A change that is declined is not asked again, and overwrite keeps the old version",
+      "bg": "Отказана промяна не се пита втори път, а презаписването пази старата версия",
+      "status": "pass"
+    },
+    {
+      "group": "library",
+      "en": "Restore brings the library back into an empty copy of the app",
+      "bg": "Възстановяването връща библиотеката в празно копие на приложението",
+      "status": "pass"
+    },
+    {
+      "group": "library",
+      "en": "Changing the processing mode does not bring back an old list of copies",
+      "bg": "Смяната на режима на обработка не връща стар списък с копия",
+      "status": "pass"
+    },
+    {
+      "group": "library",
+      "en": "A shared folder gets only sources, pages and drafts, not your settings, history or code",
+      "bg": "Общата папка получава само източници, страници и чернови, не вашите настройки, история или код",
+      "status": "pass"
+    },
+    {
       "group": "updates",
       "en": "Versions are compared correctly",
       "bg": "Версиите се сравняват правилно",
@@ -750,10 +922,48 @@
         "en": "The tests use a simulated npm, because a real update would change the node_modules that the test copy shares with the project. The restart through the isolation launcher was checked by hand (2026-11-10); the rollback when the new versions do not start was not.",
         "bg": "Тестовете ползват симулиран npm, защото истинско обновяване би сменило node_modules, които тестовото копие споделя с проекта. Рестартът през стартера на изолацията е проверен на ръка (2026-11-10); връщането, ако новите версии не тръгнат, не е."
       }
+    },
+    {
+      "en": "Backups and sync in a real browser, with Google Drive, Dropbox, pCloud or a network disk, and with a second person",
+      "bg": "Резервните копии и синхронизацията в истински браузър, с Google Drive, Dropbox, pCloud или мрежов диск и с втори човек",
+      "why": {
+        "en": "The tests use ordinary folders and call the API; the review window was only compiled, not looked at. Cloud drives can change file times and lock files while syncing. Try one backup and one shared folder with real data.",
+        "bg": "Тестовете ползват обикновени папки и викат API; прозорецът за преглед е само компилиран, не е гледан. Облачните дискове могат да променят времената на файловете и да заключват файлове, докато синхронизират. Опитайте едно резервно копие и една обща папка с истински данни."
+      }
+    },
+    {
+      "en": "Backups in the isolated mode (serve:safe)",
+      "bg": "Резервните копия в изолиран режим (serve:safe)",
+      "why": {
+        "en": "Not available yet: the sandbox sees only the project folder. The server says so in plain words.",
+        "bg": "Още не са налични: клетката вижда само папката на проекта. Сървърът го казва ясно."
+      }
     }
   ],
   "packages": {
-    "outdated": [],
+    "outdated": [
+      {
+        "name": "@napi-rs/canvas",
+        "current": "1.1.0",
+        "wanted": "1.1.1",
+        "latest": "1.1.1",
+        "major": false
+      },
+      {
+        "name": "papaparse",
+        "current": "5.7.0",
+        "wanted": "5.7.1",
+        "latest": "5.7.1",
+        "major": false
+      },
+      {
+        "name": "unpdf",
+        "current": "2.1.0",
+        "wanted": "2.2.0",
+        "latest": "2.2.0",
+        "major": false
+      }
+    ],
     "audit": {
       "total": 0,
       "critical": 0,
