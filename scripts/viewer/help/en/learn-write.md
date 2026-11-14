@@ -34,12 +34,13 @@ Paths are saved; the "read" marks too. You can limit a path to chosen **areas** 
 - **Help from the AI** (the card above the text): kind of text, level, creativity and **what the model uses**: the areas and topics that are included. You can change them at any time; the scope is kept with the text, so you see the same one next time. Below them are the sources cited so far.
 - **Paragraph by paragraph** (in "Preview"): point at a paragraph (on a phone, tap it) and choose: change it by hand, rewrite it with the AI (optionally with a direction, e.g. "shorter, with an example"), add a paragraph after it (you write it or the AI does) or remove it. "Add a paragraph at the beginning" puts a first paragraph right after the title.
 - **Continue the text**: adds new text at the end (in a scientific article, before "Conclusion") and completes the bibliography.
+- **Review with the wiki**: the AI reviews the whole text as an editor and a reviewer would, following the skill `wiki-review`. It checks every citation against the page in the original (the printed page is turned into the PDF page through `page_offset`), corrects APA 7 (chapters in edited books, "et al.", translations, secondary citations), supports unsupported claims from the library, adds counterpoints and makes the sentences read naturally. It invents nothing: what only you know (period, participants, consent) is marked `[FILL IN: …]`. "Correct the text" puts the corrected text in the editor without saving; "Report only" leaves the text unchanged and gives an assessment. The report also has an "Automatic check" (word count, sentence length, citations without a bibliography entry and entries without a citation) and is kept in `drafts/.reviews/`. To review a finished text from elsewhere (for example an article from Word): "Blank document", then "Editing", and paste the text.
 - Nothing from the AI is saved by itself: the new text is highlighted, "Save" records it, and **"Undo"** takes back the latest changes one at a time.
 
 Drafts are in the `drafts/` folder and can be edited freely; every version is kept in `drafts/.history/` and deleted ones are in `drafts/.trash/`. Citations to printed pages come from the book's `page_offset`. The bibliography fills itself from the citations; by hand it can only be edited.
 
 ## Advice for a thesis or an article
 
-The text is a draft for thinking, not finished work. Check every citation in the original (p. N opens the exact page) and rephrase it in your own words.
+The text is a draft for thinking, not finished work. Check every citation in the original (p. N opens the exact page) and rephrase it in your own words. "Review with the wiki" helps with the checking but does not replace it: read the report and fill in every `[FILL IN: …]`.
 
 Next: [Areas, collections, fixes](#/docs/organize).

@@ -49,6 +49,8 @@ export function creativityOf(c, genre) {
 const TEMPERATURE = [0.2, 0.4, 0.7, 0.9, 1];
 export const temperatureOf = (c) => TEMPERATURE[c - 1] ?? 0.4;
 const citesInText = (genre) => genre !== 'story';
+/** Името на вида текст на езика на съдържанието („научна статия“ и т.н.), за заявките в review.js */
+export const genreName = (g) => GENRE[genreOf(g)].name;
 const bibTitle = (genre) => (citesInText(genre) ? P('Bibliography') : P('Based on'));
 // Заглавието на библиографията на всеки език и при всеки вид; моделите понякога пишат и „References“
 const BIB_HEADS = () => `(?:${anyP('Bibliography')}|${anyP('Based on')}|${anyP('References')})`;
@@ -350,7 +352,7 @@ function bibSection(citer, genre = 'article') {
  * Разделя текста на основна част, библиография (или „По мотиви от“) и всичко след нея.
  * Записите в библиографията са абзаците под заглавието до следващото ## заглавие.
  */
-function splitBib(text) {
+export function splitBib(text) {
   const m = String(text).match(BIB_LINE());
   if (!m) return { main: String(text).replace(/\s+$/, ''), entries: [], head: null, tail: '' };
   const rest = text.slice(m.index + m[0].length), next = rest.search(/^##\s/m);
@@ -360,7 +362,7 @@ function splitBib(text) {
 }
 const letters = (s) => s.replace(/[^\p{L}\p{N}]/gu, '');
 /** Сглобява текста отново: старите записи остават, новоцитираните се добавят. Без цитати не се добавя празен раздел. */
-function joinBib({ main, entries, head, tail }, citer, genre) {
+export function joinBib({ main, entries, head, tail }, citer, genre) {
   const all = [...new Set([...entries, ...citer.bibliography()])].sort((a, b) => letters(a).localeCompare(letters(b), contentLang()));
   const bib = all.length || head ? `\n\n## ${head || bibTitle(genre)}\n\n${all.length ? all.join('\n\n') : P('[No sources cited.]')}` : '';
   return `${main}${bib}${tail ? `\n\n${tail}` : ''}\n`;

@@ -1938,6 +1938,14 @@ const genreOk = (g) => (GENRE_LIST.some((x) => x.id === g) ? g : 'article');
 const creativityFor = (g) => { const n = Number(store.get('writecreat:' + g, '')); return n >= 1 && n <= 5 ? n : CREATIVITY_DEFAULT[g] || 2; };
 const reEsc = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 const wordCount = (s) => (String(s).match(/[\p{L}\p{N}]+/gu) || []).length;
+// Колко различни произведения цитира текстът (автор + година в скоби): само за оценката на цената на прегледа
+const citedWorksOf = (md) => {
+  const seen = new Set();
+  for (const m of String(md).matchAll(/\(([^()\n]*?\d{4}[^()\n]*?)\)/g)) {
+    for (const part of m[1].split(';')) { const x = part.match(/([\p{L}'’-]{2,})[^\d;]*?((?:1[5-9]|20)\d{2})/u); if (x) seen.add(x[1].toLowerCase() + x[2]); }
+  }
+  return seen.size;
+};
 
 /**
  * Текстът на черновата на блокове: абзаци, заглавия и списъци, разделени с празен ред (код в ``` остава цял).
@@ -1985,6 +1993,8 @@ const WriteView = defineComponent({
       undoStack: [], flash: null, hover: -1, active: -1, titleEdit: null,
       blk: { open: '', text: '', instruction: '', words: 150, own: true, busy: false, waited: 0, error: '' },
       cont: { instruction: '', words: 600, busy: false, waited: 0, error: '', note: '' },
+      // Преглед с wiki (скилът wiki-review): fix = поправен текст + отчет, report = само отчет
+      rev: { instruction: '', mode: store.get('write:revmode', 'fix') === 'report' ? 'report' : 'fix', busy: false, waited: 0, error: '', note: '', report: '', reportPath: '', open: true },
     };
   },
   computed: {
@@ -1995,7 +2005,8 @@ const WriteView = defineComponent({
     edCreatInfo() { return CREATIVITY[this.ed.creativity - 1] || CREATIVITY[1]; },
     metaKey() { return JSON.stringify([this.ed.genre, this.ed.creativity, [...scope.areas].sort(), [...scope.focus].sort(), this.doc?.cites || []]); },
     dirty() { return !!this.doc && (this.body !== this.saved || this.metaKey !== this.savedMeta); },
-    busyAny() { return this.blk.busy || this.cont.busy; },
+    busyAny() { return this.blk.busy || this.cont.busy || this.rev.busy; },
+    reviewHtml() { return this.rev.report ? renderMarkdown(this.rev.report, new Set(), new Map(), {}) : ''; },
     // Статията е на езика на библиотеката (contentLang), а не на езика на интерфейса: при разминаване се казва предварително
     langNote() {
       if (!I18N.contentLang || I18N.contentLang === I18N.lang) return '';
@@ -2015,7 +2026,7 @@ const WriteView = defineComponent({
     shownBlocks() { return this.blocks.filter((b) => !b.title).map((b) => ({ ...b, html: renderMarkdown(b.text, new Set(), new Map(), {}) })); },
     titleBlock() { return this.blocks.find((b) => b.title) || null; },
     // Предложените теми следват това, по което се работи в момента
-    scopeQ() { return (this.blk.instruction || this.cont.instruction || this.docTitle).slice(0, 300); },
+    scopeQ() { return (this.blk.instruction || this.cont.instruction || this.rev.instruction || this.docTitle).slice(0, 300); },
     citedPages() {
       const by = new Map((this.pages || []).map((p) => [p.slug, p]));
       return (this.doc?.cites || []).map((s) => ({ slug: s, title: by.get(s)?.title || s, missing: !by.has(s) }));
@@ -2036,7 +2047,7 @@ const WriteView = defineComponent({
   },
   beforeUnmount() {
     window.removeEventListener('keydown', this.onKey); window.removeEventListener('beforeunload', this.onLeave);
-    this.cancel(); this.cancelCont(); this.cancelBlock(); clearTimeout(this.ft); clearTimeout(this.flashT);
+    this.cancel(); this.cancelCont(); this.cancelBlock(); this.cancelRev(); clearTimeout(this.ft); clearTimeout(this.flashT);
     if (this.dirty) this.save(true); // не губим написаното при излизане от страницата
   },
   methods: {
@@ -2108,7 +2119,7 @@ const WriteView = defineComponent({
 
     // ---------- Редактор ----------
     pushUndo(prev = this.body) { this.undoStack.push(prev); if (this.undoStack.length > 30) this.undoStack.shift(); },
-    undo() { if (!this.undoStack.length || this.busyAny) return; this.body = this.undoStack.pop(); this.flash = null; this.cont.note = ''; this.closeBlock(); },
+    undo() { if (!this.undoStack.length || this.busyAny) return; this.body = this.undoStack.pop(); this.flash = null; this.cont.note = ''; this.rev.note = ''; this.closeBlock(); },
     markFresh(start, end) { this.flash = { start, end }; clearTimeout(this.flashT); this.flashT = setTimeout(() => { this.flash = null; }, 8000); },
     addCited(list) {
       const have = new Set(this.doc.cites || []), add = (list || []).map((c) => c.slug).filter((s) => s && !have.has(s));
@@ -2156,7 +2167,7 @@ const WriteView = defineComponent({
     cancelBlock() { const ac = this.blkAc; this.blkAc = null; clearInterval(this.blkTimer); ac?.abort(); this.blk.busy = false; },
     // Абзац с модела: rewrite = пренаписване на b, insert = нов абзац след b. Резултатът влиза в текста без запис.
     async aiBlock(action, b) {
-      const k = this.blk; if (k.busy || this.cont.busy || !this.doc) return;
+      const k = this.blk; if (this.busyAny || !this.doc) return;
       const at = action === 'rewrite' ? b : null;
       const start = at ? b.start : (b ? b.start : 0), end = at ? b.end : this.insertAt(b);
       const words = at ? wordCount(b.text) : k.words;
@@ -2187,7 +2198,7 @@ const WriteView = defineComponent({
     },
     // Дописване с модела: новият текст влиза в редактора (в научна статия преди Заключение), записът е твой
     async continueDoc() {
-      const c = this.cont; if (c.busy || this.blk.busy || !this.doc) return;
+      const c = this.cont; if (this.busyAny || !this.doc) return;
       const topic = c.instruction.trim() || this.docTitle;
       if (!(await this.$root.confirmClaude({ kind: 'write', topic, level: this.ed.level, words: c.words, ...scopeBody() }))) return;
       this.cancelCont(); c.busy = true; c.error = ''; c.note = ''; c.waited = 0;
@@ -2213,8 +2224,41 @@ const WriteView = defineComponent({
       if (out.warnings?.length) this.warnings = [...this.warnings, ...out.warnings];
     },
     cancelCont() { const ac = this.contAc; this.contAc = null; clearInterval(this.contTimer); ac?.abort(); this.cont.busy = false; },
+    setRevMode(m) { this.rev.mode = m; store.set('write:revmode', m); },
+    // Преглед с wiki: моделът проверява цитатите в оригиналите, поправя APA, опората и изказа по скила wiki-review.
+    // При „Поправи текста“ поправеният текст влиза в редактора без запис; отчетът се вижда под панела.
+    async reviewDoc() {
+      const v = this.rev; if (this.busyAny || !this.doc) return;
+      const words = wordCount(this.body);
+      if (!(await this.$root.confirmClaude({ kind: 'review', level: this.ed.level, words, sources: citedWorksOf(this.body), mode: v.mode, ...scopeBody() }))) return;
+      this.cancelRev(); v.busy = true; v.error = ''; v.note = ''; v.waited = 0;
+      const ac = new AbortController(); this.revAc = ac;
+      this.revTimer = setInterval(() => { v.waited++; }, 1000);
+      const sent = this.body;
+      let out = null, err = '';
+      try {
+        const r = await api('/api/drafts/' + encodeURIComponent(this.doc.id) + '/review', { method: 'POST', headers: { 'content-type': 'application/json' }, signal: ac.signal,
+          body: JSON.stringify({ body: sent, instruction: v.instruction, mode: v.mode, level: this.ed.level, genre: this.ed.genre, ...scopeBody() }) });
+        const d = await r.json().catch(() => ({}));
+        if (!r.ok) throw new Error(d.error || $t('The server is not responding'));
+        out = d;
+      } catch (e) { err = e.name === 'AbortError' ? '' : (e.message || $t('Error')); }
+      if (this.revAc !== ac) return;
+      clearInterval(this.revTimer); this.revAc = null; v.busy = false;
+      if (err) { v.error = err; return; }
+      if (!out) return;
+      v.report = out.report || ''; v.reportPath = out.reportPath || ''; v.open = true;
+      if (out.warnings?.length) this.warnings = [...this.warnings, ...out.warnings];
+      if (out.mode !== 'fix' || !out.markdown) return;
+      if (this.body !== sent) { v.error = $t('The text changed while {ai} was working, so the corrected text was not put in. The report is below.'); return; }
+      this.pushUndo(sent); this.body = out.markdown; this.mode = 'preview'; this.flash = null; v.instruction = '';
+      this.addCited(out.cited);
+      v.note = $t('The corrected text is in the editor. Read the report, check the text and press “Save”.');
+    },
+    cancelRev() { const ac = this.revAc; this.revAc = null; clearInterval(this.revTimer); ac?.abort(); this.rev.busy = false; },
     async load() {
-      this.cancelCont(); this.cancelBlock(); this.cont.note = ''; this.blk.open = ''; this.undoStack = []; this.flash = null; this.titleEdit = null;
+      this.cancelCont(); this.cancelBlock(); this.cancelRev(); this.cont.note = ''; this.rev.note = ''; this.rev.report = ''; this.rev.reportPath = ''; this.rev.error = '';
+      this.blk.open = ''; this.undoStack = []; this.flash = null; this.titleEdit = null;
       this.doc = null; this.loadError = false; this.mode = 'preview';
       let w = []; try { w = JSON.parse(store.get('writewarn:' + this.id, '[]')); } catch {}
       this.warnings = w; store.set('writewarn:' + this.id, '[]');

@@ -46,6 +46,13 @@ function answer(prompt) {
   if (/TASK: rewrite the marked passage/.test(prompt)) return 'A rewritten paragraph: entropy measures disorder ([[sample-2020-note]], p. 2).';
   if (/TASK: write a NEW passage for the marked place/.test(prompt)) return '```markdown\nA new paragraph about order and work ([[sample-2020-note]], p. 3).\n```';
   if (/TASK: write a NEW text that is added to the end of the text/.test(prompt)) return `## Engines\n\n${'Engines turn the flow of heat into work and leave more disorder behind. '.repeat(6)}([[sample-2020-note]], p. 4).`;
+  // Преглед с wiki: поправен текст, маркерът и отчетът; „само отчет“; отрязан отговор
+  if (/You are reviewing a finished text/.test(prompt)) {
+    const report = 'Written for: testers.\n\n## Errors fixed\n\n- The page was checked — it is right.';
+    if (/Return only the report/.test(prompt)) return report;
+    if (/CUT THE TEXT/.test(prompt)) return '# Review me\n\nToo short.\n\n⟦REVIEW REPORT⟧\n\nNothing.';
+    return `# Review me\n\n## Introduction\n\n${'Order fades in a closed room and work is needed to keep it. '.repeat(5)}Entropy grows in closed rooms (Sample, 2020, p. 2). A new supported claim ([[sample-2020-note]], p. 1).\n\n## Bibliography\n\nSample, A. (2020). *Sample note*.\n\n⟦REVIEW REPORT⟧\n\n${report}`;
+  }
   return 'Fake answer.';
 }
 function fakeModel() {
@@ -441,4 +448,73 @@ test(T('ai', 'Continuing a scientific article puts the new text before the concl
   const est = await api(srv.port, 'POST', '/api/estimate', { kind: 'write', topic: 'Entropy', level: 'medium', words: 80 });
   const big = await api(srv.port, 'POST', '/api/estimate', { kind: 'write', topic: 'Entropy', level: 'medium', length: 'long' });
   assert.ok(est.json.output < big.json.output, 'a paragraph is estimated by its own length');
+});
+
+// ---------- Преглед с wiki (скилът wiki-review) ----------
+test(T('ai', 'Review with the wiki: the cited page of the original goes to the model, the corrected text comes back unsaved with a report', 'Преглед с wiki: цитираната страница от оригинала отива към модела, поправеният текст се връща без запис и с отчет'), async () => {
+  await useFakeModel();
+  box.write('raw/.extracted/articles/sample-2020-note.txt.md', '<!-- извлечено от raw/articles/sample-2020-note.txt | думи: 12 | 2026-11-14T00:00:00.000Z -->\n\n<!-- стр. 1 -->\nA short sample text about entropy.\n\n<!-- стр. 2 -->\nOrder needs work in a closed room.\n');
+  const b = await api(srv.port, 'POST', '/api/drafts', { title: 'Review me', genre: 'article' });
+  const id = b.json.id;
+  const body = `# Review me\n\n## Introduction\n\n${'Order fades in a closed room and work is needed to keep it. '.repeat(5)}Entropy grows in closed rooms (Sample, 2020, p. 2). A claim without a source.\n\n## Bibliography\n\nSample, A. (2020). *Sample note*.\n\nOrphan, O. (2001). *Never cited*.\n`;
+  await api(srv.port, 'PUT', `/api/drafts/${id}`, { body });
+  const before = box.read(`drafts/${id}.md`);
+
+  const r = await api(srv.port, 'POST', `/api/drafts/${id}/review`, { body, level: 'medium', mode: 'fix' });
+  assert.equal(r.status, 200, r.body);
+  const c = calls.filter((x) => /You are reviewing a finished text/.test(x.prompt)).at(-1);
+  assert.equal(c.temp, 0.2, 'a review is not creative');
+  assert.match(c.system, /fact-checker/);
+  assert.match(c.prompt, /Page-by-page check/, 'without tools the text of the skill is in the request');
+  assert.match(c.prompt, /Sample, 2020, p\. 2 → \[\[sample-2020-note\]\]/, 'the citation map links the citation to the source page');
+  assert.match(c.prompt, /### Sample, 2020, p\. 2 → PDF 2[^\n]*\nOrder needs work in a closed room\./, 'the cited page of the original is in the request');
+  const md = r.json.markdown;
+  assert.match(md, /A new supported claim \(Sample, 2020, p\. 1\)\./, 'a new wiki citation becomes APA');
+  assert.doesNotMatch(md, /⟦|Written for/, 'the report is not left in the text');
+  assert.equal((md.match(/^## Bibliography/gm) || []).length, 1, md);
+  assert.equal((md.match(/^Sample, A\./gm) || []).length, 1, 'the source is listed once');
+  assert.match(r.json.report, /Written for: testers\./);
+  assert.match(r.json.report, /checked, it is right/, 'no em dash in the report');
+  assert.match(r.json.report, /## Automatic check[\s\S]*Every citation has an entry and every entry is cited\./);
+  assert.match(r.json.report, /Em dashes replaced: 1/);
+  assert.match(box.read(r.json.reportPath), /Written for: testers\./, 'the report is kept next to the drafts');
+  assert.equal(box.read(`drafts/${id}.md`), before, 'nothing is saved until the person presses “Save”');
+
+  // само отчет: текстът не се пипа, а проверката вижда записа без цитат
+  const rep = await api(srv.port, 'POST', `/api/drafts/${id}/review`, { body, level: 'medium', mode: 'report' });
+  assert.equal(rep.status, 200, rep.body);
+  assert.equal(rep.json.markdown, null);
+  assert.match(calls.filter((x) => /You are reviewing a finished text/.test(x.prompt)).at(-1).prompt, /Do NOT change the text/);
+  assert.match(rep.json.report, /Entries that are not cited in the text: Orphan, O\. \(2001\)/);
+
+  // отрязан отговор: много по-кратък текст не влиза в редактора
+  const cut = await api(srv.port, 'POST', `/api/drafts/${id}/review`, { body, level: 'medium', mode: 'fix', instruction: 'CUT THE TEXT' });
+  assert.equal(cut.json.kind, 'format', cut.body);
+
+  const fix = await api(srv.port, 'POST', '/api/estimate', { kind: 'review', level: 'medium', words: 3000, sources: 20, mode: 'fix' });
+  const only = await api(srv.port, 'POST', '/api/estimate', { kind: 'review', level: 'medium', words: 3000, sources: 20, mode: 'report' });
+  assert.equal(fix.json.ok, true, fix.body);
+  assert.ok(fix.json.output > only.json.output, 'correcting returns the whole text, a report does not');
+});
+
+test(T('ai', 'Review: citations, translations, secondary citations and a “#” bibliography are matched without a model', 'Преглед: цитатите, преводите, вторичните цитати и библиография с „#“ се свързват без модел'), async () => {
+  const R = await import(pathToFileURL(path.join(box.root, 'scripts', 'review.js')).href);
+  const md = [
+    '# Статия', '',
+    'Кръговостта е централна (Hoffman, 1981, с. 5; Bateson, 1972/1987, с. 323). Том говори за вътрешния глас (Tomm, 1991, цит. по Farmer, 1995, с. 2).',
+    'Уиникът, както го представя Крушкова (2016, с. 53), говори за илюзията. Сърл е категоричен (Стърнбърг, 2009/2012, с. 599).', '',
+    '# Библиография', '',
+    'Крушкова, С. (2016). *Психология на личността*. Хелт Консулт.', '',
+    'Стърнбърг, Р. Дж. (2012). *Когнитивна психология*. Изток-Запад. (Оригиналната творба е публикувана 2009 г.)', '',
+    'Bateson, G. (1987). *Steps to an ecology of mind*. Jason Aronson. (Оригиналната творба е публикувана 1972 г.)', '',
+    'Farmer, C. (1995). *Psychodrama and systemic therapy*. Karnac Books.', '',
+    'Hoffman, L. (1981). *Foundations of family therapy*. Basic Books.', '',
+  ].join('\n');
+  const check = R.citationCheck(md);
+  assert.equal(check.entries, 5);
+  assert.deepEqual(check.missing, [], 'Tomm (1991) is a secondary citation and needs no entry');
+  assert.deepEqual(check.uncited, []);
+  const s = R.textStats(md);
+  assert.equal(s.sentences, 4, JSON.stringify(s));
+  assert.ok(s.max < 20 && s.long === 0, JSON.stringify(s));
 });

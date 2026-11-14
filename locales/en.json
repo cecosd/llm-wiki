@@ -1865,6 +1865,27 @@
     "The quick draft arranges an article without {ai}. Light, Medium and Powerful let {ai} write; then you also choose the length and the creativity, from 1 (strict) to 5 (bold). Creativity changes the style and the interpretation: the facts and the citations always come only from your sources.": "The quick draft arranges an article without {ai}. Light, Medium and Powerful let {ai} write; then you also choose the length and the creativity, from 1 (strict) to 5 (bold). Creativity changes the style and the interpretation: the facts and the citations always come only from your sources.",
     "Your own text": "Your own text",
     "“Blank document” opens an empty text that you write yourself. In the editor, click the title to change it; in “Preview”, point at a paragraph to change it, rewrite it with {ai} or add a new one after it. The card “Help from {ai}” shows which areas and topics are used, and you can change them.": "“Blank document” opens an empty text that you write yourself. In the editor, click the title to change it; in “Preview”, point at a paragraph to change it, rewrite it with {ai} or add a new one after it. The card “Help from {ai}” shows which areas and topics are used, and you can change them.",
-    "Ask a question and get a reading path through your own sources. Write an article, an essay, a review or a story from what you have read, as creative as you choose, or write yourself with help paragraph by paragraph.": "Ask a question and get a reading path through your own sources. Write an article, an essay, a review or a story from what you have read, as creative as you choose, or write yourself with help paragraph by paragraph."
+    "Ask a question and get a reading path through your own sources. Write an article, an essay, a review or a story from what you have read, as creative as you choose, or write yourself with help paragraph by paragraph.": "Ask a question and get a reading path through your own sources. Write an article, an essay, a review or a story from what you have read, as creative as you choose, or write yourself with help paragraph by paragraph.",
+    "Review with the wiki": "Review with the wiki",
+    "{ai} checks every citation against the page in the original, corrects the APA references, supports claims that have no source and makes the sentences read naturally. Nothing is invented: what only you know is marked [FILL IN: …].": "{ai} checks every citation against the page in the original, corrects the APA references, supports claims that have no source and makes the sentences read naturally. Nothing is invented: what only you know is marked [FILL IN: …].",
+    "E.g. check the page numbers and shorten the long sentences (optional)": "E.g. check the page numbers and shorten the long sentences (optional)",
+    "What the review does": "What the review does",
+    "Correct the text": "Correct the text",
+    "The corrected text goes into the editor for you to check and save; a report says what changed.": "The corrected text goes into the editor for you to check and save; a report says what changed.",
+    "Report only": "Report only",
+    "The text is not changed: you get an assessment and a list of problems with their sources.": "The text is not changed: you get an assessment and a list of problems with their sources.",
+    "Reviewing…": "Reviewing…",
+    "Review": "Review",
+    "A careful review reads the cited pages one by one and can take several minutes.": "A careful review reads the cited pages one by one and can take several minutes.",
+    "Undo the review": "Undo the review",
+    "Review report": "Review report",
+    "The text changed while {ai} was working, so the corrected text was not put in. The report is below.": "The text changed while {ai} was working, so the corrected text was not put in. The report is below.",
+    "The corrected text is in the editor. Read the report, check the text and press “Save”.": "The corrected text is in the editor. Read the report, check the text and press “Save”.",
+    "Review with {ai}": "Review with {ai}",
+    "The text is too short to review.": "The text is too short to review.",
+    "The text is too long to review at once (over {0} characters). Review it in parts.": "The text is too long to review at once (over {0} characters). Review it in parts.",
+    "{ai} did not separate the report from the text: check the end of the text.": "{ai} did not separate the report from the text: check the end of the text.",
+    "{ai} returned a much shorter text than the original, so it was not put in. Try again or with a more powerful level.": "{ai} returned a much shorter text than the original, so it was not put in. Try again or with a more powerful level.",
+    "The text is longer than the context of the model allows: only its beginning fits in the request.": "The text is longer than the context of the model allows: only its beginning fits in the request."
   }
 }
