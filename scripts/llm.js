@@ -207,7 +207,8 @@ async function request(cfg, { model, system, prompt, images, json, maxTokens, te
     url = `${base}/v1/messages`;
     headers = { ...headers, 'x-api-key': key, 'anthropic-version': '2023-06-01' };
     const content = images?.length ? [...images.map((im) => ({ type: 'image', source: { type: 'base64', media_type: im.mime, data: im.data } })), { type: 'text', text: prompt }] : prompt;
-    body = { model, max_tokens: maxTokens || 4096, ...(system ? { system } : {}), messages: [{ role: 'user', content }] };
+    // temperature само когато задачата я иска (креативност при писане); иначе остава тази по подразбиране на модела
+    body = { model, max_tokens: maxTokens || 4096, ...(system ? { system } : {}), ...(temperature != null ? { temperature } : {}), messages: [{ role: 'user', content }] };
     pick = (j) => ({ text: (j.content || []).filter((b) => b.type === 'text').map((b) => b.text).join(''), usage: { in: j.usage?.input_tokens ?? null, out: j.usage?.output_tokens ?? null } });
   } else if (cfg.provider === 'ollama') {
     // Родният API на Ollama: само тук може да се зададе размерът на контекста (num_ctx); иначе дългият текст се реже тихо.

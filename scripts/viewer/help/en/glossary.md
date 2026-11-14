@@ -10,6 +10,10 @@
 | **Person, organisation** | A page for a person, organisation, tool, work. |
 | **Topic** | A hub that groups concepts and sources. |
 | **Emphasis** | What the source itself puts weight on. |
+| **Kind of text** | What "Write with the wiki" writes: a scientific article, an essay, popular science, a literature review or fiction. |
+| **Creativity** | From 1 (strict) to 5 (bold): how free the style and the interpretation are when writing. The facts and the citations still come only from the library. |
+| **Blank document** | A text you write yourself; the model helps paragraph by paragraph. |
+| **Based on** | The list of sources under a piece of fiction, which has no citations in the text itself. |
 | **Area** | The area of knowledge of a source (1 to 3 words). |
 | **Alias** | Another spelling or translation of the same name. |
 | **p. N** | A PDF page number that opens the reader. |

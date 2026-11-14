@@ -237,6 +237,8 @@ The sections are: Overview, Topics, Concepts, People and organizations, Sources 
 | `npm run lint` | Mechanical lint, writes `outputs/lint-mech-YYYY-MM-DD.md` |
 | `npm run lint:quick` | Only broken links, in the console |
 | `npm run serve` | Interface at http://localhost:4321: upload, sorting, browsing, graph. Refreshes itself while you write in wiki/ |
+| `npm run app` | App launcher: a hidden server and an app window (Edge, Chrome, Chromium, Brave); closing the window stops the server. `--safe`, `--normal`, `--no-window`, `--check`. The mode and the site name are changed from the interface (`.launch.json`) |
+| `npm run hosts -- set <name>\|show\|remove` | Name of the local site in the hosts file (block `# llm-wiki begin` to `# llm-wiki end`); needs administrator rights. Do not run it unless the person asks |
 | `npm run serve:safe` | The same in isolation (Linux and WSL, needs `bubblewrap`): the code and its packages see only the project folder and write only to the data. See SECURITY.md |
 | `npm run sandbox:check` | Checks the isolation from inside: what can and cannot be seen |
 | `npm run new -- <type> <slug>` | New page from a template |
@@ -245,7 +247,7 @@ The sections are: Overview, Topics, Concepts, People and organizations, Sources 
 | `npm test` | Runs the tests in a temporary copy with a fake Claude (does not touch the library, spends no tokens) and writes a report to `outputs/test-results.json`. The result is shown under Settings (`#/settings`) |
 | `npm run release:docs` | Before a release: refreshes `docs/vendor/` and the report `docs/test-results.json` for the product page (`docs/index.html`, locally at `/product/`) |
 
-The page "Write with the wiki" (`#/write`) composes an article on a topic from the library (abstract, introduction, theoretical framework, analysis, discussion, conclusion, bibliography in APA 7), locally or with Claude on three levels. Do not write in `drafts/` during ingest.
+The page "Write with the wiki" (`#/write`) writes a text on a topic from the library in one of five kinds: a scientific article (abstract, introduction, theoretical framework, analysis, discussion, conclusion, bibliography in APA 7), an essay, a popular science article, a literature review or fiction (no citations in the text itself; the sources are listed under "Based on"). It works locally (scientific article only) or with Claude on three levels, with a creativity from 1 to 5 that changes the style and the interpretation but not the facts: those and the citations always come only from the library. There is also a blank document that the person writes, with help paragraph by paragraph (rewrite, new paragraph) and continuing; the kind, the creativity and the scope (areas and topics) are kept in the frontmatter of the draft. Do not write in `drafts/` during ingest.
 
 The page "Add an article" (`#/find`) accepts a DOI or an address starting with https://, downloads the PDF (or the text of the page, or only the abstract if the full text is not free) into `raw/inbox/` and starts sorting and extraction. Then the human chooses a mode (economy, balanced, best) and an indexing language for this file; processing with Claude starts after the tokens and the price are confirmed. Downloaded web texts have frontmatter with `source:` and go to `raw/web/`. There is no catalog search. Do not change the files in `raw/`.
 

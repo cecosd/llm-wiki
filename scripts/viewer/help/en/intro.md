@@ -18,7 +18,7 @@ The model follows Andrej Karpathy's "LLM Wiki" idea. Think of it like programmin
 1. **You add** a file from the home page (or an article by DOI).
 2. **The AI processes it**: reads, writes pages, updates concepts. You see the approximate cost first.
 3. **You read and search**: pages, link map, log, search with Ctrl K.
-4. **You learn and write**: a reading path for a question, an article with a bibliography.
+4. **You learn and write**: a reading path for a question; a scientific article, an essay, a popular science article, a review or a story from what you have read, at the creativity you choose; or a text of your own with help paragraph by paragraph.
 
 ## What it does not do
 

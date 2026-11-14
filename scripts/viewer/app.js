@@ -1604,7 +1604,7 @@ const WelcomeView = defineComponent({
         { icon: 'upload', title: $t('1. Add'), text: $t('Drop PDF, EPUB, Word, text or image files on the home page, or add an article by its DOI or address.'), where: $t('Home · Add an article'), href: '#/' },
         { icon: 'sparkle', title: $t('2. Process'), text: $t('The AI reads each new file and writes linked pages: a summary of the source, its chapters, the concepts and the people. You see the cost before it starts.'), where: $t('Home · the “Process” button'), href: '#/' },
         { icon: 'book', title: $t('3. Read and search'), text: $t('Open any page, follow the links, press the page numbers to open the original text, search with Ctrl K, or look at the link map.'), where: $t('Menu · Library'), href: '#/p/index' },
-        { icon: 'route', title: $t('4. Learn and write'), text: $t('Ask a question and get a reading path through your own sources. Compose an article with a bibliography from what you have read.'), where: $t('Menu · Learn and write'), href: '#/path' },
+        { icon: 'route', title: $t('4. Learn and write'), text: $t('Ask a question and get a reading path through your own sources. Write an article, an essay, a review or a story from what you have read, as creative as you choose, or write yourself with help paragraph by paragraph.'), where: $t('Menu · Learn and write'), href: '#/path' },
       ];
     },
     models() {
@@ -1625,10 +1625,18 @@ const WelcomeView = defineComponent({
 });
 
 // ---------- Обиколка: осветява истинските бутони един по един ----------
+// route: стъпката отваря този екран и чака елемента; накрая обиколката се връща там, откъдето е тръгнала.
+// group: групата в менюто, която трябва да е отворена, за да се види елементът.
 const TOUR_STEPS = () => [
   { sel: 'home', title: $t('Home'), text: $t('Add your files here. They are sorted by type and wait to be processed.') },
   { sel: 'search', title: $t('Search'), text: $t('Finds pages by title, alias and text. The shortcut is Ctrl K (⌘ K on a Mac).') },
-  { sel: 'work', title: $t('Learn and write'), text: $t('Ask a question to get a reading path, write an article from your sources, or add an article by DOI or address.') },
+  { sel: 'work', group: 'work', title: $t('Learn and write'), text: $t('Ask a question to get a reading path, write a text from your sources, or add an article by DOI or address.') },
+  // Писане с wiki: на самия екран, защото там са важните избори (не в архива за четене, където екранът го няма)
+  ...(window.LIB_STATIC ? [] : [
+    { sel: 'write-kind', route: '#/write', title: $t('Write with the wiki'), text: $t('Choose the kind of text: a scientific article, an essay, popular science, a literature review or fiction. Then write the topic or the question.') },
+    { sel: 'write-who', route: '#/write', title: $t('Who writes, and how freely'), text: $t('The quick draft arranges an article without {ai}. Light, Medium and Powerful let {ai} write; then you also choose the length and the creativity, from 1 (strict) to 5 (bold). Creativity changes the style and the interpretation: the facts and the citations always come only from your sources.') },
+    { sel: 'write-blank', route: '#/write', title: $t('Your own text'), text: $t('“Blank document” opens an empty text that you write yourself. In the editor, click the title to change it; in “Preview”, point at a paragraph to change it, rewrite it with {ai} or add a new one after it. The card “Help from {ai}” shows which areas and topics are used, and you can change them.') },
+  ]),
   { sel: 'lib', title: $t('Library'), text: $t('The index of everything, the log of what the AI changed, the link map and the areas of knowledge.') },
   { sel: 'cols', title: $t('Collections'), text: $t('Pages grouped by type, by tag, or in lists you build yourself. The plus sign makes a new one.') },
   { sel: 'settings', title: $t('Settings'), text: $t('Choose the AI model, switch between normal and safe mode, set the name of your local site, back up and update.') },
@@ -1643,7 +1651,10 @@ const TourOverlay = defineComponent({
     card() {
       const r = this.rect; const w = Math.min(340, innerWidth - 32);
       if (!r || innerWidth < 1024) return { width: w + 'px', left: (innerWidth - w) / 2 + 'px', bottom: '16px' };
-      return { width: w + 'px', left: Math.min(r.right + 16, innerWidth - w - 16) + 'px', top: Math.max(16, Math.min(r.top - 8, innerHeight - 260)) + 'px' };
+      // вдясно от елемента, ако има място (менюто); иначе под него или над него (елементите на страницата)
+      if (r.right + 16 + w <= innerWidth - 16) return { width: w + 'px', left: r.right + 16 + 'px', top: Math.max(16, Math.min(r.top - 8, innerHeight - 260)) + 'px' };
+      const left = Math.max(16, Math.min(r.left, innerWidth - w - 16)) + 'px';
+      return r.bottom + 280 <= innerHeight ? { width: w + 'px', left, top: r.bottom + 14 + 'px' } : { width: w + 'px', left, bottom: Math.max(16, innerHeight - r.top + 14) + 'px' };
     },
     hole() {
       const r = this.rect; if (!r) return null;
@@ -1651,16 +1662,28 @@ const TourOverlay = defineComponent({
     },
   },
   mounted() { this.place(); addEventListener('resize', this.place); addEventListener('keydown', this.key); },
-  unmounted() { removeEventListener('resize', this.place); removeEventListener('keydown', this.key); },
+  unmounted() {
+    removeEventListener('resize', this.place); removeEventListener('keydown', this.key); clearTimeout(this.findT);
+    if (this.back != null) location.hash = this.back; // обиколката е отваряла друг екран: връщане там, откъдето е тръгнала
+  },
   methods: {
     place() {
-      this.$nextTick(() => {
-        const el = document.querySelector(`[data-tour="${this.step.sel}"]`);
+      const s = this.step;
+      if (s.route && !location.hash.startsWith(s.route)) { if (this.back == null) this.back = location.hash || '#/'; location.hash = s.route; }
+      if (s.group && this.$root.navOpen && !this.$root.navOpen(s.group)) this.$root.navToggle(s.group);
+      clearTimeout(this.findT);
+      const t0 = Date.now();
+      // Екранът може още да се зарежда: елементът се чака до 3 секунди, после картата стои в средата
+      const find = () => {
+        if (this.step !== s) return;
+        const el = document.querySelector(`[data-tour="${s.sel}"]`);
+        if ((!el || !el.offsetParent) && Date.now() - t0 < 3000) { this.rect = null; this.findT = setTimeout(find, 100); return; }
         if (!el || !el.offsetParent) { this.rect = null; return; }
-        el.scrollIntoView({ block: 'nearest' });
+        el.scrollIntoView({ block: 'nearest', behavior: 'instant' });
         const r = el.getBoundingClientRect();
         this.rect = r.width && r.left >= 0 && r.right <= innerWidth ? r : null;
-      });
+      };
+      this.$nextTick(find);
     },
     go(d) { const n = this.i + d; if (n < 0) return; if (n >= this.steps.length) return this.$emit('close'); this.i = n; this.place(); },
     key(e) { if (e.key === 'Escape') this.$emit('close'); else if (e.key === 'ArrowRight') this.go(1); else if (e.key === 'ArrowLeft') this.go(-1); },
@@ -1895,34 +1918,116 @@ const FindView = defineComponent({
   },
 });
 
+// Видове текст и креативност (същите стойности като GENRES и CREATIVITY_DEFAULT в scripts/write.js)
+const GENRE_LIST = [
+  { id: 'article', label: $t('Scientific article'), hint: $t('Abstract, keywords, introduction, theoretical framework, analysis, discussion, conclusion and a bibliography in APA 7.'), ph: $t('The topic or question, e.g. What caused the First World War and what do historians say about it') },
+  { id: 'essay', label: $t('Essay'), hint: $t('A personal, reasoned text: one line of thought, counterarguments and a clear position. Citations in APA 7 and a bibliography.'), ph: $t('The question of the essay, e.g. Can a war be just?') },
+  { id: 'popular', label: $t('Popular science'), hint: $t('For a wide audience: lively language, examples, every term explained. Fewer citations and a bibliography.'), ph: $t('What should the reader understand, e.g. How does memory work') },
+  { id: 'review', label: $t('Literature review'), hint: $t('Who claims what: themes, agreements and differences between the authors, a table of the positions, gaps and a bibliography.'), ph: $t('The field of the review, e.g. Theories of motivation') },
+  { id: 'story', label: $t('Fiction'), hint: $t('A short story with characters and a plot built on the ideas of the library. No citations in the text: the sources are listed at the end under “Based on”.'), ph: $t('What the story is about, e.g. A day in the life of a medieval monk who copies books') },
+];
+const CREATIVITY = [
+  { n: 1, label: $t('Strict'), hint: $t('Plain, precise language. Stays as close as possible to the texts, without its own interpretation.') },
+  { n: 2, label: $t('Restrained'), hint: $t('Clear language with a little colour. Connects the ideas only where the texts connect them.') },
+  { n: 3, label: $t('Balanced'), hint: $t('Lively language with images and examples. Its own interpretation where it follows from the texts.') },
+  { n: 4, label: $t('Free'), hint: $t('Expressive language and metaphors. Bold interpretations, an unusual angle, unexpected connections between the authors.') },
+  { n: 5, label: $t('Bold'), hint: $t('An original, daring text with a strong voice and play with form. Hypotheses presented as its own reading.') },
+];
+const CREATIVITY_DEFAULT = { article: 2, essay: 3, popular: 3, review: 1, story: 4 };
+const genreOk = (g) => (GENRE_LIST.some((x) => x.id === g) ? g : 'article');
+const creativityFor = (g) => { const n = Number(store.get('writecreat:' + g, '')); return n >= 1 && n <= 5 ? n : CREATIVITY_DEFAULT[g] || 2; };
+const reEsc = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+const wordCount = (s) => (String(s).match(/[\p{L}\p{N}]+/gu) || []).length;
+
+/**
+ * Текстът на черновата на блокове: абзаци, заглавия и списъци, разделени с празен ред (код в ``` остава цял).
+ * Всеки блок пази началото и края си в Markdown-а, за да се сменя точно той. Първият ред „# …“ е заглавието.
+ * Блоковете от библиографията (bibRe) нататък са с bib: true: тях ги попълва сървърът.
+ */
+function splitBlocks(md, bibRe) {
+  const out = []; let pos = 0, cur = null, fence = false;
+  for (const line of md.split('\n')) {
+    const start = pos, end = pos + line.length; pos = end + 1;
+    if (/^\s*(```|~~~)/.test(line)) fence = !fence;
+    if (!line.trim() && !fence) { if (cur) { out.push(cur); cur = null; } continue; }
+    if (cur) cur.end = end; else cur = { start, end };
+  }
+  if (cur) out.push(cur);
+  // заглавието: само първият ред на първия блок, ако е „# …“; остатъкът от блока е отделен абзац
+  if (out[0] && /^#\s/.test(md.slice(out[0].start, out[0].end))) {
+    const first = out[0], nl = md.indexOf('\n', first.start);
+    if (nl >= 0 && nl < first.end) { out.splice(1, 0, { start: nl + 1, end: first.end }); first.end = nl; }
+    first.title = true;
+  }
+  let inBib = false;
+  return out.map((b, i) => {
+    const text = md.slice(b.start, b.end).replace(/\r$/, '');
+    if (/^##\s/.test(text)) inBib = !!bibRe && bibRe.test(text.split('\n')[0].replace(/\r$/, ''));
+    return { i, start: b.start, end: b.end, text, title: !!b.title, heading: /^#{1,6}\s/.test(text) && !text.includes('\n'), bib: inBib };
+  });
+}
+
 const WriteView = defineComponent({
   template: '#tpl-write',
   props: { id: String, pages: Array },
   emits: ['toast'],
-  data: () => ({
-    ...shared, LEVELS, hints: WRITE_HINTS,
-    topic: '', level: store.get('writelevel', 'local'), length: store.get('writelength', 'medium'), voice: store.get('writevoice', ''),
-    loading: false, waited: 0, error: '', drafts: [], filter: '',
-    doc: null, body: '', saved: '', mode: 'preview', saving: false, loadError: false, warnings: [],
-    cont: { open: false, instruction: '', words: 600, level: store.get('writelevel', 'local') === 'local' ? 'medium' : store.get('writelevel', 'medium'), busy: false, waited: 0, error: '', prev: null, note: '' },
-  }),
+  data: () => {
+    const genre = genreOk(store.get('writegenre', 'article'));
+    const lvl = store.get('writelevel', 'local');
+    return {
+      ...shared, LEVELS, hints: WRITE_HINTS, GENRE_LIST, CREATIVITY, scope,
+      genre, creativity: creativityFor(genre),
+      topic: '', level: genre !== 'article' && lvl === 'local' ? 'medium' : lvl, length: store.get('writelength', 'medium'), voice: store.get('writevoice', ''),
+      loading: false, waited: 0, error: '', drafts: [], filter: '', blankBusy: false,
+      doc: null, body: '', saved: '', savedMeta: '', mode: 'preview', saving: false, loadError: false, warnings: [], bibHeads: [],
+      // помощта от модела в редактора: вид, креативност и ниво важат за дописването и за абзаците
+      ed: { genre: 'article', creativity: 2, level: store.get('writeedlevel', lvl === 'local' ? 'medium' : lvl), open: store.get('write:aiopen', '1') !== '0' },
+      undoStack: [], flash: null, hover: -1, active: -1, titleEdit: null,
+      blk: { open: '', text: '', instruction: '', words: 150, own: true, busy: false, waited: 0, error: '' },
+      cont: { instruction: '', words: 600, busy: false, waited: 0, error: '', note: '' },
+    };
+  },
   computed: {
-    dirty() { return !!this.doc && this.body !== this.saved; },
+    levels() { return this.genre === 'article' ? LEVELS : LEVELS.filter((l) => l.id !== 'local'); },
+    aiLevels() { return LEVELS.filter((l) => l.id !== 'local'); },
+    genreInfo() { return GENRE_LIST.find((g) => g.id === this.genre) || GENRE_LIST[0]; },
+    creatInfo() { return CREATIVITY[this.creativity - 1] || CREATIVITY[1]; },
+    edCreatInfo() { return CREATIVITY[this.ed.creativity - 1] || CREATIVITY[1]; },
+    metaKey() { return JSON.stringify([this.ed.genre, this.ed.creativity, [...scope.areas].sort(), [...scope.focus].sort(), this.doc?.cites || []]); },
+    dirty() { return !!this.doc && (this.body !== this.saved || this.metaKey !== this.savedMeta); },
+    busyAny() { return this.blk.busy || this.cont.busy; },
     // Статията е на езика на библиотеката (contentLang), а не на езика на интерфейса: при разминаване се казва предварително
     langNote() {
       if (!I18N.contentLang || I18N.contentLang === I18N.lang) return '';
       const name = (code) => I18N.locales.find((l) => l.code === code)?.name || code;
       return $t('The article will be in {0}, the language of the library. The interface is in {1}. To make them the same, choose the language in the sidebar language menu.', [name(I18N.contentLang), name(I18N.lang)]);
     },
-    docTitle() { return this.body.match(/^#\s+(.+)$/m)?.[1] || this.doc?.title || ''; },
-    wordsN() { return (this.body.match(/[\p{L}\p{N}]+/gu) || []).length; },
-    html() {
-      return renderMarkdown(this.body, new Set(), new Map(), {});
+    docTitle() { return this.body.match(/^#\s+(.+)$/m)?.[1]?.trim() || this.doc?.title || ''; },
+    wordsN() { return wordCount(this.body); },
+    bibRe() {
+      const heads = this.bibHeads.length ? this.bibHeads : ['Bibliography', 'Библиография', 'Based on', 'По мотиви от', 'References'];
+      return new RegExp(`^##[ \\t]*(?:${heads.map(reEsc).join('|')})[ \\t]*:?[ \\t]*$`, 'i');
+    },
+    blocks() {
+      const f = this.flash;
+      return splitBlocks(this.body, this.bibRe).map((b) => ({ ...b, fresh: !!f && b.start < f.end && b.end > f.start }));
+    },
+    shownBlocks() { return this.blocks.filter((b) => !b.title).map((b) => ({ ...b, html: renderMarkdown(b.text, new Set(), new Map(), {}) })); },
+    titleBlock() { return this.blocks.find((b) => b.title) || null; },
+    // Предложените теми следват това, по което се работи в момента
+    scopeQ() { return (this.blk.instruction || this.cont.instruction || this.docTitle).slice(0, 300); },
+    citedPages() {
+      const by = new Map((this.pages || []).map((p) => [p.slug, p]));
+      return (this.doc?.cites || []).map((s) => ({ slug: s, title: by.get(s)?.title || s, missing: !by.has(s) }));
     },
   },
   watch: {
     id: { immediate: true, handler(id) { id ? this.load() : this.loadList(); } },
     filter() { clearTimeout(this.ft); this.ft = setTimeout(() => this.loadList(), 250); },
+    genre(g) {
+      store.set('writegenre', g); this.creativity = creativityFor(g);
+      if (g !== 'article' && this.level === 'local') this.level = 'medium'; // бързата чернова прави само научна статия
+    },
   },
   mounted() {
     this.onKey = (e) => { if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's' && this.id) { e.preventDefault(); if (this.dirty) this.save(); } };
@@ -1931,13 +2036,18 @@ const WriteView = defineComponent({
   },
   beforeUnmount() {
     window.removeEventListener('keydown', this.onKey); window.removeEventListener('beforeunload', this.onLeave);
-    this.cancel(); this.cancelCont(); clearTimeout(this.ft);
+    this.cancel(); this.cancelCont(); this.cancelBlock(); clearTimeout(this.ft); clearTimeout(this.flashT);
     if (this.dirty) this.save(true); // не губим написаното при излизане от страницата
   },
   methods: {
     levelLabel(id) { return LEVELS.find((l) => l.id === id)?.label || id; },
+    modeLabel(m) { return m === 'local' ? $t('Quick draft') : m === 'blank' ? $t('Own text') : `${AI.name} · ${this.levelLabel(m)}`; },
+    genreLabel(g) { return (GENRE_LIST.find((x) => x.id === g) || GENRE_LIST[0]).label; },
     setLevel(id) { this.level = id; store.set('writelevel', id); },
     setLength(k) { this.length = k; store.set('writelength', k); },
+    setCreativity(n) { this.creativity = n; store.set('writecreat:' + this.genre, String(n)); },
+    setEdLevel(id) { this.ed.level = id; store.set('writeedlevel', id); },
+    toggleHelp() { this.ed.open = !this.ed.open; store.set('write:aiopen', this.ed.open ? '1' : '0'); },
     saveVoice() { store.set('writevoice', this.voice); },
     async removeDraft(d) {
       if (!confirm($t('Delete “{0}”?\n\nThe file is moved to drafts/.trash/ and can be brought back from there.', [d.title]))) return;
@@ -1953,16 +2063,17 @@ const WriteView = defineComponent({
     cancel() { const ac = this.ac; this.ac = null; clearInterval(this.timer); ac?.abort(); this.loading = false; },
     async create() {
       const topic = this.topic.trim(); if (topic.length < 4 || this.loading) return;
-      if (this.level !== 'local' && !(await this.$root.confirmClaude({ kind: 'write', topic, level: this.level, length: this.length, ...scopeBody() }))) return;
+      const ai = this.level !== 'local';
+      if (ai && !(await this.$root.confirmClaude({ kind: 'write', topic, level: this.level, length: this.length, ...scopeBody() }))) return;
       this.cancel(); this.error = ''; this.loading = true; this.waited = 0;
       const ac = new AbortController(); this.ac = ac;
       this.timer = setInterval(() => { this.waited++; }, 1000);
       let out = null, err = '';
-      const voice = this.level === 'local' ? '' : this.voice;
-      if (this.level !== 'local') { this.topic = ''; this.voice = ''; this.saveVoice(); } // изпратено: заглавието и примерният текст се затриват
+      const voice = ai ? this.voice : '';
+      if (ai) { this.topic = ''; this.voice = ''; this.saveVoice(); } // изпратено: заглавието и примерният текст се затриват
       try {
         const r = await api('/api/write', { method: 'POST', headers: { 'content-type': 'application/json' }, signal: ac.signal,
-          body: JSON.stringify({ topic, level: this.level, length: this.length, voice, ...scopeBody() }) });
+          body: JSON.stringify({ topic, genre: this.genre, creativity: this.creativity, level: this.level, length: this.length, voice, ...scopeBody() }) });
         const d = await r.json().catch(() => ({}));
         if (!r.ok) throw new Error(d.error || $t('The server is not responding'));
         out = d;
@@ -1980,18 +2091,113 @@ const WriteView = defineComponent({
       this.$emit('toast', { text: $t('Saved to {0}', [out.path]) });
       location.hash = '#/write/' + out.id;
     },
-    // Дописване с Claude: новият текст влиза в редактора (преди Заключение), записът е твой; „Върни добавеното“ го маха
+    // Празен документ: човекът пише сам; текстът в полето за тема става заглавие
+    async createBlank() {
+      if (this.blankBusy) return;
+      this.blankBusy = true; this.error = '';
+      try {
+        const r = await api('/api/drafts', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ title: this.topic.trim(), genre: this.genre, ...scopeBody() }) });
+        const d = await r.json().catch(() => ({}));
+        if (!r.ok || !d.id) throw new Error(d.error || $t('I could not'));
+        this.topic = '';
+        store.set('writeblank:' + d.id, '1');
+        location.hash = '#/write/' + d.id;
+      } catch (e) { this.error = e.message || $t('Error'); }
+      this.blankBusy = false;
+    },
+
+    // ---------- Редактор ----------
+    pushUndo(prev = this.body) { this.undoStack.push(prev); if (this.undoStack.length > 30) this.undoStack.shift(); },
+    undo() { if (!this.undoStack.length || this.busyAny) return; this.body = this.undoStack.pop(); this.flash = null; this.cont.note = ''; this.closeBlock(); },
+    markFresh(start, end) { this.flash = { start, end }; clearTimeout(this.flashT); this.flashT = setTimeout(() => { this.flash = null; }, 8000); },
+    addCited(list) {
+      const have = new Set(this.doc.cites || []), add = (list || []).map((c) => c.slug).filter((s) => s && !have.has(s));
+      if (add.length) this.doc = { ...this.doc, cites: [...(this.doc.cites || []), ...add] };
+    },
+    startTitle() { if (!this.busyAny) { this.titleEdit = this.docTitle; this.$nextTick(() => this.$refs.titleInput?.focus()); } },
+    saveTitle() {
+      const t = String(this.titleEdit ?? '').replace(/\s+/g, ' ').trim(); this.titleEdit = null;
+      if (!t || t === this.docTitle) return;
+      this.pushUndo();
+      this.body = /^#\s+.*$/m.test(this.body) ? this.body.replace(/^#\s+.*$/m, `# ${t}`) : `# ${t}\n\n${this.body.replace(/^\s+/, '')}`;
+    },
+    openBlock(kind, b) {
+      if (this.busyAny) return;
+      this.blk.open = `${kind}:${b ? b.i : -1}`; this.blk.error = ''; this.blk.instruction = '';
+      this.blk.text = kind === 'edit' ? b.text : ''; this.blk.own = true;
+      this.$nextTick(() => this.$el.querySelector?.('[data-blk-focus]')?.focus());
+    },
+    closeBlock() { if (!this.blk.busy) { this.blk.open = ''; this.blk.error = ''; } },
+    isOpen(kind, b) { return this.blk.open === `${kind}:${b ? b.i : -1}`; },
+    // Ръчна смяна на абзац; празен текст = махане
+    applyEdit(b) {
+      const t = this.blk.text.replace(/\s+$/, '');
+      if (!t.trim()) return this.removeBlock(b);
+      if (t !== b.text) { this.pushUndo(); this.body = this.body.slice(0, b.start) + t + this.body.slice(b.end); this.markFresh(b.start, b.start + t.length); }
+      this.blk.open = '';
+    },
+    // Нов абзац след блока b (без b: в началото, след заглавието, ако има)
+    insertAt(b) { return b ? b.end : (this.titleBlock ? this.titleBlock.end : 0); },
+    insertOwn(b) {
+      const t = this.blk.text.trim(); if (!t) return;
+      const at = this.insertAt(b), sep = at === 0 ? '' : '\n\n', after = this.body.slice(at);
+      this.pushUndo();
+      this.body = this.body.slice(0, at) + sep + t + (at === 0 && after.trim() ? '\n\n' : '') + (after || '\n');
+      this.markFresh(at + sep.length, at + sep.length + t.length);
+      this.blk.open = '';
+    },
+    removeBlock(b) {
+      const before = this.body.slice(0, b.start).replace(/\s+$/, ''), after = this.body.slice(b.end).replace(/^\s+/, '');
+      this.pushUndo();
+      this.body = before && after ? `${before}\n\n${after}` : (before || after) + '\n';
+      this.blk.open = ''; this.flash = null;
+      this.$emit('toast', { text: $t('The paragraph was removed. “Undo” brings it back.') });
+    },
+    cancelBlock() { const ac = this.blkAc; this.blkAc = null; clearInterval(this.blkTimer); ac?.abort(); this.blk.busy = false; },
+    // Абзац с модела: rewrite = пренаписване на b, insert = нов абзац след b. Резултатът влиза в текста без запис.
+    async aiBlock(action, b) {
+      const k = this.blk; if (k.busy || this.cont.busy || !this.doc) return;
+      const at = action === 'rewrite' ? b : null;
+      const start = at ? b.start : (b ? b.start : 0), end = at ? b.end : this.insertAt(b);
+      const words = at ? wordCount(b.text) : k.words;
+      const topic = k.instruction.trim() || (at ? b.text.slice(0, 200) : this.docTitle);
+      if (!(await this.$root.confirmClaude({ kind: 'write', topic, level: this.ed.level, words, ...scopeBody() }))) return;
+      this.cancelBlock(); k.busy = true; k.error = ''; k.waited = 0;
+      const ac = new AbortController(); this.blkAc = ac;
+      this.blkTimer = setInterval(() => { k.waited++; }, 1000);
+      const sent = this.body;
+      let out = null, err = '';
+      try {
+        const r = await api('/api/drafts/' + encodeURIComponent(this.doc.id) + '/block', { method: 'POST', headers: { 'content-type': 'application/json' }, signal: ac.signal,
+          body: JSON.stringify({ body: sent, action, start, end, target: at ? sent.slice(start, end) : '', instruction: k.instruction, words, level: this.ed.level, genre: this.ed.genre, creativity: this.ed.creativity, ...scopeBody() }) });
+        const d = await r.json().catch(() => ({}));
+        if (!r.ok) throw new Error(d.error || $t('The server is not responding'));
+        out = d;
+      } catch (e) { err = e.name === 'AbortError' ? '' : (e.message || $t('Error')); }
+      if (this.blkAc !== ac) return;
+      clearInterval(this.blkTimer); this.blkAc = null; k.busy = false;
+      if (err) { k.error = err; return; }
+      if (!out) return;
+      if (this.body !== sent) { k.error = $t('The text changed while {ai} was writing, so the result was not put in. Try again.'); return; }
+      this.pushUndo(sent); this.body = out.markdown; this.mode = 'preview';
+      this.markFresh(out.start, out.end); this.addCited(out.cited);
+      if (out.warnings?.length) this.warnings = [...this.warnings, ...out.warnings];
+      k.open = ''; k.instruction = '';
+      this.$emit('toast', { text: action === 'rewrite' ? $t('The paragraph was rewritten. Review it and press “Save”.') : $t('About {0} words were added. Review them and press “Save”.', [out.added]) });
+    },
+    // Дописване с модела: новият текст влиза в редактора (в научна статия преди Заключение), записът е твой
     async continueDoc() {
-      const c = this.cont; if (c.busy || !this.doc) return;
+      const c = this.cont; if (c.busy || this.blk.busy || !this.doc) return;
       const topic = c.instruction.trim() || this.docTitle;
-      if (!(await this.$root.confirmClaude({ kind: 'write', topic, level: c.level, length: c.words <= 800 ? 'short' : 'medium', ...scopeBody() }))) return;
+      if (!(await this.$root.confirmClaude({ kind: 'write', topic, level: this.ed.level, words: c.words, ...scopeBody() }))) return;
       this.cancelCont(); c.busy = true; c.error = ''; c.note = ''; c.waited = 0;
       const ac = new AbortController(); this.contAc = ac;
       this.contTimer = setInterval(() => { c.waited++; }, 1000);
+      const sent = this.body;
       let out = null, err = '';
       try {
         const r = await api('/api/drafts/' + encodeURIComponent(this.doc.id) + '/continue', { method: 'POST', headers: { 'content-type': 'application/json' }, signal: ac.signal,
-          body: JSON.stringify({ body: this.body, instruction: c.instruction, words: c.words, level: c.level, ...scopeBody() }) });
+          body: JSON.stringify({ body: sent, instruction: c.instruction, words: c.words, level: this.ed.level, genre: this.ed.genre, creativity: this.ed.creativity, ...scopeBody() }) });
         const d = await r.json().catch(() => ({}));
         if (!r.ok) throw new Error(d.error || $t('The server is not responding'));
         out = d;
@@ -2000,14 +2206,15 @@ const WriteView = defineComponent({
       clearInterval(this.contTimer); this.contAc = null; c.busy = false;
       if (err) { c.error = err; return; }
       if (!out) return;
-      c.prev = this.body; this.body = out.markdown; this.mode = 'preview'; c.instruction = '';
+      if (this.body !== sent) { c.error = $t('The text changed while {ai} was writing, so the result was not put in. Try again.'); return; }
+      this.pushUndo(sent); this.body = out.markdown; this.mode = 'preview'; c.instruction = ''; this.flash = null;
+      this.addCited(out.cited);
       c.note = $t('About {0} words were added ({1}). Review and press “Save”.', [out.added, out.placed]);
       if (out.warnings?.length) this.warnings = [...this.warnings, ...out.warnings];
     },
     cancelCont() { const ac = this.contAc; this.contAc = null; clearInterval(this.contTimer); ac?.abort(); this.cont.busy = false; },
-    undoCont() { if (this.cont.prev == null) return; this.body = this.cont.prev; this.cont.prev = null; this.cont.note = ''; },
     async load() {
-      this.cancelCont(); this.cont.prev = null; this.cont.note = '';
+      this.cancelCont(); this.cancelBlock(); this.cont.note = ''; this.blk.open = ''; this.undoStack = []; this.flash = null; this.titleEdit = null;
       this.doc = null; this.loadError = false; this.mode = 'preview';
       let w = []; try { w = JSON.parse(store.get('writewarn:' + this.id, '[]')); } catch {}
       this.warnings = w; store.set('writewarn:' + this.id, '[]');
@@ -2015,17 +2222,29 @@ const WriteView = defineComponent({
         const r = await fetch('/api/drafts/' + encodeURIComponent(this.id));
         if (!r.ok) { this.loadError = true; return; }
         const d = await r.json();
-        this.doc = d; this.body = d.body; this.saved = d.body;
+        const blank = store.get('writeblank:' + this.id, '') === '1';
+        if (blank) store.set('writeblank:' + this.id, '');
+        const body = blank ? d.body.replace(/\s*$/, '\n\n') : d.body; // празният документ се отваря с курсор на нов ред
+        this.doc = d; this.body = body; this.saved = body; this.bibHeads = d.bibHeads || [];
+        this.ed.genre = genreOk(d.genre); this.ed.creativity = d.creativity || CREATIVITY_DEFAULT[this.ed.genre];
+        // Обхватът, с който е писан текстът, става текущ: вижда се и може да се смени
+        if (d.scope && (d.scope.areas?.length || d.scope.focus?.length)) {
+          scope.areas = [...(d.scope.areas || [])]; scope.focus = [...(d.scope.focus || [])]; store.set('scope:areas', JSON.stringify(scope.areas));
+        }
+        this.savedMeta = this.metaKey;
         document.title = $t('{0} · Library', [d.title]);
+        // нов празен документ: веднага място за писане (помощта е свита, без да се променя запомненото)
+        if (blank) { this.mode = 'edit'; this.ed.open = false; this.$nextTick(() => { const t = this.$refs.raw; if (t) { t.focus(); t.setSelectionRange(t.value.length, t.value.length); } }); }
       } catch { this.loadError = true; }
     },
     async save(quiet = false) {
       if (!this.doc || this.saving) return;
-      const id = this.doc.id, body = this.body;
+      const id = this.doc.id, body = this.body, key = this.metaKey;
+      const meta = { genre: this.ed.genre, creativity: this.ed.creativity, scope: scopeBody(), cites: this.doc.cites || [] };
       this.saving = true;
       try {
-        const r = await (await api('/api/drafts/' + encodeURIComponent(id), { method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ body }) })).json();
-        if (r.ok) { this.saved = body; this.doc = { ...this.doc, title: r.title, words: r.words, updated: r.updated }; if (!quiet) this.$emit('toast', { text: $t('Saved.') }); }
+        const r = await (await api('/api/drafts/' + encodeURIComponent(id), { method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ body, meta }) })).json();
+        if (r.ok) { this.saved = body; this.savedMeta = key; this.doc = { ...this.doc, title: r.title, words: r.words, updated: r.updated }; if (!quiet) this.$emit('toast', { text: $t('Saved.') }); }
         else if (!quiet) this.$emit('toast', { text: r.error || $t('I could not save it'), icon: 'alert' });
       } catch { if (!quiet) this.$emit('toast', { text: $t('The server is not responding'), icon: 'alert' }); }
       this.saving = false;
@@ -2038,7 +2257,7 @@ const WriteView = defineComponent({
     },
     async remove() {
       if (!confirm($t('Delete “{0}”? The file is moved to drafts/.trash/ and can be brought back from there.', [this.docTitle]))) return;
-      this.saved = this.body; // без автоматичен запис при излизане
+      this.saved = this.body; this.savedMeta = this.metaKey; // без автоматичен запис при излизане
       const r = await (await api('/api/drafts/' + encodeURIComponent(this.doc.id), { method: 'DELETE' })).json();
       this.$emit('toast', r.ok ? { text: $t('Moved to drafts/.trash/') } : { text: r.error || $t('I could not'), icon: 'alert' });
       if (r.ok) location.hash = '#/write';

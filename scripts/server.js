@@ -10,7 +10,7 @@ import { createAgent, legacySources, PATH_LEVELS } from './agent.js';
 import { askAI } from './ai.js';
 import { aiConfig, aiPublic, aiSettings, saveAiConfig, setKey, PRESETS } from './providers.js';
 import { listModels, manualList, manualAnswer, manualCancel, onManual, clipTokens, errorText } from './llm.js';
-import { buildLocal, writeWithClaude, continueWithClaude,saveDraft, listDrafts, readDraft, updateDraft, trashDraft, LENGTHS } from './write.js';
+import { buildLocal, writeWithClaude, continueWithClaude, blockWithClaude, saveDraft, createBlank, listDrafts, readDraft, updateDraft, trashDraft, LENGTHS, GENRES, creativityOf, bibHeads } from './write.js';
 import { askAboutPage, planConspect, proposeChange, applyProposal, saveAnswer, proposeReplace, locateForEdit, applyManualEdit, applyParagraphDelete, applyLink, renamePage } from './improve.js';
 import { fold, findDupes, planMerge, applyMerge, ignorePair, normalizeAuthors } from './merge.js';
 import { planMergeBook, applyMergeBook } from './merge-sources.js';
@@ -538,14 +538,20 @@ app.get('/api/topics', (req, res) => {
   res.json(list.slice(0, 14).map((p) => ({ slug: p.slug, title: String(p.data.title || p.slug), type: p.data.type, area: AREAS.get(p.slug)?.area || null, backlinks: ctx.backlinks.get(p.slug)?.length || 0 })));
 });
 
-// ---------- Писане с wiki: научна статия от страниците на библиотеката ----------
-// Бърза чернова (без Claude) или текст от Claude (лек, среден, мощен). Готовият текст се записва в drafts/<id>.md.
+// ---------- Писане с wiki: текст от страниците на библиотеката ----------
+// Вид текст (научна статия, есе, научно-популярна статия, обзор, художествен текст) и креативност от 1 до 5.
+// Бърза чернова (без Claude, само научна статия), текст от Claude (лек, среден, мощен) или празен документ.
+// Готовият текст се записва в drafts/<id>.md.
 app.use(['/api/write', '/api/drafts'], express.json({ limit: '4mb' }));
+const writeHints = (sc, scored, ctx) => [scopeNote(sc, ctx.pages), scored.slice(0, 30).map((s) => `${s.p.slug} | ${s.p.data.type} | ${String(s.p.data.title || s.p.slug)}`).join('\n')].filter(Boolean).join('\n\n');
+const genreParam = (v, fallback = 'article') => (GENRES.includes(v) ? v : fallback);
 app.post('/api/write', async (req, res) => {
   const b = req.body || {}, topic = clipText(b.topic, 400).trim().replace(/\s+/g, ' ');
   const level = b.level === 'local' || PATH_LEVELS[b.level] ? b.level : 'local';
   const length = LENGTHS[b.length] ? b.length : 'medium';
+  const genre = genreParam(b.genre), creativity = creativityOf(b.creativity, genre), voice = clipText(b.voice, 1500).trim();
   if (topic.length < 4) return res.status(400).json({ error: $t('Write the topic.') });
+  if (level === 'local' && genre !== 'article') return res.status(400).json({ error: $t('The quick draft can only arrange a scientific article. Choose a {ai} level.') });
   const sc = scopeOf(b), { scored, ctx } = rank(topic, sc);
   let r;
   if (level === 'local') {
@@ -554,31 +560,55 @@ app.post('/api/write', async (req, res) => {
   } else {
     const ac = new AbortController();
     res.on('close', () => { if (!res.writableEnded) ac.abort(); });
-    const hints = [scopeNote(sc, ctx.pages), scored.slice(0, 30).map((s) => `${s.p.slug} | ${s.p.data.type} | ${String(s.p.data.title || s.p.slug)}`).join('\n')].filter(Boolean).join('\n\n');
-    r = await writeWithClaude({ topic, level, length, voice: clipText(b.voice, 1500).trim(), hints, ranked: scored.slice(0, 30).map((s) => s.p), pages: ctx.pages, signal: ac.signal });
+    r = await writeWithClaude({ topic, genre, creativity, level, length, voice, hints: writeHints(sc, scored, ctx), ranked: scored.slice(0, 30).map((s) => s.p), pages: ctx.pages, signal: ac.signal });
     if (res.writableEnded || res.destroyed) return;
     if (!r.ok) return fail(res, r);
   }
-  res.json({ ...saveDraft({ markdown: r.markdown, topic, level, length, cited: r.cited, warnings: r.warnings }), level });
+  res.json({ ...saveDraft({ markdown: r.markdown, topic, level, length, genre, creativity, scope: sc, voice: level === 'local' ? '' : voice, cited: r.cited, warnings: r.warnings }), level });
 });
-// Дописване на записана статия с Claude: връща новия текст за преглед, записът е отделен (PUT)
+// Празен документ: само заглавие; човекът пише сам и иска помощ по абзаци
+app.post('/api/drafts', (req, res) => {
+  const b = req.body || {};
+  res.json({ ok: true, ...createBlank({ title: clipText(b.title, 200), genre: genreParam(b.genre), scope: scopeOf(b) }) });
+});
+// Дописване на записан текст с Claude: връща новия текст за преглед, записът е отделен (PUT)
 app.post('/api/drafts/:id/continue', async (req, res) => {
   const b = req.body || {}, d = readDraft(req.params.id);
   if (!d) return res.status(404).json({ error: $t('There is no such text') });
   if (!PATH_LEVELS[b.level]) return res.status(400).json({ error: $t('Choose a {ai} level.') });
   const body = clipText(b.body, 200000) || d.body, instruction = clipText(b.instruction, 1000).trim();
   const n = Math.min(1500, Math.max(200, Number(b.words) || 600));
+  const genre = genreParam(b.genre, d.genre), creativity = creativityOf(b.creativity ?? d.creativity, genre);
   const sc = scopeOf(b), { scored, ctx } = rank(instruction || d.topic || d.title, sc);
   const ac = new AbortController();
   res.on('close', () => { if (!res.writableEnded) ac.abort(); });
-  const hints = [scopeNote(sc, ctx.pages), scored.slice(0, 30).map((s) => `${s.p.slug} | ${s.p.data.type} | ${String(s.p.data.title || s.p.slug)}`).join('\n')].filter(Boolean).join('\n\n');
-  const r = await continueWithClaude({ body, title: d.title, instruction, level: b.level, words: n, hints, ranked: scored.slice(0, 30).map((s) => s.p), pages: ctx.pages, signal: ac.signal });
+  const r = await continueWithClaude({ body, title: d.title, instruction, genre, creativity, level: b.level, voice: d.voice, words: n, hints: writeHints(sc, scored, ctx), ranked: scored.slice(0, 30).map((s) => s.p), pages: ctx.pages, signal: ac.signal });
+  if (res.writableEnded || res.destroyed) return;
+  r.ok ? res.json(r) : fail(res, r);
+});
+// Един абзац с Claude: пренаписване на [start, end) или нов абзац след end. Връща новото тяло за преглед, без запис.
+app.post('/api/drafts/:id/block', async (req, res) => {
+  const b = req.body || {}, d = readDraft(req.params.id);
+  if (!d) return res.status(404).json({ error: $t('There is no such text') });
+  if (!PATH_LEVELS[b.level]) return res.status(400).json({ error: $t('Choose a {ai} level.') });
+  const action = b.action === 'rewrite' ? 'rewrite' : 'insert';
+  const body = clipText(b.body, 200000), start = Number(b.start), end = Number(b.end);
+  // Браузърът праща и самия абзац: ако текстът се е разминал, по-добре отказ, отколкото промяна на друго място
+  if (action === 'rewrite' && body.slice(start, end) !== String(b.target ?? '')) return fail(res, { kind: 'locate', error: $t('The place in the text was not found. Reload the text and try again.') });
+  const instruction = clipText(b.instruction, 1000).trim(), n = Math.min(800, Math.max(40, Number(b.words) || 150));
+  const genre = genreParam(b.genre, d.genre), creativity = creativityOf(b.creativity ?? d.creativity, genre);
+  const near = action === 'rewrite' ? body.slice(start, end) : body.slice(Math.max(0, start), end);
+  const title = body.match(/^#\s+(.+)$/m)?.[1]?.trim() || d.title;
+  const sc = scopeOf(b), { scored, ctx } = rank(`${instruction} ${near.slice(0, 600)} ${title}`.trim(), sc);
+  const ac = new AbortController();
+  res.on('close', () => { if (!res.writableEnded) ac.abort(); });
+  const r = await blockWithClaude({ body, start, end, action, title, instruction, genre, creativity, level: b.level, voice: d.voice, words: n, hints: writeHints(sc, scored, ctx), ranked: scored.slice(0, 30).map((s) => s.p), pages: ctx.pages, signal: ac.signal });
   if (res.writableEnded || res.destroyed) return;
   r.ok ? res.json(r) : fail(res, r);
 });
 app.get('/api/drafts', (req, res) => res.json(listDrafts(String(req.query.q || ''))));
-app.get('/api/drafts/:id', (req, res) => { const d = readDraft(req.params.id); d ? res.json(d) : res.status(404).json({ error: $t('There is no such text') }); });
-app.put('/api/drafts/:id', (req, res) => res.json(updateDraft(req.params.id, req.body?.body)));
+app.get('/api/drafts/:id', (req, res) => { const d = readDraft(req.params.id); d ? res.json({ ...d, bibHeads: bibHeads() }) : res.status(404).json({ error: $t('There is no such text') }); });
+app.put('/api/drafts/:id', (req, res) => res.json(updateDraft(req.params.id, req.body?.body, req.body?.meta)));
 app.delete('/api/drafts/:id', (req, res) => res.json(trashDraft(req.params.id)));
 
 // ---------- Дубликати по изписване и обединяване ----------

@@ -40,6 +40,12 @@ function answer(prompt) {
     return JSON.stringify({ updates });
   }
   if (/reading assistant/.test(prompt)) return 'According to the source, entropy measures disorder ([[sample-2020-note]], p. ?).';
+  // Писане с wiki: художествен текст (цитат в текста, който трябва да изчезне, и списък „Based on“), абзац, дописване
+  const filler = 'The old monk copied the pages slowly and thought about how order fades in a closed room. '.repeat(9);
+  if (/You are writing a literary text/.test(prompt)) return `# The Copyist\n\n${filler}He remembered that disorder grows ([[sample-2020-note]], p. 1).\n\n* * *\n\n${filler}\n\n## Based on\n\n- [[sample-2020-note]]\n- [[no-such-page]]`;
+  if (/TASK: rewrite the marked passage/.test(prompt)) return 'A rewritten paragraph: entropy measures disorder ([[sample-2020-note]], p. 2).';
+  if (/TASK: write a NEW passage for the marked place/.test(prompt)) return '```markdown\nA new paragraph about order and work ([[sample-2020-note]], p. 3).\n```';
+  if (/TASK: write a NEW text that is added to the end of the text/.test(prompt)) return `## Engines\n\n${'Engines turn the flow of heat into work and leave more disorder behind. '.repeat(6)}([[sample-2020-note]], p. 4).`;
   return 'Fake answer.';
 }
 function fakeModel() {
@@ -54,7 +60,7 @@ function fakeModel() {
       }
       let j = {}; try { j = JSON.parse(body); } catch {}
       const prompt = String(j.messages?.at(-1)?.content || '');
-      calls.push({ url: req.url, auth: req.headers.authorization || null, model: j.model, prompt, max: j.max_tokens || j.max_completion_tokens || null, effort: j.reasoning_effort || null });
+      calls.push({ url: req.url, auth: req.headers.authorization || null, model: j.model, prompt, max: j.max_tokens || j.max_completion_tokens || null, effort: j.reasoning_effort || null, temp: j.temperature ?? null, system: j.messages?.[0]?.role === 'system' ? j.messages[0].content : null });
       res.setHeader('content-type', 'application/json');
       // Грешките на Google, както ги връща крайната точка, съвместима с OpenAI (масив с един обект)
       const google = (code, status, message, extra = {}) => { res.statusCode = code; res.end(JSON.stringify([{ error: { code, message, status, ...extra } }])); };
@@ -334,4 +340,105 @@ test(T('ai', 'The agent cannot read the file with the keys', 'Агентът н�
   const { reasonToBlock } = await import(pathToFileURL(path.join(box.root, 'scripts', 'guard-read.js')).href);
   assert.ok(reasonToBlock({ tool_name: 'Read', tool_input: { file_path: path.join(box.root, '.library-secrets.json') } }, box.root));
   assert.ok(reasonToBlock({ tool_name: 'Grep', tool_input: { path: box.root, glob: '.library-secrets*' } }, box.root));
+});
+
+// ---------- Писане с wiki: видове текст, креативност, празен документ, абзаци ----------
+const useFakeModel = () => setProvider({ provider: 'openai-compatible', key: KEY, profile: { baseUrl: `http://127.0.0.1:${modelPort}/v1`, models: { light: 'fake-small', medium: 'fake-big', strong: '' }, context: 16000, name: 'Test model' } });
+
+test(T('ai', 'Fiction: the creativity becomes the temperature, the story has no citations and its sources are listed under “Based on”', 'Художествен текст: креативността става температура, в разказа няма цитати, а източниците са под „По мотиви от“'), async () => {
+  await useFakeModel();
+  const quick = await api(srv.port, 'POST', '/api/write', { topic: 'A monk and entropy', level: 'local', genre: 'story' });
+  assert.equal(quick.status, 400, 'the quick draft only arranges a scientific article');
+  const r = await api(srv.port, 'POST', '/api/write', { topic: 'A monk and entropy', level: 'medium', length: 'short', genre: 'story', creativity: 5, areas: ['Physics'] });
+  assert.equal(r.status, 200, r.body);
+  const c = calls.filter((x) => /You are writing a literary text/.test(x.prompt)).at(-1);
+  assert.equal(c.temp, 1, 'creativity 5 is sent as temperature 1');
+  assert.match(c.prompt, /CREATIVITY 5 of 5/);
+  assert.match(c.prompt, /Do NOT put citations or page numbers inside the story/);
+  assert.match(c.system, /careful writer/, 'writing has its own system prompt');
+  const d = (await api(srv.port, 'GET', `/api/drafts/${r.json.id}`)).json;
+  assert.equal(d.genre, 'story');
+  assert.equal(d.creativity, 5);
+  assert.deepEqual(d.scope, { areas: ['Physics'], focus: [] }, 'the scope it was written with is kept');
+  assert.ok(d.bibHeads.includes('Based on') && d.bibHeads.includes('Библиография'), 'the editor learns the bibliography headings of every language');
+  const [story, list] = d.body.split(/^## Based on\s*$/m);
+  assert.ok(list, 'there is a “Based on” section');
+  assert.doesNotMatch(story, /\[\[|Sample, 2020|p\. 1\)/, 'no citations are left in the story');
+  assert.match(story, /disorder grows\./);
+  assert.match(list, /Sample, A\. \(2020\)\. \*Sample note\*\./);
+  assert.equal((d.body.match(/^## /gm) || []).length, 1, 'the list written by the model is replaced, not repeated');
+  assert.ok(r.json.warnings.some((w) => /no-such-page/.test(w)), JSON.stringify(r.json.warnings));
+});
+
+test(T('ai', 'A blank document: own text, a paragraph rewritten and a paragraph added, with one bibliography in any language', 'Празен документ: собствен текст, пренаписан и добавен абзац, с една библиография на всеки език'), async () => {
+  await useFakeModel();
+  const b = await api(srv.port, 'POST', '/api/drafts', { title: 'my own text', genre: 'essay' });
+  assert.equal(b.json.ok, true, b.body);
+  const id = b.json.id;
+  assert.match((await api(srv.port, 'GET', `/api/drafts/${id}`)).json.body, /^# My own text\s*$/);
+  const body = '# My own text\n\nFirst paragraph by me.\n\nSecond paragraph by me.\n\n## Библиография\n\nOld, B. (1999). *Old book*.\n';
+  const put = await api(srv.port, 'PUT', `/api/drafts/${id}`, { body, meta: { creativity: 4, scope: { areas: ['Physics'], focus: [] }, genre: 'nonsense' } });
+  assert.equal(put.json.ok, true, put.body);
+  const saved = (await api(srv.port, 'GET', `/api/drafts/${id}`)).json;
+  assert.equal(saved.genre, 'essay', 'an unknown kind of text is ignored');
+  assert.equal(saved.creativity, 4);
+  assert.equal(saved.mode, 'blank');
+
+  // пренаписване на втория абзац: креативността идва от текста, ако не е дадена
+  const target = 'Second paragraph by me.', start = body.indexOf(target), end = start + target.length;
+  const rw = await api(srv.port, 'POST', `/api/drafts/${id}/block`, { body, action: 'rewrite', start, end, target, level: 'medium' });
+  assert.equal(rw.status, 200, rw.body);
+  assert.equal(calls.filter((x) => /TASK: rewrite the marked passage/.test(x.prompt)).at(-1).temp, 0.9);
+  assert.match(calls.filter((x) => /TASK: rewrite the marked passage/.test(x.prompt)).at(-1).prompt, /⟦START OF THE PASSAGE TO REWRITE⟧\nSecond paragraph by me\.\n⟦END OF THE PASSAGE⟧/);
+  const md1 = rw.json.markdown;
+  assert.equal(md1.slice(rw.json.start, rw.json.end), 'A rewritten paragraph: entropy measures disorder (Sample, 2020, p. 2).');
+  assert.match(md1, /First paragraph by me\.\n\nA rewritten paragraph/);
+  assert.doesNotMatch(md1, /Second paragraph by me/);
+  assert.equal((md1.match(/^## /gm) || []).length, 1, 'still one bibliography');
+  assert.match(md1, /## Библиография\n\nOld, B\. \(1999\)\. \*Old book\*\.\n\nSample, A\. \(2020\)/, 'the old entry stays, the new one is added');
+
+  // нов абзац след първия
+  const first = 'First paragraph by me.', fs1 = md1.indexOf(first);
+  const ins = await api(srv.port, 'POST', `/api/drafts/${id}/block`, { body: md1, action: 'insert', start: fs1, end: fs1 + first.length, level: 'medium', words: 80, instruction: 'about work' });
+  assert.equal(ins.status, 200, ins.body);
+  const md2 = ins.json.markdown;
+  assert.match(md2, /First paragraph by me\.\n\nA new paragraph about order and work \(Sample, 2020, p\. 3\)\.\n\nA rewritten paragraph/);
+  assert.equal(md2.slice(ins.json.start, ins.json.end), 'A new paragraph about order and work (Sample, 2020, p. 3).');
+  assert.equal((md2.match(/^Sample, A\./gm) || []).length, 1, 'a source is listed once');
+
+  // отказ: текстът се е разминал, или мястото е в библиографията
+  const stale = await api(srv.port, 'POST', `/api/drafts/${id}/block`, { body: md2, action: 'rewrite', start, end, target, level: 'medium' });
+  assert.equal(stale.json.kind, 'locate', stale.body);
+  const bi = md2.indexOf('Old, B.');
+  const inBib = await api(srv.port, 'POST', `/api/drafts/${id}/block`, { body: md2, action: 'insert', start: bi, end: bi + 10, level: 'medium' });
+  assert.equal(inBib.json.kind, 'locate', inBib.body);
+  assert.equal(box.read(`drafts/${id}.md`).includes('A new paragraph'), false, 'nothing is saved until the person presses “Save”');
+});
+
+test(T('ai', 'Two blank documents with the same title keep their own kind of text and creativity', 'Два празни документа със същото заглавие пазят свой вид текст и креативност'), async () => {
+  const a = (await api(srv.port, 'POST', '/api/drafts', { title: '', genre: 'essay' })).json;
+  const b = (await api(srv.port, 'POST', '/api/drafts', { title: '', genre: 'essay' })).json;
+  assert.notEqual(a.id, b.id);
+  assert.equal(box.read(`drafts/${a.id}.md`), box.read(`drafts/${b.id}.md`), 'the two files start with the same text');
+  await api(srv.port, 'PUT', `/api/drafts/${a.id}`, { body: '# Untitled text\n\nMine.\n', meta: { genre: 'story', creativity: 5 } });
+  const second = (await api(srv.port, 'GET', `/api/drafts/${b.id}`)).json;
+  assert.equal(second.genre, 'essay', 'the change of the first one does not leak into the second');
+  assert.equal(second.creativity, 3);
+  assert.equal(second.title, 'Untitled text');
+});
+
+test(T('ai', 'Continuing a scientific article puts the new text before the conclusion and keeps one bibliography, also with Bulgarian headings', 'Дописването на научна статия слага новия текст преди заключението и пази една библиография, и при български заглавия'), async () => {
+  await useFakeModel();
+  const b = await api(srv.port, 'POST', '/api/drafts', { title: 'Entropy', genre: 'article' });
+  const body = '# Entropy\n\n## Увод\n\nIntro text.\n\n## Заключение\n\nThe end.\n\n## Библиография\n\nOld, B. (1999). *Old book*.\n';
+  const r = await api(srv.port, 'POST', `/api/drafts/${b.json.id}/continue`, { body, level: 'medium', words: 200, creativity: 1 });
+  assert.equal(r.status, 200, r.body);
+  assert.equal(calls.filter((x) => /added to the end of the text/.test(x.prompt)).at(-1).temp, 0.2, 'creativity 1 is temperature 0.2');
+  const md = r.json.markdown;
+  assert.ok(md.indexOf('## Engines') > md.indexOf('Intro text.') && md.indexOf('## Engines') < md.indexOf('## Заключение'), md);
+  assert.equal((md.match(/^## Библиография/gm) || []).length, 1, md);
+  assert.match(md, /Old, B\. \(1999\)[\s\S]*Sample, A\. \(2020\)/);
+  const est = await api(srv.port, 'POST', '/api/estimate', { kind: 'write', topic: 'Entropy', level: 'medium', words: 80 });
+  const big = await api(srv.port, 'POST', '/api/estimate', { kind: 'write', topic: 'Entropy', level: 'medium', length: 'long' });
+  assert.ok(est.json.output < big.json.output, 'a paragraph is estimated by its own length');
 });

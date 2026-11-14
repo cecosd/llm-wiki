@@ -82,6 +82,17 @@ test(T('claude', 'Writing an article locally does not call Claude', 'Писан�
   assert.equal(box.claudeCalls().length, n);
 });
 
+test(T('claude', 'Writing with Claude Code: the prompt carries the kind of text, the creativity and how deep to read', 'Писане с Claude Code: промптът носи вида текст, креативността и колко подробно да се чете'), async () => {
+  const r = await api(srv.port, 'POST', '/api/write', { topic: 'Can order last?', level: 'light', genre: 'essay', creativity: 3 });
+  assert.equal(r.json.kind, 'format', 'the fake answer is not a text, so nothing is saved');
+  const call = box.claudeCalls().at(-1);
+  assert.equal(call.args[call.args.indexOf('--allowedTools') + 1], 'Read(./**),Glob,Grep');
+  assert.match(call.stdin, /You are writing an essay/);
+  assert.match(call.stdin, /CREATIVITY 3 of 5 \(balanced\)/);
+  assert.match(call.stdin, /- Work quickly: rely on index\.md/, 'the reading depth of the level is in the prompt');
+  assert.doesNotMatch(call.stdin, /^- $/m, 'no empty rule');
+});
+
 test(T('claude', 'A clear message appears when Claude Code is not signed in', 'При липсващ вход в Claude Code се показва ясно съобщение'), async () => {
   const other = await startServer(box, { FAKE_CLAUDE_MODE: 'auth' });
   try {
