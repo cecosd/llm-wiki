@@ -1,4 +1,4 @@
-// Работа с Claude чрез фалшив claude: проверява се какво приложението праща и как реагира, не качеството на отговора.
+// Working with Claude through a fake claude: what the application sends and how it reacts is checked, not the quality of the answer.
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { T, makeSandbox, startServer, api, seedLibrary, waitFor } from './helpers.js';
@@ -36,6 +36,11 @@ test(T('claude', 'The cost estimate works without calling Claude', 'Оценка
 });
 
 test(T('claude', 'The setup page sees the installed Claude Code and the sign-in', 'Страницата за инсталация вижда инсталирания Claude Code и входа в акаунта'), async () => {
+  // Until a model is chosen, the setup page does not ask for Claude Code at all (it would suggest that Claude is required)
+  const before = (await api(srv.port, 'GET', '/api/setup')).json;
+  assert.equal(before.steps.find((s) => s.id === 'claude'), undefined);
+  assert.equal(before.steps.find((s) => s.id === 'ai').required, false);
+  assert.equal((await api(srv.port, 'POST', '/api/ai', { provider: 'claude-code' })).json.ok, true);
   const { json } = await api(srv.port, 'GET', '/api/setup');
   assert.equal(json.steps.find((s) => s.id === 'claude').ok, true);
   assert.equal(json.steps.find((s) => s.id === 'login').ok, true);

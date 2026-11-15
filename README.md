@@ -1,10 +1,10 @@
-# LLM Wiki: a personal library maintained by Claude Code
+# LLM Wiki: a personal library maintained by an AI model of your choice
 
 English · [Български](README.bg.md) · [Product page](https://cecosd.github.io/llm-wiki/)
 
 Developed by **SDevelopers LTD (ЕсДевелопърс ЕООД)** together with **Claude**. Not published or endorsed by Anthropic.
 
-A local knowledge base for books, papers, articles, tables and notes, built on the *LLM Wiki* pattern by Andrej Karpathy (Karpathy, 2026). You choose what goes in; [Claude Code](https://code.claude.com) reads, summarizes, links and maintains the wiki. A small local web app lets you browse, search, learn by question and write with the library.
+A local knowledge base for books, papers, articles, tables and notes, built on the *LLM Wiki* pattern by Andrej Karpathy (Karpathy, 2026). You choose what goes in; an AI model (Claude Code, another provider, or a model on your own computer) reads, summarizes, links and maintains the wiki. A small local web app lets you browse, search, learn by question and write with the library.
 
 It is not tied to any subject: it works for any kind of text (science, law, history, engineering, literature…).
 
@@ -31,9 +31,9 @@ Three layers: `raw/` (originals), `wiki/` (generated pages), `CLAUDE.md` (the sc
 
 - Node.js 24 or newer
 - A model, chosen inside the app (**Settings → Model**, see “Other models” below): [Claude Code](https://code.claude.com) with your subscription, another provider with a key, a local model (Ollama, LM Studio), or manual copy and paste. **Nothing is required up front**: the installer installs no AI, and Claude Code is needed only if you pick it.
-- Optional: Git (gives the “Undo” button), `pdftotext` from poppler (better PDF text; without it the built-in `unpdf` is used), Obsidian.
+- Optional: Git (gives the “Undo” button and lets the app install new versions for you; the installers add it when it is missing), `pdftotext` from poppler (better PDF text; without it the built-in `unpdf` is used), Obsidian.
 
-> **Privacy.** Everything runs on your machine and the server accepts requests only from `localhost`. When you ask Claude to process a source, the text of that source is sent to Anthropic through Claude Code. Nothing is sent before you confirm; the app shows an estimate of tokens and cost first.
+> **Privacy.** Everything runs on your machine and the server accepts requests only from `localhost`. When you ask the model to process a source, the text of that source goes to the provider you chose (to Anthropic through Claude Code, or to another provider through its API); with a local model or manual copy and paste it does not leave your computer. The program also asks GitHub quietly for the latest version number when it starts, and your model provider for its list of models; this can be turned off in **Settings → Updates**. Nothing is sent before you confirm; the app shows an estimate of tokens and cost first.
 
 ## Quick start
 
@@ -104,10 +104,11 @@ A pull request with a new locale file is welcome.
 - **Collections.** The page types come from the wiki itself, so “Chapters” and any new type appear without code changes. A **smart collection** fills itself from conditions: type, tag, area, format, confidence, reading status, author, years and a word in the title (AND between fields, OR within one field). A **list** is filled by hand with the “List” button on any page and ordered with arrows. The Collections screen (the gear next to “Collections” in the menu) orders and hides them. They are stored in `outputs/collections.json`; the pages themselves are not changed.
 - **Log.** The Log screen shows the entries of `log.md` newest first, grouped by day, with a filter by kind (processing, upgrade, synthesis, check, restructuring…) and a search.
 - **Settings.** A submenu on the left: Model, Updates, Data, Password, Backups and sync, Archive and Tests. Each section has its own address (`#/settings/updates`).
+- **Levels of use.** A switch in the menu, “I am a …”: **Bookworm** (read, search, ask), **Librarian** (adds sources, areas, the log; the default) or **Keeper of the Scrolls** (every switch, including safe mode and the tests). It only hides menu items; every address still works. See [docs](scripts/viewer/help/en/levels.md).
 
 ### Backups and sharing
 
-Your library lives on one disk. If it dies, the reading archive is not enough: it has no original files. **Settings → Backups and sync** copies the whole working library to another folder (another disk, a network disk, or a folder that pCloud, Dropbox or Google Drive uploads), without `node_modules`, so it can bring the library back on a new computer. You press **Copy now** (the button is also in the left menu); nothing runs by itself.
+Your library lives on one disk. If it dies, the reading archive is not enough: it has no original files. **Settings → Backups and sync** copies the whole working library to another folder (another disk, a network disk, or a folder that a cloud service such as Dropbox or Google Drive uploads), without `node_modules`, so it can bring the library back on a new computer. You press **Copy now** (the button is also in the left menu); nothing runs by itself.
 
 There are three kinds of copy:
 
@@ -115,7 +116,7 @@ There are three kinds of copy:
 - **Shared folder:** you and other people write in it. It compares before it writes and, if somebody else changed something, asks you: take it, leave it, overwrite it, or merge paragraph by paragraph. Only `raw/`, `wiki/` and `drafts/` are shared.
 - **Take from a copy:** only takes what a colleague added. Their deletions are ignored, and nothing is written in their folder.
 
-Before each copy the window lists which files will be sent and what kind they are. A backup folder that two people write to will overwrite each other's work, so use a Shared folder for that. After a disaster: `npm ci`, then `npm run restore -- <folder> --apply`. Read the full guide, with the pCloud example, the rules for two people and the Windows and WSL notes, in [docs/backup-and-sharing.md](docs/backup-and-sharing.md) ([Bulgarian](docs/backup-and-sharing.bg.md)). Copies are not available in the isolated mode (`serve:safe`) yet, and they are tested with ordinary folders, not yet with real cloud drives.
+Before each copy the window lists which files will be sent and what kind they are. A backup folder that two people write to will overwrite each other's work, so use a Shared folder for that. After a disaster: `npm ci`, then `npm run restore -- <folder> --apply`. Read the full guide, with the cloud-folder example, the rules for two people and the Windows and WSL notes, in [docs/backup-and-sharing.md](docs/backup-and-sharing.md) ([Bulgarian](docs/backup-and-sharing.bg.md)). Copies are not available in the isolated mode (`serve:safe`) yet, and they are tested with ordinary folders, not yet with real cloud drives.
 
 ### Processing modes
 
@@ -215,6 +216,10 @@ Groq is fast, but its free plan counts tokens, not only requests.
 Duplicates (same content, different name) are detected by SHA-256 and stay in the inbox. Scanned PDFs are recognized automatically and go through the built-in OCR (tesseract.js, Bulgarian and English data included).
 
 ## Updates and maintenance
+
+**Installing a new version.** When the program starts it checks quietly (once, and you can turn it off) whether GitHub has a newer version. If there is one, a **“New version X”** button appears in the menu. It shows what changed, taken from [CHANGELOG.md](CHANGELOG.md), with a warning box when the update has *Breaking changes* or is a new major version, and an **Install** button: a git fast-forward, packages only if the lock file changed (and the old version comes back if that fails), your language pack restored, then a restart. Edited program files are never overwritten without a copy in `outputs/update-backup/` and your yes. Your library is never touched.
+
+**A retired model.** With a provider that publishes a list of models, the same quiet check compares your three chosen models with that list. If one is gone, an amber notice leads you to **Settings → Model**. The Claude subscription needs nothing: Haiku, Sonnet and Opus are names of families that always point to the current model.
 
 The product works well, but it stands on Node.js libraries, and they have their own dependencies. These change independently of it, so check versions and vulnerabilities regularly. **Settings → Updates** (`#/settings/updates`) checks with one button whether GitHub has a newer version of the code and which packages are out of date. Nothing is installed by itself.
 

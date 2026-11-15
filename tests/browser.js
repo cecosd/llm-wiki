@@ -1,5 +1,5 @@
-// Малък клиент за Chrome DevTools Protocol, без зависимости. Нужен е, защото приложението държи отворена
-// връзка (/api/events) и затова --dump-dom не приключва. Изисква глобален WebSocket (Node 22 или по-нов).
+// A small client for the Chrome DevTools Protocol, without dependencies. It is needed because the application keeps an open
+// connection (/api/events), so --dump-dom does not finish. It requires a global WebSocket (Node 22 or newer).
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -13,7 +13,7 @@ export function findChrome() {
 }
 
 export async function openBrowser(bin) {
-  const profile = fs.mkdtempSync(path.join(os.tmpdir(), 'llm-wiki-chrome-')); // винаги отделен профил
+  const profile = fs.mkdtempSync(path.join(os.tmpdir(), 'llm-wiki-chrome-')); // always a separate profile
   const child = spawn(bin, ['--headless=new', '--disable-gpu', '--no-sandbox', '--no-first-run', '--window-size=1280,1000', '--remote-debugging-port=0', `--user-data-dir=${profile}`, 'about:blank'], { stdio: ['ignore', 'ignore', 'pipe'] });
   const wsUrl = await new Promise((resolve, reject) => {
     let err = '';
@@ -48,7 +48,7 @@ export async function openBrowser(bin) {
   return {
     goto: (url) => send('Page.navigate', { url }, sessionId),
     evaluate,
-    /** Чака текстът да се появи на страницата. Връща false, ако не се появи навреме. */
+    /** Waits for the text to appear on the page. Returns false if it does not appear in time. */
     async waitForText(text, ms = 15000) {
       const end = Date.now() + ms;
       while (Date.now() < end) {
@@ -64,7 +64,7 @@ export async function openBrowser(bin) {
       fs.writeFileSync(file, Buffer.from(data, 'base64'));
     },
     async close() {
-      try { await send('Browser.close'); } catch { /* вече е затворен */ }
+      try { await send('Browser.close'); } catch { /* already closed */ }
       ws.close();
       await new Promise((r) => { if (child.exitCode !== null) r(); else { child.once('close', r); setTimeout(() => { child.kill('SIGKILL'); r(); }, 3000); } });
       fs.rmSync(profile, { recursive: true, force: true, maxRetries: 3 });

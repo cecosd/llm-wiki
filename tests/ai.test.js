@@ -1,5 +1,5 @@
-// Други модели: API, съвместим с OpenAI (фалшив сървър в теста), ръчен режим и Claude Code с друг доставчик.
-// Нищо не излиза в интернет и нищо не струва: проверява се какво приложението праща, какво записва и как реагира.
+// Other models: an OpenAI-compatible API (a fake server in the test), manual mode and Claude Code with another provider.
+// Nothing goes out to the internet and nothing costs anything: what the application sends, what it saves and how it reacts is checked.
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -8,7 +8,7 @@ import http from 'node:http';
 import { pathToFileURL } from 'node:url';
 import { T, makeSandbox, startServer, api, seedLibrary, waitFor, freePort, rawRequest } from './helpers.js';
 
-// ---------- Фалшив модел (OpenAI /chat/completions) ----------
+// ---------- A fake model (OpenAI /chat/completions) ----------
 const calls = [];
 const firstCite = (text) => (text.match(/\(\[\[[^\]]+\]\], p\. [\d?]+\)/) || ['([[sample-2020-note]], p. ?)'])[0];
 function answer(prompt) {
@@ -40,13 +40,13 @@ function answer(prompt) {
     return JSON.stringify({ updates });
   }
   if (/reading assistant/.test(prompt)) return 'According to the source, entropy measures disorder ([[sample-2020-note]], p. ?).';
-  // Писане с wiki: художествен текст (цитат в текста, който трябва да изчезне, и списък „Based on“), абзац, дописване
+  // Write with the wiki: a literary text (a citation in the text that must disappear, and a "Based on" list), a paragraph, continuing
   const filler = 'The old monk copied the pages slowly and thought about how order fades in a closed room. '.repeat(9);
   if (/You are writing a literary text/.test(prompt)) return `# The Copyist\n\n${filler}He remembered that disorder grows ([[sample-2020-note]], p. 1).\n\n* * *\n\n${filler}\n\n## Based on\n\n- [[sample-2020-note]]\n- [[no-such-page]]`;
   if (/TASK: rewrite the marked passage/.test(prompt)) return 'A rewritten paragraph: entropy measures disorder ([[sample-2020-note]], p. 2).';
   if (/TASK: write a NEW passage for the marked place/.test(prompt)) return '```markdown\nA new paragraph about order and work ([[sample-2020-note]], p. 3).\n```';
   if (/TASK: write a NEW text that is added to the end of the text/.test(prompt)) return `## Engines\n\n${'Engines turn the flow of heat into work and leave more disorder behind. '.repeat(6)}([[sample-2020-note]], p. 4).`;
-  // Преглед с wiki: поправен текст, маркерът и отчетът; „само отчет“; отрязан отговор
+  // Review with the wiki: a fixed text, the marker and the report; "report only"; a cut answer
   if (/You are reviewing a finished text/.test(prompt)) {
     const report = 'Written for: testers.\n\n## Errors fixed\n\n- The page was checked — it is right.';
     if (/Return only the report/.test(prompt)) return report;
@@ -60,7 +60,7 @@ function fakeModel() {
     let body = '';
     req.on('data', (d) => { body += d; });
     req.on('end', () => {
-      // Като списъка на Groq: модели за текст, за реч и за проверки за безопасност, и един изключен
+      // Like the list of Groq: models for text, for speech and for safety checks, and one disabled
       if (req.method === 'GET' && req.url === '/v1/models') {
         res.setHeader('content-type', 'application/json');
         return res.end(JSON.stringify({ data: [{ id: 'fake-small', active: true }, { id: 'whisper-large-v3' }, { id: 'canopylabs/orpheus-v1-english' }, { id: 'fake-big' }, { id: 'meta-llama/llama-prompt-guard-2-22m' }, { id: 'fake-retired', active: false }] }));
@@ -69,19 +69,19 @@ function fakeModel() {
       const prompt = String(j.messages?.at(-1)?.content || '');
       calls.push({ url: req.url, auth: req.headers.authorization || null, model: j.model, prompt, max: j.max_tokens || j.max_completion_tokens || null, effort: j.reasoning_effort || null, temp: j.temperature ?? null, system: j.messages?.[0]?.role === 'system' ? j.messages[0].content : null });
       res.setHeader('content-type', 'application/json');
-      // Грешките на Google, както ги връща крайната точка, съвместима с OpenAI (масив с един обект)
+      // The errors of Google as the OpenAI-compatible endpoint returns them (an array with one object)
       const google = (code, status, message, extra = {}) => { res.statusCode = code; res.end(JSON.stringify([{ error: { code, message, status, ...extra } }])); };
       if (j.model === 'err-prepay') return google(402, 'RESOURCE_EXHAUSTED', 'Your prepayment credits are depleted. Please go to AI Studio at https://ai.studio/projects to manage your project and billing.');
       if (j.model === 'err-daily') return google(429, 'RESOURCE_EXHAUSTED', 'You exceeded your current quota.\n* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 20, model: err-daily\nPlease retry in 3.2s.', { details: [{ '@type': 'type.googleapis.com/google.rpc.QuotaFailure', violations: [{ quotaId: 'GenerateRequestsPerDayPerProjectPerModel-FreeTier', quotaValue: '20' }] }] });
       if (j.model === 'err-free0') return google(429, 'RESOURCE_EXHAUSTED', 'You exceeded your current quota.\n* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 0, model: err-free0');
       if (j.model === 'err-minute' && calls.filter((c) => c.model === 'err-minute').length === 1) return google(429, 'RESOURCE_EXHAUSTED', 'You exceeded your current quota.\n* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 5, model: err-minute\nPlease retry in 1s.', { details: [{ '@type': 'type.googleapis.com/google.rpc.QuotaFailure', violations: [{ quotaId: 'GenerateRequestsPerMinutePerProjectPerModel-FreeTier', quotaValue: '5' }] }] });
-      // Грешките на Groq: обект { error: { message, type } }, с текстовете от тестовата инсталация
+      // The errors of Groq: an object { error: { message, type } }, with the texts from the test installation
       const groq = (code, message, type = 'invalid_request_error') => { res.statusCode = code; res.end(JSON.stringify({ error: { message, type } })); };
       if (j.model === 'whisper-large-v3') return groq(400, 'The model `whisper-large-v3` does not support chat completions');
       if (j.model === 'canopylabs/orpheus-v1-english') return groq(400, 'The model `canopylabs/orpheus-v1-english` requires terms acceptance. Please have the org admin accept the terms at https://console.groq.com/playground?model=canopylabs%2Forpheus-v1-english');
       if (j.model === 'err-toobig') return groq(413, 'Request too large for model `err-toobig` in organization `org_test` service tier `on_demand` on tokens per minute (TPM): Limit 8000, Requested 9500, please reduce your message size and try again.', 'tokens');
       if (j.model === 'err-tpd') return groq(429, 'Rate limit reached for model `err-tpd` in organization `org_test` service tier `on_demand` on tokens per day (TPD): Limit 200000, Used 199990, Requested 900. Please try again in 2m30s.', 'tokens');
-      // Модел, който „мисли“ и стига лимита за изход: първият отговор е отрязан (finish_reason „length“)
+      // A model that "thinks" and reaches the output limit: the first answer is cut (finish_reason "length")
       if (j.model === 'err-cut' && calls.filter((c) => c.model === 'err-cut').length === 1) return res.end(JSON.stringify({ choices: [{ message: { content: '{"answ' }, finish_reason: 'length' }], usage: { prompt_tokens: 100, completion_tokens: 300 } }));
       if (j.model === 'err-tpm' && calls.filter((c) => c.model === 'err-tpm').length === 1) return groq(429, 'Rate limit reached for model `err-tpm` in organization `org_test` service tier `on_demand` on tokens per minute (TPM): Limit 8000, Used 7900, Requested 500. Please try again in 1.2s.', 'tokens');
       res.end(JSON.stringify({ choices: [{ message: { content: answer(prompt) } }], usage: { prompt_tokens: 100, completion_tokens: 50 } }));
@@ -132,7 +132,7 @@ test(T('ai', 'The interface texts carry the name of the chosen model', 'Текс
   const r = await rawRequest(srv.port, { url: '/locale.js' });
   assert.match(r.body, /"name":"Test model"/);
   assert.match(r.body, /Process with \{ai\}/);
-  // Надпис, сменен само за този модел, стига до страницата
+  // A label changed only for this model reaches the page
   await setProvider({ provider: 'openai-compatible', profile: { labels: { 'Process with {ai}': 'Run it' } } });
   assert.match((await rawRequest(srv.port, { url: '/locale.js' })).body, /"Process with \{ai\}":"Run it"/);
 });
@@ -179,7 +179,7 @@ test(T('ai', 'A model without tools processes a book: source, chapters, concepts
   assert.match(entropy, /A measure of disorder/, 'nothing of the old text is lost');
   assert.match(box.read('wiki/index.md'), /\[\[carnot-1990-entropy\]\]/);
   assert.match(box.read('wiki/log.md'), /ingest: Carnot, S\. \(1990\) Entropy and Order/);
-  // AI_TEST_PEEK=1 показва написаните страници (за преглед на окото)
+  // AI_TEST_PEEK=1 shows the pages that were written (for a review by eye)
   if (process.env.AI_TEST_PEEK) for (const f of ['wiki/sources/carnot-1990-entropy.md', 'wiki/sources/chapters/carnot-1990-entropy-ch01.md', 'wiki/concepts/entropy.md', 'wiki/entities/carnot-sadi.md', 'wiki/log.md']) console.log(`===== ${f}\n${box.read(f)}`);
   assert.equal(box.claudeCalls().length, 0, 'Claude Code is not used');
   assert.equal(box.script('lint.js', '--quick').status, 0, 'no broken links');
@@ -243,7 +243,7 @@ test(T('ai', 'Used-up prepaid credit, a used-up daily limit and a model without 
     assert.match(t.json.error, re);
     assert.equal(calls.filter((c) => c.model === m).length, 1, `${m}: no repeated request`);
   }
-  // Лимит на минута: изчаква колкото казва Google („retry in 1s“) и минава от втория опит
+  // A limit per minute: waits as long as Google says ("retry in 1s") and passes on the second attempt
   await setProvider({ provider: 'openai-compatible', profile: { models: { light: 'err-minute', medium: 'fake-small', strong: '' } } });
   const started = Date.now();
   const t = await api(srv.port, 'POST', '/api/setup/test');
@@ -284,7 +284,7 @@ test(T('ai', 'Groq: a model for speech, terms to accept, a request over the limi
     assert.match(t.json.error, re);
     assert.equal(calls.filter((c) => c.model === m).length, 1, `${m}: no repeated request`);
   }
-  // Лимит на минута: Groq пише „Please try again in 1.2s“; изчаква толкова и минава от втория опит
+  // A limit per minute: Groq writes "Please try again in 1.2s"; waits that long and passes on the second attempt
   await setProvider({ provider: 'openai-compatible', profile: { models: { light: 'err-tpm', medium: 'fake-small', strong: '' } } });
   const started = Date.now();
   const t = await api(srv.port, 'POST', '/api/setup/test');
@@ -322,7 +322,7 @@ test(T('ai', 'Groq has text models by default and a context that fits its free l
   for (const t of ['light', 'medium', 'strong']) assert.ok(g.defaults.models[t] && !notText.test(g.defaults.models[t]), t);
   assert.ok(g.defaults.context <= 8000, 'one request fits in 8000 tokens per minute');
   assert.ok(notText.test('whisper-large-v3') && notText.test('canopylabs/orpheus-arabic-saudi') && notText.test('openai/gpt-oss-safeguard-20b'));
-  // Профилът (с адреса на фалшивия сървър) пробва и двата модела и иска кратко мислене само от gpt-oss
+  // The profile (with the address of the fake server) tries both models and asks for short thinking only from gpt-oss
   await setProvider({ provider: 'groq', key: 'gsk-test-key', profile: { baseUrl: `http://127.0.0.1:${modelPort}/v1` } });
   const t = await api(srv.port, 'POST', '/api/setup/test');
   assert.equal(t.json.ok, true, JSON.stringify(t.json));
@@ -349,13 +349,16 @@ test(T('ai', 'The agent cannot read the file with the keys', 'Агентът н�
   assert.ok(reasonToBlock({ tool_name: 'Grep', tool_input: { path: box.root, glob: '.library-secrets*' } }, box.root));
 });
 
-// ---------- Писане с wiki: видове текст, креативност, празен документ, абзаци ----------
+// ---------- Write with the wiki: kinds of text, creativity, a blank document, paragraphs ----------
 const useFakeModel = () => setProvider({ provider: 'openai-compatible', key: KEY, profile: { baseUrl: `http://127.0.0.1:${modelPort}/v1`, models: { light: 'fake-small', medium: 'fake-big', strong: '' }, context: 16000, name: 'Test model' } });
 
 test(T('ai', 'Fiction: the creativity becomes the temperature, the story has no citations and its sources are listed under “Based on”', 'Художествен текст: креативността става температура, в разказа няма цитати, а източниците са под „По мотиви от“'), async () => {
   await useFakeModel();
   const quick = await api(srv.port, 'POST', '/api/write', { topic: 'A monk and entropy', level: 'local', genre: 'story' });
-  assert.equal(quick.status, 400, 'the quick draft only arranges a scientific article');
+  // The quick draft (no model) now exists for every kind of text; for a story it is an outline without citations
+  assert.equal(quick.status, 200, quick.body);
+  assert.doesNotMatch(quick.json.markdown || '', /\(Smith|\(Author/, 'no citations in the text of a story');
+  assert.equal(calls.filter((x) => /You are writing a literary text/.test(x.prompt)).length, 0, 'the quick draft does not call the model');
   const r = await api(srv.port, 'POST', '/api/write', { topic: 'A monk and entropy', level: 'medium', length: 'short', genre: 'story', creativity: 5, areas: ['Physics'] });
   assert.equal(r.status, 200, r.body);
   const c = calls.filter((x) => /You are writing a literary text/.test(x.prompt)).at(-1);
@@ -391,7 +394,7 @@ test(T('ai', 'A blank document: own text, a paragraph rewritten and a paragraph 
   assert.equal(saved.creativity, 4);
   assert.equal(saved.mode, 'blank');
 
-  // пренаписване на втория абзац: креативността идва от текста, ако не е дадена
+  // rewriting the second paragraph: the creativity comes from the text if it is not given
   const target = 'Second paragraph by me.', start = body.indexOf(target), end = start + target.length;
   const rw = await api(srv.port, 'POST', `/api/drafts/${id}/block`, { body, action: 'rewrite', start, end, target, level: 'medium' });
   assert.equal(rw.status, 200, rw.body);
@@ -404,7 +407,7 @@ test(T('ai', 'A blank document: own text, a paragraph rewritten and a paragraph 
   assert.equal((md1.match(/^## /gm) || []).length, 1, 'still one bibliography');
   assert.match(md1, /## Библиография\n\nOld, B\. \(1999\)\. \*Old book\*\.\n\nSample, A\. \(2020\)/, 'the old entry stays, the new one is added');
 
-  // нов абзац след първия
+  // a new paragraph after the first
   const first = 'First paragraph by me.', fs1 = md1.indexOf(first);
   const ins = await api(srv.port, 'POST', `/api/drafts/${id}/block`, { body: md1, action: 'insert', start: fs1, end: fs1 + first.length, level: 'medium', words: 80, instruction: 'about work' });
   assert.equal(ins.status, 200, ins.body);
@@ -413,7 +416,7 @@ test(T('ai', 'A blank document: own text, a paragraph rewritten and a paragraph 
   assert.equal(md2.slice(ins.json.start, ins.json.end), 'A new paragraph about order and work (Sample, 2020, p. 3).');
   assert.equal((md2.match(/^Sample, A\./gm) || []).length, 1, 'a source is listed once');
 
-  // отказ: текстът се е разминал, или мястото е в библиографията
+  // a refusal: the text has drifted, or the place is in the bibliography
   const stale = await api(srv.port, 'POST', `/api/drafts/${id}/block`, { body: md2, action: 'rewrite', start, end, target, level: 'medium' });
   assert.equal(stale.json.kind, 'locate', stale.body);
   const bi = md2.indexOf('Old, B.');
@@ -450,7 +453,7 @@ test(T('ai', 'Continuing a scientific article puts the new text before the concl
   assert.ok(est.json.output < big.json.output, 'a paragraph is estimated by its own length');
 });
 
-// ---------- Преглед с wiki (скилът wiki-review) ----------
+// ---------- Review with the wiki (the wiki-review skill) ----------
 test(T('ai', 'Review with the wiki: the cited page of the original goes to the model, the corrected text comes back unsaved with a report', 'Преглед с wiki: цитираната страница от оригинала отива към модела, поправеният текст се връща без запис и с отчет'), async () => {
   await useFakeModel();
   box.write('raw/.extracted/articles/sample-2020-note.txt.md', '<!-- извлечено от raw/articles/sample-2020-note.txt | думи: 12 | 2026-11-14T00:00:00.000Z -->\n\n<!-- стр. 1 -->\nA short sample text about entropy.\n\n<!-- стр. 2 -->\nOrder needs work in a closed room.\n');
@@ -480,14 +483,14 @@ test(T('ai', 'Review with the wiki: the cited page of the original goes to the m
   assert.match(box.read(r.json.reportPath), /Written for: testers\./, 'the report is kept next to the drafts');
   assert.equal(box.read(`drafts/${id}.md`), before, 'nothing is saved until the person presses “Save”');
 
-  // само отчет: текстът не се пипа, а проверката вижда записа без цитат
+  // report only: the text is not touched, and the check sees the entry without a citation
   const rep = await api(srv.port, 'POST', `/api/drafts/${id}/review`, { body, level: 'medium', mode: 'report' });
   assert.equal(rep.status, 200, rep.body);
   assert.equal(rep.json.markdown, null);
   assert.match(calls.filter((x) => /You are reviewing a finished text/.test(x.prompt)).at(-1).prompt, /Do NOT change the text/);
   assert.match(rep.json.report, /Entries that are not cited in the text: Orphan, O\. \(2001\)/);
 
-  // отрязан отговор: много по-кратък текст не влиза в редактора
+  // a cut answer: a much shorter text does not go into the editor
   const cut = await api(srv.port, 'POST', `/api/drafts/${id}/review`, { body, level: 'medium', mode: 'fix', instruction: 'CUT THE TEXT' });
   assert.equal(cut.json.kind, 'format', cut.body);
 

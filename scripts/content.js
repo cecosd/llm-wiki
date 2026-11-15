@@ -1,7 +1,7 @@
-// Език на съдържанието: npm run content -- <код>   (например bg или en)
-// Инсталира езиковия пакет от content/<код>/ (CLAUDE.md, скилове, агент, шаблони, начални страници, промптове)
-// и записва `contentLang` в library.config.json. Страниците, които вече са в wiki/, не се пипат.
-// Нов език: копирай content/en/ като content/<код>/ и преведи файловете (включително prompts.json).
+// Content language: npm run content -- <code>   (for example bg or en)
+// Installs the language pack from content/<code>/ (CLAUDE.md, skills, agent, templates, starter pages, prompts)
+// and writes `contentLang` into library.config.json. The pages already in wiki/ are not touched.
+// New language: copy content/en/ as content/<code>/ and translate the files (including prompts.json).
 import { $t } from './i18n.js';
 import { packs, installPack } from './content-pack.js';
 

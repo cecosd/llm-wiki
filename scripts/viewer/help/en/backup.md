@@ -4,7 +4,7 @@ The library is a folder on one disk. If the disk dies, everything is lost, so ma
 
 ## Backup and sharing
 
-**Settings → Backups** (and the button in the menu). The target is any folder: a second disk, a network drive, Google Drive, Dropbox, OneDrive, pCloud Sync. There are three kinds of target:
+**Settings → Backups** (and the button in the menu). The target is any folder: a second disk, a network drive, Google Drive, Dropbox, OneDrive or another cloud sync folder. There are three kinds of target:
 
 | Kind | Behaviour |
 |---|---|

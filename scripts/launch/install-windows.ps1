@@ -18,7 +18,7 @@ try {
   } else { $out += "HOSTS=already" }
   ipconfig /flushdns | Out-Null
 
-  # 2) порт 80 -> порта на библиотеката (само ако е свободен или правилото вече е наше)
+  # 2) port 80 -> the port of the library (only if it is free or the rule is already ours)
   $rules = (netsh interface portproxy show v4tov4) -join "`n"
   $has = $rules -match ('127\.0\.0\.1\s+80\s+127\.0\.0\.1\s+' + $Port)
   $busy = Get-NetTCPConnection -LocalPort 80 -State Listen -ErrorAction SilentlyContinue
@@ -30,12 +30,12 @@ try {
   }
   $out += "PORT80=$p80"
 
-  # 3) пряк път на работния плот (не е фатално, ако не успее: hosts и портът вече са готови)
+  # 3) a shortcut on the desktop (not fatal if it fails: hosts and the port are already ready)
   try {
     $desktop = [Environment]::GetFolderPath('Desktop')
     if (-not (Test-Path $desktop)) { $desktop = Join-Path $env:USERPROFILE 'OneDrive\Desktop' }
     if (-not (Test-Path $desktop)) { $desktop = Join-Path $env:USERPROFILE 'Desktop' }
-    # Първо се създава в TEMP с латинско име (COM понякога се чупи с кирилица и с папки под OneDrive), после се копира
+    # It is first created in TEMP with a Latin name (COM sometimes breaks with Cyrillic and with folders under OneDrive), then copied
     $tmpLnk = Join-Path $env:TEMP 'Biblioteka.lnk'
     $sh = New-Object -ComObject WScript.Shell
     $lnk = $sh.CreateShortcut($tmpLnk)

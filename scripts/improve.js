@@ -1,8 +1,8 @@
-// Пояснения и подобрения от страницата: въпрос към Claude, промяна на избран откъс, подобряване на страницата с отговор.
+// Explanations and improvements from the page: a question to Claude, a change of a selected passage, improving the page with an answer.
 //
-// Принцип: Claude само ЧЕТЕ (страницата и оригиналния текст на източника) и връща предложение. Промяна по файловете прави
-// самият сървър, и то само след твоето потвърждение, с git точка преди и след (бутонът „Върни“ я отменя).
-// Така Claude не може да пипне нищо друго, а всяка промяна се вижда като „било, става“.
+// Principle: Claude only READS (the page and the original text of the source) and returns a suggestion. The change to the files is made
+// by the server itself, and only after your confirmation, with a git point before and after (the "Undo" button cancels it).
+// This way Claude cannot touch anything else, and every change is seen as "before, after".
 import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
@@ -22,14 +22,14 @@ const NOTES_RE = new RegExp(`^##\\s*${any('notes')}\\s*$`, 'm');
 const noDash = (s) => String(s ?? '').replace(/\s+[—–]\s+|—/g, ', ');
 const sha = (s) => crypto.createHash('sha1').update(s).digest('hex');
 
-// ---------- Къде в Markdown е избраният текст ----------
+// ---------- Where in the Markdown the selected text is ----------
 const plainLite = (s, titles) => String(s)
   .replace(/\[\[([^\]|#]+)(?:#[^\]|]*)?(?:\|([^\]]*))?\]\]/g, (_, a, b) => b || titles.get(a.trim().split('/').pop()) || a)
   .replace(/\[([^\]]+)\]\([^)]*\)/g, '$1')
   .replace(/^\s*(#{1,6}|>|[-*+]|\d+\.)\s+/gm, '');
 const norm = (s, titles) => plainLite(s, titles).toLowerCase().replace(/[^\p{L}\p{N}]+/gu, '');
 
-/** Намира абзаците (блоковете), които съдържат избрания текст, и връща обхвата им в Markdown. */
+/** Finds the paragraphs (blocks) that contain the selected text and returns their range in the Markdown. */
 export function locateRange(body, selection, titles = new Map()) {
   const blocks = []; const re = /\n[ \t]*\n/g; let last = 0, m;
   while ((m = re.exec(body))) { blocks.push({ start: last, end: m.index }); last = m.index + m[0].length; }
@@ -48,13 +48,13 @@ export function locateRange(body, selection, titles = new Map()) {
   return null;
 }
 
-// ---------- Върху какво да се опре Claude ----------
+// ---------- What Claude should rely on ----------
 const extractedFor = (rawPath) => {
-  const f = extractedPathOf(rawPath); // null, ако raw_path сочи извън raw/.extracted/
+  const f = extractedPathOf(rawPath); // null if raw_path points outside raw/.extracted/
   return f && fs.existsSync(f) ? rel(f) : null;
 };
 
-/** Оригиналните текстове (в raw/.extracted/) и диапазоните, от които е написана страницата. */
+/** The original texts (in raw/.extracted/) and the ranges from which the page was written. */
 export function groundingOf(page, pages) {
   const bySlug = new Map(pages.map((p) => [p.slug, p]));
   const out = [], seen = new Set();
@@ -83,9 +83,9 @@ export function groundingOf(page, pages) {
 }
 
 /**
- * За модел без инструменти: откъсите от оригиналния текст, на които стъпва страницата, с маркерите за страници.
- * Глава: целият ѝ обхват; източник: началото; понятие и други: страниците около всеки цитат (N-1 до N+1).
- * Над всеки откъс стои [[slug]], за да цитира моделът правилната страница от библиотеката.
+ * For a model without tools: the passages of the original text on which the page stands, with the page markers.
+ * Chapter: its whole range; source: the beginning; concept and others: the pages around every citation (N-1 to N+1).
+ * Above every passage stands [[slug]], so that the model cites the right page of the library.
  */
 export function groundingExcerpt(page, pages, tokens) {
   const bySlug = new Map(pages.map((p) => [p.slug, p]));
@@ -113,7 +113,7 @@ export function groundingExcerpt(page, pages, tokens) {
     return text.trim() ? `### [[${pt.slug}]]\n${clipTokens(text, share)}` : '';
   }).filter(Boolean).join('\n\n');
 }
-/** Материалът за модел без инструменти: самата страница и откъсите от оригинала */
+/** The material for a model without tools: the page itself and the passages of the original */
 function material(page, pages, budget, { withPage = true } = {}) {
   const ex = groundingExcerpt(page, pages, Math.floor(budget * (withPage ? 0.6 : 0.95)));
   return [
@@ -122,7 +122,7 @@ function material(page, pages, budget, { withPage = true } = {}) {
     '<<<', ex || P('(no original text is available: rely only on the page and say clearly that you did not check it against the source)'), '>>>',
   ];
 }
-// Правилата за цитиране без първото (Grep и Read са само за агента)
+// The citation rules without the first (Grep and Read are only for the agent)
 const TEXT_RULES = () => [...READ_RULES].slice(1);
 
 const groundingText = (g) => (g.length
@@ -141,7 +141,7 @@ const READ_RULES = lazy(() => [
   P('- Write in English, clearly and simply, without an em dash (—). Original terms go in parentheses at first use.'),
 ]);
 
-// ---------- Въпрос към Claude ----------
+// ---------- A question to Claude ----------
 export async function askAboutPage({ slug, question, selection, level, signal }) {
   const pages = wikiPages(), page = pages.find((p) => p.slug === slug);
   if (!page) return { ok: false, kind: 'error', error: $t('There is no such page.') };
@@ -168,7 +168,7 @@ export async function askAboutPage({ slug, question, selection, level, signal })
   return r.ok ? { ok: true, answer: noDash(r.text).trim() } : r;
 }
 
-// ---------- План-конспект по оригинала ----------
+// ---------- An outline from the original ----------
 const CONSPECT_DEPTH = lazy(() => ({
   light: P('Read the whole given range of the original (not only an excerpt of it).'),
   medium: P('Read the whole given range of the original completely and in order.'),
@@ -205,7 +205,7 @@ export async function planConspect({ slug, level, signal }) {
     P('- No em dash (—).'),
     end,
   ].filter(Boolean).join('\n');
-  // Без инструменти: оригиналът и списъкът на страниците (за връзките) влизат в самата заявка
+  // Without tools: the original and the list of the pages (for the links) go into the request itself
   const textPrompt = (budget) => {
     const list = pages.filter((p) => !SPECIAL.has(p.slug) && p.data.type !== 'question').map((p) => `${p.slug} | ${p.data.title || p.slug}`).join('\n');
     return [
@@ -219,12 +219,12 @@ export async function planConspect({ slug, level, signal }) {
   };
   const r = await askAI({ level, agentPrompt: prompt, textPrompt, maxTokens: 5000, signal, label: $t('Outline of the original') });
   if (!r.ok) return r;
-  // Връзка само към съществуваща страница (без индекса, дневника и обзора; собствените цитати остават).
+  // A link only to an existing page (without the index, the log and the overview; the own citations stay).
   const known = new Set(pages.filter((p) => !SPECIAL.has(p.slug)).map((p) => p.slug));
   return { ok: true, answer: fixLinks(noDash(r.text).trim(), known).text };
 }
 
-// ---------- Предложение за промяна ----------
+// ---------- A suggested change ----------
 const proposals = new Map();
 
 function parseJson(text) {
@@ -234,7 +234,7 @@ function parseJson(text) {
   try { return JSON.parse(t.slice(a, b + 1)); } catch { return null; }
 }
 
-/** Неизвестните [[връзки]] стават обикновен текст: Claude не може да създаде връзка към страница, която я няма. */
+/** Unknown [[links]] become plain text: Claude cannot create a link to a page that does not exist. */
 function fixLinks(text, known) {
   let fixed = 0;
   const out = String(text).replace(/\[\[([^\]|#]+)(?:#[^\]|]*)?(?:\|([^\]]*))?\]\]/g, (m, a, b) => {
@@ -260,7 +260,7 @@ export async function proposeChange({ slug, mode, question, answer, selection, i
     target = body.slice(range.start, range.end);
   }
 
-  // budget == null: за агента (чете файловете сам); иначе материалът влиза в заявката, колкото позволява контекстът
+  // budget == null: for the agent (it reads the files itself); otherwise the material goes into the request, as much as the context allows
   const commonFor = (budget) => [
     P('You are editing a page of the human\'s personal library (Markdown in wiki/). The page is “{0}” ({1}, type {2}).', [page.data.title || slug, page.rel, page.data.type]),
     '',
@@ -341,7 +341,7 @@ export async function proposeChange({ slug, mode, question, answer, selection, i
     related: list(j.related).map((s) => s.replace(/^\[\[|\]\]$/g, '').split('/').pop()).filter(slugOk).slice(0, 6),
     indexLine: noDash(String(j.index_line || '')).replace(/\s+/g, ' ').trim().slice(0, 160),
   };
-  // само това, което още го няма
+  // only what is not there yet
   const have = (k) => new Set(list(page.data[k]).map((v) => v.toLowerCase()));
   meta.aliases = meta.aliases.filter((a) => !have('aliases').has(a.toLowerCase()) && a.toLowerCase() !== String(page.data.title || '').toLowerCase());
   meta.tags = meta.tags.filter((t) => !have('tags').has(t));
@@ -356,7 +356,7 @@ export async function proposeChange({ slug, mode, question, answer, selection, i
   return { ok: true, proposal: { id, slug, mode, summary: noDash(j.summary || ''), edits, append, meta, skipped, linkFixes } };
 }
 
-// ---------- Прилагане (след потвърждение) ----------
+// ---------- Applying (after confirmation) ----------
 export function applyProposal(id) {
   const p = proposals.get(id);
   if (!p) return { ok: false, error: $t('The suggestion has expired. Ask for it again.') };
@@ -386,7 +386,7 @@ export function applyProposal(id) {
   d.updated = today();
   fs.writeFileSync(page.file, matter.stringify(body, d));
 
-  // индекс: едноредовото описание
+  // index: the one-line description
   let indexed = false;
   const idxFile = path.join(WIKI, 'index.md');
   if (p.meta.indexLine && fs.existsSync(idxFile)) {
@@ -410,7 +410,7 @@ export function applyProposal(id) {
   return { ok: true, slug: p.slug, title, bits };
 }
 
-// ---------- Запис на отговора като страница „Въпрос“ (за търсене и пътеки) ----------
+// ---------- Saving the answer as a "Question" page (for search and paths) ----------
 export function saveAnswer({ slug, question, answer }) {
   const pages = wikiPages(), page = pages.find((p) => p.slug === slug);
   if (!page) return { ok: false, error: $t('There is no such page.') };
@@ -430,7 +430,7 @@ export function saveAnswer({ slug, question, answer }) {
   fs.mkdirSync(path.dirname(file), { recursive: true });
   fs.writeFileSync(file, matter.stringify(body, data));
 
-  // в индекса, раздел „Въпроси“ (без сираци)
+  // in the index, the section "Questions" (no orphans)
   const idxFile = path.join(WIKI, 'index.md');
   if (fs.existsSync(idxFile)) {
     let t = fs.readFileSync(idxFile, 'utf8');
@@ -448,7 +448,7 @@ export function saveAnswer({ slug, question, answer }) {
   return { ok: true, slug: qslug, title: q };
 }
 
-/** Какво би получил Claude при въпрос/промяна: за оценка на токените, без да се праща нищо. */
+/** What Claude would receive for a question/change: for the token estimate, without sending anything. */
 export function costInputs({ slug, question, selection, answer, instruction, withBody }) {
   const pages = wikiPages(), page = pages.find((p) => p.slug === slug);
   if (!page) return null;
@@ -456,10 +456,10 @@ export function costInputs({ slug, question, selection, answer, instruction, wit
   return { text, page: page.content, title: String(page.data.title || slug) };
 }
 
-// ---------- Ръчна редакция (без Claude) ----------
-// Текстът се променя на ръка, а връзките между страниците остават както са: промяна, която добавя, маха
-// или сменя [[връзка]], не се приема. Преименуването сменя само заглавието (frontmatter и първия # ред),
-// а името на файла (slug) остава, затова нито една връзка не се чупи.
+// ---------- Manual editing (without Claude) ----------
+// The text is changed by hand, and the links between the pages stay as they are: a change that adds, removes
+// or changes a [[link]] is not accepted. Renaming changes only the title (the frontmatter and the first # line),
+// and the name of the file (slug) stays, so no link breaks.
 
 const linkCounts = (text) => {
   const m = new Map();
@@ -472,7 +472,7 @@ function sameLinks(a, b) {
   return diff;
 }
 
-/** Връща точния Markdown на абзаца (абзаците), в който е избраният текст, за да се редактира на ръка. */
+/** Returns the exact Markdown of the paragraph(s) in which the selected text is, so that it can be edited by hand. */
 export function locateForEdit(slug, selection) {
   const pages = wikiPages(), page = pages.find((p) => p.slug === slug);
   if (!page || SPECIAL.has(slug)) return { ok: false, error: $t('This page is not edited from here.') };
@@ -485,7 +485,7 @@ export function locateForEdit(slug, selection) {
   return { ok: true, markdown, hash: sha(body) };
 }
 
-/** Заменя откъса с ръчно написания текст. Връзките [[…]] трябва да останат същите. */
+/** Replaces the passage with the text written by hand. The links [[...]] must stay the same. */
 export function applyManualEdit({ slug, before, after, hash }) {
   const page = wikiPages().find((p) => p.slug === slug);
   if (!page || SPECIAL.has(slug)) return { ok: false, error: $t('This page is not edited from here.') };
@@ -512,9 +512,9 @@ export function applyManualEdit({ slug, before, after, hash }) {
 }
 
 /**
- * Маха абзаца (абзаците) от страницата. Връзките [[…]] в него си отиват заедно с текста: обратните връзки
- * на другите страници се смятат от текстовете, затова няма какво друго да се поправя.
- * Заглавия (# …) не се махат оттук, за да не изчезне цял раздел.
+ * Removes the paragraph(s) from the page. The links [[...]] in it go away together with the text: the backlinks
+ * of the other pages are computed from the texts, so there is nothing else to fix.
+ * Headings (# ...) are not removed from here, so that a whole section does not disappear.
  */
 export function applyParagraphDelete({ slug, before, hash }) {
   const page = wikiPages().find((p) => p.slug === slug);
@@ -540,10 +540,10 @@ export function applyParagraphDelete({ slug, before, hash }) {
   return { ok: true, slug, title, links, bits: [$t('paragraph removed') + (links.length ? ` (${links.length} ${links.length === 1 ? $t('link') : $t('links')})` : '')] };
 }
 
-// ---------- Връзка от избрания текст към страница от библиотеката ----------
-// Избраният текст се търси в Markdown-а така, както е на екрана (интервалите са без значение). Връзката
-// се вмъква около него: [[цел]] ако текстът е същото като заглавието, иначе [[цел|текст]].
-// Отказва се там, където връзката би счупила текста: заглавие, вече съществуваща връзка, URL, код, няколко места.
+// ---------- A link from the selected text to a page of the library ----------
+// The selected text is searched in the Markdown as it is on the screen (spaces do not matter). The link
+// is inserted around it: [[target]] if the text is the same as the title, otherwise [[target|text]].
+// It refuses where the link would break the text: a heading, an already existing link, a URL, code, several places.
 const findOnScreen = (body, selection) => {
   const words = String(selection).trim().split(/\s+/).filter(Boolean).map((w) => w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
   return words.length ? [...body.matchAll(new RegExp(words.join('\\s+'), 'g'))] : [];
@@ -588,7 +588,7 @@ export function applyLink({ slug, selection, target }) {
   return { ok: true, slug, title: ptitle, bits: [$t('link to “{0}”', [title])] };
 }
 
-/** Сменя заглавието (не и slug-а, затова връзките остават). */
+/** Changes the title (not the slug, so the links stay). */
 export function renamePage({ slug, title }) {
   const page = wikiPages().find((p) => p.slug === slug);
   if (!page || SPECIAL.has(slug)) return { ok: false, error: $t('This page is not renamed from here.') };
@@ -601,7 +601,7 @@ export function renamePage({ slug, title }) {
   const d = m.data;
   for (const [k, v] of Object.entries(d)) if (v instanceof Date) d[k] = v.toISOString().slice(0, 10);
   d.title = t; d.updated = today();
-  // първият ред „# Старо заглавие“ следва заглавието
+  // the first line "# Old title" follows the title
   let body = m.content;
   const h1 = body.match(/^(\s*)#\s+(.+?)\s*$/m);
   if (h1 && h1[2].trim() === old.trim() && body.slice(0, h1.index).trim() === '') body = body.slice(0, h1.index) + h1[1] + '# ' + t + body.slice(h1.index + h1[0].length);
@@ -610,10 +610,10 @@ export function renamePage({ slug, title }) {
   return { ok: true, slug, title: t, old, bits: [$t('title: “{0}” → “{1}”', [old, t])] };
 }
 
-// ---------- Заместване на текста с готов отговор (без нов Claude) ----------
-// Човекът поиска от Claude преразказ или по-добър вариант и сега иска да го приложи директно. Строим предложение по
-// същия път като при „Подобри“ (преглед „било, става“, потвърждение, „Върни“), но без второ извикване на Claude.
-// Разделите „Мои бележки“ и „Глави“ се пазят, а загубените връзки се показват като предупреждение.
+// ---------- Replacing the text with a ready answer (without a new Claude) ----------
+// The person asked Claude for a retelling or a better version and now wants to apply it directly. We build a suggestion by
+// the same path as for "Improve" (a "before, after" review, confirmation, "Undo"), but without a second call to Claude.
+// The sections "My notes" and "Chapters" are kept, and the lost links are shown as a warning.
 const KEEP_RE = new RegExp(`^##\\s*(${any('notes')}|${any('chapters')})\\s*$`);
 
 export function proposeReplace({ slug, answer, selection }) {
@@ -649,7 +649,7 @@ export function proposeReplace({ slug, answer, selection }) {
   after = fx.text;
   if (after.trim() === before.trim()) return { ok: false, kind: 'empty', error: $t('The answer is the same as the current text.') };
 
-  // връзки, които са били в заменения текст и ги няма в новия
+  // links that were in the replaced text and are not in the new one
   const keptNow = linkSet(whole ? after : after), lost = [...linkSet(before)].filter((l) => !keptNow.has(l) && known.has(l) && l !== slug);
 
   const id = crypto.randomUUID();

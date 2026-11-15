@@ -1,4 +1,4 @@
-// Библиотеките на интерфейса от node_modules: сървърът ги отдава като /vendor/<име>, архивът ги вгражда в index.html.
+// The libraries of the interface from node_modules: the server serves them as /vendor/<name>, the archive embeds them into index.html.
 import path from 'node:path';
 import { ROOT } from './lib.js';
 

@@ -1,4 +1,4 @@
-// Общи помощни функции за скриптовете.
+// Shared helper functions for the scripts.
 import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
@@ -20,7 +20,7 @@ export const today = () => {
 
 export const rel = (abs) => path.relative(ROOT, abs).split(path.sep).join('/');
 
-/** Рекурсивно обхождане; пропуска скрити файлове и папки. */
+/** Recursive walk; skips hidden files and folders. */
 export function walk(dir, { includeHidden = false } = {}) {
   const out = [];
   if (!fs.existsSync(dir)) return out;
@@ -46,7 +46,7 @@ export function saveManifest(m) {
   fs.writeFileSync(MANIFEST, JSON.stringify(m, null, 2) + '\n');
 }
 
-/** Всички raw файлове (без inbox и .extracted). */
+/** All raw files (without inbox and .extracted). */
 export function rawFiles() {
   return walk(RAW).filter((f) => {
     const r = rel(f);
@@ -54,7 +54,7 @@ export function rawFiles() {
   });
 }
 
-/** Всички wiki страници с разчетен frontmatter. */
+/** All wiki pages with parsed frontmatter. */
 export function wikiPages() {
   return walk(WIKI)
     .filter((f) => f.endsWith('.md') && !rel(f).startsWith('wiki/_templates/'))
@@ -62,13 +62,13 @@ export function wikiPages() {
       const src = fs.readFileSync(f, 'utf8');
       let data = {}, content = src, fmError = null;
       try { ({ data, content } = matter(src)); } catch (e) { fmError = e.message; }
-      // YAML превръща 2026-10-28 в Date; връщаме го към текст
+      // YAML turns 2026-10-28 into a Date; turn it back into text
       for (const [k, v] of Object.entries(data)) if (v instanceof Date) data[k] = v.toISOString().slice(0, 10);
       return { file: f, rel: rel(f), slug: path.basename(f, '.md'), data, content, fmError };
     });
 }
 
-/** Извлича [[wikilinks]] (без кодови блокове). */
+/** Extracts [[wikilinks]] (outside code blocks). */
 export function extractLinks(content) {
   const clean = content.replace(/```[\s\S]*?```/g, '').replace(/`[^`]*`/g, '');
   const links = [];
@@ -78,23 +78,23 @@ export function extractLinks(content) {
   return links;
 }
 
-// ---------- Разпознаване на обработени файлове ----------
-// Пътят от raw_path и пътят на диска се сравняват след нормализиране, защото една и съща
-// буква може да е записана различно (напр. „й“ в NFC и NFD), а Claude може да напише
-// ./raw/..., raw\books\... или абсолютен път. Без това обработен файл изглежда необработен.
+// ---------- Recognising processed files ----------
+// The path from raw_path and the path on disk are compared after normalising, because the same
+// letter can be stored differently (for example "й" in NFC and NFD), and Claude may write
+// ./raw/..., raw\books\... or an absolute path. Without this a processed file looks unprocessed.
 
-/** Каноничен вид: NFC, прави наклонени черти, започва от raw/ */
+/** Canonical form: NFC, forward slashes, starting at raw/ */
 export function normRaw(p) {
   const s = String(p ?? '').normalize('NFC').replace(/\\/g, '/').trim().replace(/^["']|["']$/g, '');
   const m = s.match(/(?:^|\/)(raw\/.+)$/);
   return m ? m[1] : s.replace(/^\.\//, '');
 }
-/** Ключ за сравнение (без значение от главни/малки букви, като на macOS и Windows) */
+/** Comparison key (case-insensitive, as on macOS and Windows) */
 export const rawKey = (p) => normRaw(p).toLowerCase();
 
 /**
- * Файлът с извлечения текст за raw_path от страница, или null. raw_path се пише от Claude и може да е подправен
- * от документ (raw/../../чужд-файл), затова пътят се приема само ако остава вътре в raw/.extracted/.
+ * The file with the extracted text for the raw_path of a page, or null. raw_path is written by Claude and can be forged
+ * by a document (raw/../../other-file), so the path is accepted only when it stays inside raw/.extracted/.
  */
 export function extractedPathOf(rawPath) {
   if (!rawPath) return null;
@@ -103,14 +103,14 @@ export function extractedPathOf(rawPath) {
   return r && !r.startsWith('..') && !path.isAbsolute(r) ? f : null;
 }
 
-/** Карта: ключ → source страница. Глава с raw_path (книга, обединена от отделно качени файлове) също се брои за обработена. */
+/** Map: key -> source page. A chapter with raw_path (a book merged from separately uploaded files) also counts as processed. */
 export function sourceIndex(pages) {
   const m = new Map();
   for (const p of pages) if ((p.data.type === 'source' || p.data.type === 'chapter') && p.data.raw_path) m.set(rawKey(p.data.raw_path), p);
   return m;
 }
 
-/** Разделя raw файловете на обработени и чакащи; намира и source страници без файл */
+/** Splits the raw files into processed and pending; also finds source pages without a file */
 export function ingestState(pages = wikiPages(), files = rawFiles()) {
   const sources = sourceIndex(pages);
   const onDisk = new Map(files.map((f) => [rawKey(rel(f)), f]));
@@ -127,7 +127,7 @@ export const slugify = (s) =>
   s.normalize('NFKD').replace(/[̀-ͯ]/g, '').toLowerCase()
     .replace(/[^a-z0-9а-я]+/gi, '-').replace(/^-+|-+$/g, '').slice(0, 80);
 
-/** Стартови wiki/index.md, log.md и overview.md: създават се само ако липсват (никога не презаписват твои). */
+/** Starting wiki/index.md, log.md and overview.md: created only when missing (never overwrite yours). */
 export function ensureStarter() {
   const dir = path.join(ROOT, 'scripts', 'starter');
   if (!fs.existsSync(dir)) return;

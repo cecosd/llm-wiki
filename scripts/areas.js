@@ -1,13 +1,13 @@
-// Области на знанието (физика, история, математика…): всеки източник е в ТОЧНО една област.
+// Areas of knowledge (physics, history, mathematics...): every source is in EXACTLY one area.
 //
-// Правила:
-//  - Източникът носи полето `area` (свободен текст, 1 до 3 думи). Областите няма готов списък: появяват се от източниците.
-//  - Главата наследява областта на книгата си.
-//  - Понятие, личност, тема, сравнение, въпрос: област е тази, от която има най-много цитати (връзки към източници
-//    и глави). Понятие, което се ползва в няколко области, си остава една страница, в областта с повече цитати.
-//    Изричен `area` в такава страница го замества (това прави „Премести“ в интерфейса).
-//  - Преименуването в съществуваща област ги обединява.
-// Този модул не вика Claude: класифицирането получава функция `ask` отвън.
+// Rules:
+//  - A source carries the field `area` (free text, 1 to 3 words). There is no ready list of areas: they appear from the sources.
+//  - A chapter inherits the area of its book.
+//  - Concept, person, topic, comparison, question: the area is the one with the most citations (links to sources
+//    and chapters). A concept used in several areas stays one page, in the area with more citations.
+//    An explicit `area` in such a page replaces it (this is what "Move" does in the interface).
+//  - Renaming into an existing area merges them.
+// This module does not call Claude: classification receives the function `ask` from outside.
 import fs from 'node:fs';
 import path from 'node:path';
 import matter from 'gray-matter';
@@ -19,10 +19,10 @@ const SPECIAL = new Set(['index', 'log', 'overview']);
 export const normArea = (s) => String(s ?? '').replace(/\s*[—–]\s*/g, '-').replace(/[,;|~]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 60);
 export const areaKey = (s) => normArea(s).toLowerCase();
 
-/** slug → { area, how: 'own' | 'book' | 'cited' | 'linked' } за всички страници, които имат област */
+/** slug -> { area, how: 'own' | 'book' | 'cited' | 'linked' } for all pages that have an area */
 export function areaMap(pages) {
   const bySlug = new Map(pages.map((p) => [p.slug, p]));
-  const spell = new Map(); // ключ → първо видяно изписване, за да не се разпадне „физика“ и „Физика“
+  const spell = new Map(); // key -> first seen spelling, so that "физика" and "Физика" do not fall apart
   const canon = (s) => { const k = areaKey(s); if (!k) return null; if (!spell.has(k)) spell.set(k, normArea(s)); return spell.get(k); };
   const out = new Map();
   for (const p of pages) if (p.data.type === 'source' && canon(p.data.area)) out.set(p.slug, { area: canon(p.data.area), how: 'own' });
@@ -33,7 +33,7 @@ export function areaMap(pages) {
     if (a) out.set(p.slug, { area: a, how: out.get(book) ? 'book' : 'own' });
   }
   for (const p of pages) if (!out.has(p.slug) && !SPECIAL.has(p.slug) && canon(p.data.area)) out.set(p.slug, { area: canon(p.data.area), how: 'own' });
-  // останалите: по цитатите към източници и глави
+  // the others: by the citations to sources and chapters
   const tally = (p, from) => {
     const t = new Map();
     for (const l of extractLinks(p.content)) {
@@ -49,12 +49,12 @@ export function areaMap(pages) {
     const a = tally(p, (l) => { const q = bySlug.get(l); return q && ['source', 'chapter'].includes(q.data.type) ? out.get(l)?.area : null; });
     if (a) out.set(p.slug, { area: a, how: 'cited' });
   }
-  // тема или сравнение без цитати: по областите на страниците, към които сочи
+  // a topic or comparison without citations: by the areas of the pages it points to
   for (const p of rest) if (!out.has(p.slug)) { const a = tally(p, (l) => out.get(l)?.area); if (a) out.set(p.slug, { area: a, how: 'linked' }); }
   return out;
 }
 
-/** Области с броя страници; източниците без област */
+/** Areas with the number of pages; the sources without an area */
 export function listAreas(pages = wikiPages()) {
   const map = areaMap(pages);
   const by = new Map();
@@ -69,7 +69,7 @@ export function listAreas(pages = wikiPages()) {
   return { areas: [...by.values()].sort((a, b) => b.sources - a.sources || a.name.localeCompare(b.name, 'bg')), unassigned, otherNone };
 }
 
-/** Имената на областите на източниците, за указанието при обработка */
+/** The names of the areas of the sources, for the instruction during processing */
 export function areaNames(pages = wikiPages()) {
   return [...new Set(pages.filter((p) => p.data.type === 'source' && normArea(p.data.area)).map((p) => normArea(p.data.area)))].sort((a, b) => a.localeCompare(b, 'bg'));
 }
@@ -84,14 +84,14 @@ function writeData(page, mutate) {
 const logFile = () => path.join(WIKI, 'log.md');
 const logRefactor = (title, lines) => fs.appendFileSync(logFile(), `\n## ${today()} refactor: ${title}\n${lines.map((l) => `- ${l}`).join('\n')}\n`);
 
-/** Сменя областта на страница ('' = маха). Глава следва книгата си. */
+/** Changes the area of a page ('' = removes). A chapter follows its book. */
 export function setArea(slug, area) {
   const pages = wikiPages(), page = pages.find((p) => p.slug === slug);
   if (!page || SPECIAL.has(slug)) return { ok: false, error: $t('This page has no area.') };
   if (page.data.type === 'chapter') return { ok: false, error: $t('A chapter follows the area of its book. Change the area of the book.') };
   const a = normArea(area);
   const had = areaMap(pages).get(slug)?.area || null;
-  // ако вече има такава област с друго изписване, ползваме нейното
+  // if there is already such an area with another spelling, we use its spelling
   const known = areaNames(pages).find((n) => areaKey(n) === areaKey(a));
   writeData(page, (d) => { if (a) d.area = known || a; else delete d.area; });
   const title = String(page.data.title || slug);
@@ -99,7 +99,7 @@ export function setArea(slug, area) {
   return { ok: true, slug, title, bits: [$t('area: {0} → {1}', [had || $t('none'), known || a || $t('none')])] };
 }
 
-/** Преименува област; ако новото име вече съществува, областите се обединяват. */
+/** Renames an area; if the new name already exists, the areas are merged. */
 export function renameArea(from, to) {
   const pages = wikiPages();
   const f = areaKey(from), t = normArea(to);
@@ -116,13 +116,13 @@ export function renameArea(from, to) {
   return { ok: true, slug: 'areas', title: target, bits: [$t('{0} area “{1}” → “{2}” ({3} pages)', [merged ? $t('merged') : $t('renamed'), normArea(from), target, hit.length])] };
 }
 
-// ---------- Автоматично определяне с Claude ----------
+// ---------- Automatic detection with Claude ----------
 const SRC_LIMIT = 70;
 export function unassignedSources(pages = wikiPages()) {
   const map = areaMap(pages);
   return pages.filter((p) => p.data.type === 'source' && !map.get(p.slug));
 }
-/** Текстът, който се праща към Claude (и по който се оценява цената) */
+/** The text sent to Claude (and by which the cost is estimated) */
 export function classifyPrompt(pages = wikiPages()) {
   const list = unassignedSources(pages).slice(0, SRC_LIMIT);
   const known = areaNames(pages);
@@ -155,7 +155,7 @@ function parseJson(text) {
   try { return JSON.parse(t.slice(a, b + 1)); } catch { return null; }
 }
 
-/** ask(prompt) → { ok, text }. Връща предложение за преглед; нищо не се записва. */
+/** ask(prompt) -> { ok, text }. Returns a suggestion for review; nothing is written. */
 export async function proposeClassification(ask) {
   const pages = wikiPages();
   const { count, total, text } = classifyPrompt(pages);
@@ -193,7 +193,7 @@ export function applyAssignments(list) {
   return { ok: true, slug: 'areas', title: `${n} ${n === 1 ? $t('source') : $t('sources')}`, bits: [$t('area of {0} {1} ({2})', [n, n === 1 ? $t('source') : $t('sources'), [...names].join(', ')])] };
 }
 
-/** Страниците, които влизат в обхвата: избрани области и/или избрани теми (фокус) */
+/** The pages that fall into the scope: chosen areas and/or chosen topics (focus) */
 export function scopeFilter(pages, { areas = [], focus = [] } = {}) {
   const A = new Set(areas.map(areaKey).filter(Boolean)), F = new Set(focus);
   if (!A.size && !F.size) return null;

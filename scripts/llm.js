@@ -1,12 +1,12 @@
-// Заявки към модел без инструменти: текст навътре, текст навън. Ползва се, когато доставчикът не е Claude Code
-// (виж providers.js): API, съвместим с OpenAI, API на Anthropic, Ollama (родният /api/chat, за да се зададе контекстът)
-// и ръчен режим (заявката се копира в чат в браузъра, отговорът се поставя обратно в интерфейса).
+// Requests to a model without tools: text in, text out. Used when the provider is not Claude Code
+// (see providers.js): an OpenAI-compatible API, the Anthropic API, Ollama (the native /api/chat, so that the context can be set)
+// and manual mode (the request is copied into a chat in the browser, the answer is pasted back into the interface).
 //
-// Без външни библиотеки: вграденият fetch на Node. Ключът никога не се записва в историята или в грешките.
+// No external libraries: the built-in fetch of Node. The key is never written into the history or into the errors.
 import { aiConfig, keyFor, NOT_TEXT } from './providers.js';
 import { $t } from './i18n.js';
 
-/** Съобщение за човека по вида на грешката (kind) от complete() или от конвейера. */
+/** A message for the person by the kind of the error (kind) from complete() or from the pipeline. */
 export function errorText(r, cfg = aiConfig()) {
   const name = cfg.name;
   switch (r?.kind) {
@@ -41,15 +41,15 @@ export function errorText(r, cfg = aiConfig()) {
   }
 }
 
-/** „2 ч 5 мин“ или „12 мин“ за времето до следващия опит */
+/** "2 h 5 min" or "12 min" for the time until the next attempt */
 function waitText(sec) {
   const min = Math.max(1, Math.ceil(sec / 60));
   return min >= 60 ? $t('{0} h {1} min', [Math.floor(min / 60), min % 60]) : $t('{0} min', [min]);
 }
 
 /**
- * Колко секунди да се чака по текста на грешката, когато няма заглавка retry-after. Google пише „Please retry in 34.5s“
- * или "retryDelay": "34s"; Groq дава retry-after при 429 (Groq, n.d.-c), а в текста пише „try again in 1m2.5s“.
+ * How many seconds to wait by the text of the error, when there is no retry-after header. Google writes "Please retry in 34.5s"
+ * or "retryDelay": "34s"; Groq gives retry-after on 429 (Groq, n.d.-c), and the text says "try again in 1m2.5s".
  */
 export function hintSeconds(raw) {
   const s = String(raw || '');
@@ -67,13 +67,13 @@ const sleep = (ms, signal) => new Promise((resolve) => {
   signal?.addEventListener?.('abort', () => { clearTimeout(t); resolve(); }, { once: true });
 });
 
-/** Приблизителен брой токени по брой знаци (кирилицата около 2,2 знака на токен, латиницата около 3,8). */
+/** An approximate number of tokens by the number of characters (Cyrillic about 2.2 characters per token, Latin about 3.8). */
 export function approxTokens(text) {
   const s = String(text || ''); let cyr = 0;
   for (let i = 0; i < s.length; i++) { const c = s.charCodeAt(i); if (c >= 0x400 && c <= 0x4ff) cyr++; }
   return Math.ceil(cyr / 2.2 + (s.length - cyr) / 3.8);
 }
-/** Отрязва текст до приблизително n токена (по знаци, със запас). */
+/** Cuts a text to about n tokens (by characters, with a margin). */
 export function clipTokens(text, n) {
   const s = String(text || '');
   if (approxTokens(s) <= n) return s;
@@ -82,7 +82,7 @@ export function clipTokens(text, n) {
   return s.slice(0, lo);
 }
 
-/** JSON от отговор на модел: без ```, първият цял обект или масив, с поправка на запетая накрая. */
+/** JSON from a model answer: without ```, the first whole object or array, with a fix of a trailing comma. */
 export function parseJsonLoose(text, { salvage = false } = {}) {
   let t = String(text || '').trim().replace(/^﻿/, '');
   const fence = t.match(/```(?:json)?\s*([\s\S]*?)```/i);
@@ -100,14 +100,14 @@ export function parseJsonLoose(text, { salvage = false } = {}) {
   }
   const body = end > 0 ? t.slice(start, end + 1) : t.slice(start);
   for (const cand of [body, body.replace(/,\s*([}\]])/g, '$1'), body.replace(/[“”]/g, '"').replace(/,\s*([}\]])/g, '$1')]) {
-    try { return JSON.parse(cand); } catch { /* следващ опит */ }
+    try { return JSON.parse(cand); } catch { /* the next attempt */ }
   }
   return salvage && end < 0 ? salvageJson(body) : null;
 }
 
 /**
- * Отрязан JSON (моделът стигна лимита за изход): пази завършените елементи до последната запетая или затваряща
- * скоба и затваря отворените обекти и списъци. Ползва се само в краен случай, когато поправката също не става.
+ * Cut JSON (the model reached the output limit): keeps the finished items up to the last comma or closing
+ * bracket and closes the open objects and lists. Used only as a last resort, when the repair does not work either.
  */
 export function salvageJson(s) {
   const stack = []; let inStr = false, esc = false, cut = -1, cutStack = null;
@@ -123,7 +123,7 @@ export function salvageJson(s) {
   try { return JSON.parse(s.slice(0, cut) + cutStack.reverse().join('')); } catch { return null; }
 }
 
-// ---------- Ръчен режим: заявки, които чакат човека ----------
+// ---------- Manual mode: requests that wait for the person ----------
 const manual = { items: new Map(), listeners: new Set(), seq: 0 };
 const notify = () => { for (const fn of manual.listeners) { try { fn(manualList()); } catch {} } };
 export const onManual = (fn) => manual.listeners.add(fn);
@@ -159,7 +159,7 @@ function manualRequest({ label, system, prompt, json, signal, step }) {
   });
 }
 
-/** Милисекунди до следващата полунощ в Лос Анджелис: тогава Google нулира дневните лимити (Google, n.d., Rate limits) */
+/** Milliseconds until the next midnight in Los Angeles: then Google resets the daily limits (Google, n.d., Rate limits) */
 export function msToPacificMidnight(at = new Date()) {
   const p = Object.fromEntries(new Intl.DateTimeFormat('en-US', { timeZone: 'America/Los_Angeles', hour12: false, hour: 'numeric', minute: 'numeric', second: 'numeric' })
     .formatToParts(at).filter((x) => x.type !== 'literal').map((x) => [x.type, Number(x.value)]));
@@ -167,7 +167,7 @@ export function msToPacificMidnight(at = new Date()) {
   return Math.max(60000, 86400000 - passed);
 }
 
-// ---------- Пауза между заявките (безплатните ключове имат лимит на минута) ----------
+// ---------- A pause between requests (free keys have a limit per minute) ----------
 const lastAt = new Map();
 async function pace(cfg, signal) {
   if (!cfg.rpm) return;
@@ -177,12 +177,12 @@ async function pace(cfg, signal) {
   lastAt.set(cfg.provider, Date.now());
 }
 
-// Видът на грешката по кода и текста. msg е целият отговор (при Google в него са и подробностите за квотата).
-// Google: изчерпана предплата е 402 (по-рано 429) с „prepayment credits are depleted“; дневен лимит е 429 с
-// quotaId „...PerDay...“; модел без безплатно ниво е 429 с „limit: 0“. Тези три не минават с повторен опит.
-// Groq: модел за реч връща „does not support chat completions“, а модел с условия „requires terms acceptance“ (така
-// отговори Groq в тестова инсталация на 9.11.2026). Заявка, по-голяма от позволеното, е 413 (Groq, n.d.-a); в
-// текста ѝ Groq пише лимита на минута и поисканото („Limit N, Requested M“), ако ги има.
+// The kind of the error by the code and the text. msg is the whole answer (with Google it also holds the details of the quota).
+// Google: used-up prepayment is 402 (earlier 429) with "prepayment credits are depleted"; a daily limit is 429 with
+// quotaId "...PerDay..."; a model without a free tier is 429 with "limit: 0". These three are not retried.
+// Groq: a speech model returns "does not support chat completions", and a model with terms "requires terms acceptance" (this is how
+// Groq answered in a test installation on 9.11.2026). A request larger than allowed is 413 (Groq, n.d.-a); in
+// its text Groq writes the limit per minute and the requested size ("Limit N, Requested M"), if they are there.
 const errKind = (status, msg) => {
   if (/prepayment credits|prepay/i.test(msg)) return 'prepay';
   if (/does not support chat|not a chat model|only supports? (?:audio|speech|transcription|embeddings?)/i.test(msg)) return 'not-chat';
@@ -198,7 +198,7 @@ const errKind = (status, msg) => {
   return 'error';
 };
 
-/** Една заявка по протокола на доставчика. Връща { ok, text, usage } или { ok:false, status, message }. */
+/** One request by the protocol of the provider. Returns { ok, text, usage } or { ok:false, status, message }. */
 async function request(cfg, { model, system, prompt, images, json, maxTokens, temperature, signal }) {
   const key = keyFor(cfg.provider);
   const base = cfg.baseUrl;
@@ -207,11 +207,11 @@ async function request(cfg, { model, system, prompt, images, json, maxTokens, te
     url = `${base}/v1/messages`;
     headers = { ...headers, 'x-api-key': key, 'anthropic-version': '2023-06-01' };
     const content = images?.length ? [...images.map((im) => ({ type: 'image', source: { type: 'base64', media_type: im.mime, data: im.data } })), { type: 'text', text: prompt }] : prompt;
-    // temperature само когато задачата я иска (креативност при писане); иначе остава тази по подразбиране на модела
+    // temperature only when the task asks for it (creativity in writing); otherwise the default of the model stays
     body = { model, max_tokens: maxTokens || 4096, ...(system ? { system } : {}), ...(temperature != null ? { temperature } : {}), messages: [{ role: 'user', content }] };
     pick = (j) => ({ text: (j.content || []).filter((b) => b.type === 'text').map((b) => b.text).join(''), usage: { in: j.usage?.input_tokens ?? null, out: j.usage?.output_tokens ?? null } });
   } else if (cfg.provider === 'ollama') {
-    // Родният API на Ollama: само тук може да се зададе размерът на контекста (num_ctx); иначе дългият текст се реже тихо.
+    // The native Ollama API: only here can the size of the context (num_ctx) be set; otherwise a long text is silently cut.
     url = `${base.replace(/\/v1$/, '')}/api/chat`;
     const messages = [...(system ? [{ role: 'system', content: system }] : []), { role: 'user', content: prompt, ...(images?.length ? { images: images.map((im) => im.data) } : {}) }];
     body = { model, messages, stream: false, ...(json ? { format: 'json' } : {}), options: { num_ctx: cfg.context, temperature: temperature ?? 0.2, ...(maxTokens ? { num_predict: maxTokens } : {}) } };
@@ -225,7 +225,7 @@ async function request(cfg, { model, system, prompt, images, json, maxTokens, te
     body = { model, messages: [...(system ? [{ role: 'system', content: system }] : []), { role: 'user', content: user }], stream: false };
     if (maxTokens) body[official ? 'max_completion_tokens' : 'max_tokens'] = maxTokens;
     if (!official) body.temperature = temperature ?? 0.2;
-    // gpt-oss мисли преди отговора и харчи от лимита за изход и от дневните токени; за бележки и страници стига „low“
+    // gpt-oss thinks before answering and spends from the output limit and from the daily tokens; for notes and pages "low" is enough
     if (cfg.preset.reasoningEffort && /gpt-oss/i.test(model)) body.reasoning_effort = cfg.preset.reasoningEffort;
     pick = (j) => ({ text: j.choices?.[0]?.message?.content ?? '', usage: { in: j.usage?.prompt_tokens ?? null, out: j.usage?.completion_tokens ?? null } });
   }
@@ -234,19 +234,19 @@ async function request(cfg, { model, system, prompt, images, json, maxTokens, te
     const raw = await r.text();
     let j = null; try { j = JSON.parse(raw); } catch {}
     if (!r.ok) {
-      // Google връща грешката и като масив: [{ "error": {...} }]
+      // Google returns the error also as an array: [{ "error": {...} }]
       const e = Array.isArray(j) ? j[0] : j;
       const message = String(e?.error?.message || (typeof e?.error === 'string' ? e.error : '') || e?.message || raw || r.statusText).slice(0, 600);
-      // Колко да се чака: заглавката Retry-After или подсказката в текста (Google и Groq я пишат различно)
+      // How long to wait: the Retry-After header or the hint in the text (Google and Groq write it differently)
       return { ok: false, status: r.status, message, raw: raw.slice(0, 4000), retryAfter: Number(r.headers.get('retry-after')) || Math.ceil(hintSeconds(raw)) };
     }
     const out = pick(j || {});
-    // Отрязан на лимита за изход: finish_reason „length“ (OpenAI), stop_reason „max_tokens“ (Anthropic), done_reason „length“ (Ollama)
+    // Cut at the output limit: finish_reason "length" (OpenAI), stop_reason "max_tokens" (Anthropic), done_reason "length" (Ollama)
     const cut = j?.choices?.[0]?.finish_reason === 'length' || j?.stop_reason === 'max_tokens' || j?.done_reason === 'length';
     return { ok: true, text: String(out.text || ''), usage: out.usage, ...(cut ? { cut: true } : {}) };
   };
   let res = await send(body);
-  // Някои сървъри не приемат max_tokens или temperature: един повторен опит без тях
+  // Some servers do not accept max_tokens or temperature: one more attempt without them
   if (!res.ok && res.status === 400 && body.max_tokens && /max_tokens/i.test(res.message)) {
     body.max_completion_tokens = body.max_tokens; delete body.max_tokens; res = await send(body);
   }
@@ -256,8 +256,8 @@ async function request(cfg, { model, system, prompt, images, json, maxTokens, te
 }
 
 /**
- * Текстов отговор от избрания модел. tier: light | medium | strong. За ръчния режим чака, докато човекът постави отговора.
- * Връща { ok, text, usage: {in,out}, costUsd, model } или { ok:false, kind, error, detail }.
+ * A text answer from the chosen model. tier: light | medium | strong. For manual mode it waits until the person pastes the answer.
+ * Returns { ok, text, usage: {in,out}, costUsd, model } or { ok:false, kind, error, detail }.
  * kind: auth | limit | quota | model | context | offline | timeout | cancelled | error.
  */
 export async function complete({ tier = 'medium', system = '', prompt, images = null, json = false, maxTokens = 0, temperature, signal, timeoutMs = 600000, label = '', step = null, cfg = aiConfig() }) {
@@ -288,9 +288,9 @@ export async function complete({ tier = 'medium', system = '', prompt, images = 
         if (attempt < 2) { await sleep(3000 * (attempt + 1), ac.signal); continue; }
         return { ok: false, kind: offline ? 'offline' : 'error', error: String(e?.message || e), detail: String(e?.cause?.code || '') };
       }
-      // Празен или отрязан отговор: моделите, които „мислят“ преди отговора (gpt-oss, Gemini), харчат от лимита за изход,
-      // и бележките на български не се побират. Един опит с по-голям лимит, който пак трябва да се побере в контекста
-      // заедно с текста (иначе Groq отказва цялата заявка). Токените на първия опит също се броят.
+      // An empty or cut answer: the models that "think" before answering (gpt-oss, Gemini) spend from the output limit,
+      // and notes in Bulgarian do not fit. One attempt with a larger limit, which must still fit in the context
+      // together with the text (otherwise Groq refuses the whole request). The tokens of the first attempt are counted too.
       if (res.ok && (res.cut || !res.text.trim()) && !widened && maxOut) {
         widened = true;
         const more = Math.min(32000, maxOut * 4, cfg.context - approxTokens(system) - approxTokens(prompt) - 200);
@@ -303,13 +303,13 @@ export async function complete({ tier = 'medium', system = '', prompt, images = 
         return { ok: true, text: res.text, usage, costUsd, model, ...(res.cut ? { cut: true } : {}) };
       }
       const kind = errKind(res.status, res.raw || res.message);
-      // Лимит на минута и сривове при доставчика минават с изчакване; изчерпан кредит или дневен лимит не
+      // A limit per minute and provider failures pass with waiting; used-up credit or a daily limit do not
       const retryable = (res.status === 429 && kind === 'limit') || res.status >= 500;
       if (retryable && attempt < 3) {
         await sleep(Math.min(65000, (res.retryAfter ? res.retryAfter * 1000 + 500 : 0) || [5000, 15000, 40000][attempt]), ac.signal);
         continue;
       }
-      // Дневен лимит: Groq казва кога се освобождава; Google нулира в полунощ тихоокеанско време (quotaId „...PerDay...“)
+      // Daily limit: Groq says when it is freed; Google resets at midnight Pacific time (quotaId "...PerDay...")
       const dailyWait = kind === 'daily' && res.retryAfter && !/PerDay/.test(res.raw || '') ? res.retryAfter : 0;
       return { ok: false, kind, error: res.message, status: res.status, model, ...(dailyWait ? { retryAfter: dailyWait } : {}) };
     }
@@ -317,12 +317,12 @@ export async function complete({ tier = 'medium', system = '', prompt, images = 
   } finally { clearTimeout(timer); signal?.removeEventListener?.('abort', onAbort); }
 }
 
-/** Списъкът с модели на доставчика (за „Зареди моделите“). Връща { ok, models: [id], hidden }. */
+/** The list of models of the provider (for "Load the models"). Returns { ok, models: [id], hidden }. */
 export async function listModels(cfg = aiConfig()) {
   const key = keyFor(cfg.provider);
   const p = cfg.preset;
   let url;
-  if (cfg.protocol === 'anthropic') url = `${cfg.baseUrl}/v1/models`;
+  if (cfg.protocol === 'anthropic') url = `${cfg.baseUrl}/v1/models?limit=1000`; // the default page is only 20 models
   else if (cfg.provider === 'ollama') url = `${cfg.baseUrl.replace(/\/v1$/, '')}/api/tags`;
   else if (cfg.protocol === 'claude-code') url = p.listUrl || (cfg.baseUrl ? `${cfg.baseUrl}/v1/models` : null);
   else url = `${cfg.baseUrl}/models`;
@@ -335,15 +335,42 @@ export async function listModels(cfg = aiConfig()) {
     let j = null; try { j = JSON.parse(raw); } catch {}
     const e = Array.isArray(j) ? j[0] : j;
     if (!r.ok) return { ok: false, kind: errKind(r.status, raw), error: String(e?.error?.message || (typeof e?.error === 'string' ? e.error : '') || r.statusText).slice(0, 300) };
-    // Google дава имената като „models/gemini-...“; в заявките се ползват без представката.
-    // Изключените модели (Groq: "active": false) не се показват.
+    // Google gives the names as "models/gemini-..."; in requests they are used without the prefix.
+    // Disabled models (Groq: "active": false) are not shown.
     const all = [...new Set((j?.data || j?.models || []).filter((m) => m?.active !== false)
       .map((m) => String(m.id || m.name || m.model || '').replace(/^models\//, '')).filter(Boolean))];
-    // Списъците смесват модели за текст с такива за реч, звук, изображения и проверки за безопасност (Groq, n.d.-d);
-    // вторите не пишат страници, затова не се предлагат. Името пак може да се напише на ръка.
+    // The lists mix models for text with ones for speech, sound, images and safety checks (Groq, n.d.-d);
+    // the latter do not write pages, so they are not offered. The name can still be typed by hand.
     const models = all.filter((id) => !NOT_TEXT.test(id)).sort((a, b) => a.localeCompare(b)).slice(0, 400);
     return { ok: true, models, hidden: all.length - models.length };
   } catch (e) {
     return { ok: false, kind: cfg.local ? 'offline' : 'error', error: String(e?.cause?.code || e?.message || e) };
   }
+}
+
+// ---------- Is the chosen model still offered? ----------
+const sameModel = (a, b) => {
+  const n = (x) => String(x).toLowerCase().replace(/^models\//, '').replace(/:latest$/, '');
+  return n(a) === n(b);
+};
+
+/**
+ * A free check of the chosen models against the list the provider publishes (one GET, no tokens).
+ * Providers retire models from time to time; when that happens requests start to fail with "unknown model".
+ * Returns { ok, missing: [{ tier, model }], available: [first few models] } when something is gone, { ok: true } otherwise.
+ * It stays silent (ok: true, unknown: true) whenever the answer cannot be trusted: no network, no key, a provider with
+ * no list, or the Claude subscription (Haiku, Sonnet and Opus are names of families that always point to the current model).
+ */
+export async function modelHealth(cfg = aiConfig()) {
+  if (cfg.engine === 'manual') return { ok: true, skipped: true };
+  if (cfg.preset.protocol === 'claude-code' && !cfg.baseUrl && !cfg.preset.listUrl) return { ok: true, skipped: true, auto: true };
+  const r = await listModels(cfg);
+  // A list cut at 400 entries (listModels) cannot prove that a model is gone
+  if (!r.ok || !r.models?.length || r.models.length >= 400) return { ok: true, unknown: true, kind: r.kind || null };
+  const missing = [];
+  for (const tier of ['light', 'medium', 'strong']) {
+    const model = cfg.models[tier];
+    if (model && !r.models.some((m) => sameModel(m, model)) && !missing.some((x) => sameModel(x.model, model))) missing.push({ tier, model });
+  }
+  return missing.length ? { ok: false, missing, available: r.models.slice(0, 12) } : { ok: true };
 }

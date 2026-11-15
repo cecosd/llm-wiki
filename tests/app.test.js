@@ -1,5 +1,5 @@
-// Приложение и интерфейс: сървърът тръгва, екраните са свързани, преводите са пълни.
-// Истински браузър се ползва, ако има: задава се с CHROME_BIN или се търси в обичайните пътища.
+// Application and interface: the server starts, the screens are connected, the translations are complete.
+// A real browser is used if there is one: it is set with CHROME_BIN or searched in the usual paths.
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -73,7 +73,7 @@ test(T('app', 'A saved Claude path opens with its scope and is offered when the 
   const hit = await api(srv.port, 'GET', `/api/path/saved?level=medium&q=${q}&a=Physics&f=entropy`);
   assert.equal(hit.json?.cached, true, hit.body);
   assert.equal(hit.json.steps.length, 2);
-  // темата не е избрана (напр. след презареждане): пътеката не се губи, а се предлага с обхвата си
+  // the topic is not selected (for example after a reload): the path is not lost, it is offered with its scope
   const other = await api(srv.port, 'GET', `/api/path/saved?level=medium&q=${q}&a=Physics`);
   assert.deepEqual(other.json, { others: [{ areas: ['Physics'], focus: ['entropy'], at }] });
   assert.equal((await api(srv.port, 'GET', `/api/path/saved?level=light&q=${q}`)).json, null);

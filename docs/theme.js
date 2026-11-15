@@ -1,4 +1,4 @@
-// Тема преди първото изрисуване. Отделен файл, защото Content-Security-Policy забранява вградения код.
+// The theme before the first paint. A separate file, because the Content-Security-Policy forbids embedded code.
 (function () {
   var t = null;
   try { t = localStorage.getItem('llmwiki-theme'); } catch (e) {}

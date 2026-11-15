@@ -1,13 +1,13 @@
-// Оценка на токените и цената ПРЕДИ действие с Claude. Нищо не се праща към Claude оттук.
+// Estimate of the tokens and the cost BEFORE an action with Claude. Nothing is sent to Claude from here.
 //
-// Откъде са числата:
-//  - Цени (USD за милион токена): официалната страница на Anthropic за цените
-//    (https://platform.claude.com/docs/en/about-claude/pricing, проверена на 31.10.2026). Редактират се в library.config.json ("prices").
-//  - Токени: приближение по брой знаци (кирилицата е около 2,2 знака на токен, латиницата около 3,8). Грешката е типично ±30%.
-//  - Claude Code не праща само твоя текст: добавя собствен системен промпт и описания на инструментите, чете файлове
-//    на няколко стъпки и всеки път изпраща наново досегашния контекст (най-често от кеша, който е 10 пъти по-евтин).
-//    Затова оценката е ДИАПАЗОН (0,6 до 1,8 пъти средната), а не точна сума.
-//  - При вход с абонамент (claude login) не плащаш по токен: сумата е „еквивалент по API цени“ и показва колко тежко е действието за лимита.
+// Where the numbers come from:
+//  - Prices (USD per million tokens): the official Anthropic pricing page
+//    (https://platform.claude.com/docs/en/about-claude/pricing, checked on 31.10.2026). They can be edited in library.config.json ("prices").
+//  - Tokens: an approximation by the number of characters (Cyrillic is about 2.2 characters per token, Latin about 3.8). The error is typically +/-30%.
+//  - Claude Code does not send only your text: it adds its own system prompt and descriptions of the tools, reads files
+//    in several steps and every time sends the context so far again (most often from the cache, which is 10 times cheaper).
+//    So the estimate is a RANGE (0.6 to 1.8 times the average), not an exact sum.
+//  - With a subscription sign-in (claude login) you do not pay per token: the sum is an "equivalent at API prices" and shows how heavy the action is for the limit.
 import fs from 'node:fs';
 import path from 'node:path';
 import { ROOT, EXTRACTED, RAW, wikiPages, ingestState, normRaw, rel } from './lib.js';
@@ -30,7 +30,7 @@ function prices() {
   try { return { ...DEFAULT_PRICES, ...(JSON.parse(fs.readFileSync(path.join(ROOT, 'library.config.json'), 'utf8')).prices || {}) }; } catch { return DEFAULT_PRICES; }
 }
 
-const BASE_OVERHEAD = 14000; // системният промпт и описанията на инструментите на Claude Code (груба стойност)
+const BASE_OVERHEAD = 14000; // the system prompt and the tool descriptions of Claude Code (a rough value)
 
 export function tokensOf(text) {
   const s = String(text || ''); let cyr = 0;
@@ -38,10 +38,10 @@ export function tokensOf(text) {
   return Math.ceil(cyr / 2.2 + (s.length - cyr) / 3.8);
 }
 const readTokens = (file) => { try { return tokensOf(fs.readFileSync(file, 'utf8')); } catch { return 0; } };
-// Писане: по дължината на текста или, при дописване и абзац, по поискания брой думи
+// Writing: by the length of the text or, for continuing and a paragraph, by the requested number of words
 const writeWords = (b) => (Number(b.words) > 0 ? Math.min(3000, Number(b.words)) : (LENGTHS[b.length] || LENGTHS.medium).words);
-// Преглед с wiki: целият текст влиза в заявката (и при поправка излиза отново), а за всяко цитирано произведение
-// се четат source страницата и цитираните страници от оригинала. sources = колко различни произведения цитира текстът.
+// Review with the wiki: the whole text goes into the request (and comes out again when fixing), and for every cited work
+// the source page and the cited pages of the original are read. sources = how many different works the text cites.
 const reviewSize = (b) => {
   const words = Math.min(30000, Math.max(100, Number(b.words) || 1500));
   return { words, text: Math.round(words * 2.4), works: Math.min(80, Math.max(1, Number(b.sources) || Math.round(words / 250))), report: b.mode === 'report' };
@@ -53,7 +53,7 @@ function rate(model, ctx) {
   const cfg = aiConfig();
   if (cfg.local || cfg.engine === 'manual') return { in: 0, out: 0, cache: 0 };
   if (cfg.preset.vendor !== 'Anthropic') {
-    // друг доставчик: цените са тези, които човекът е въвел за нивото; без тях сумата е неизвестна
+    // another provider: the prices are those the person entered for the level; without them the sum is unknown
     const p = cfg.prices[TIER_OF[model] || 'medium'];
     return p ? { in: p.in, out: p.out, cache: p.in * 0.1 } : null;
   }
@@ -61,12 +61,12 @@ function rate(model, ctx) {
   const big = model === 'haiku' && ctx > 100000;
   return { in: big ? P.bigIn : P.in, out: big ? P.bigOut : P.out, cache: big ? P.bigCache : P.cache };
 }
-/** Името на модела за показване: при друг доставчик моделът на нивото вместо haiku/sonnet/opus */
+/** The name of the model for display: with another provider the model of the level instead of haiku/sonnet/opus */
 const shownModel = (model) => { const cfg = aiConfig(); return cfg.preset.vendor === 'Anthropic' ? model : (cfg.models[TIER_OF[model]] || model); };
 
 /**
- * Едно пускане на `claude -p`: начален контекст (системен + CLAUDE.md + промпт) + прочетеното. На всяка стъпка
- * контекстът се чете наново от кеша; новото се записва в кеша по 1,25 пъти цената на входа.
+ * One run of `claude -p`: initial context (system + CLAUDE.md + prompt) + what was read. At every step the
+ * context is read again from the cache; the new part is written to the cache at 1.25 times the input price.
  */
 export function runCost({ model, promptTokens = 0, reads = 0, out = 0, turns = 6 }) {
   const ctx0 = BASE_OVERHEAD + claudeMdTokens() + promptTokens;
@@ -89,7 +89,7 @@ const sum = (parts, spread = [0.6, 1.8]) => {
   };
 };
 
-// ---------- Без инструменти (pipeline.js и ai.js): заявките се знаят предварително, затова оценката е по-тясна ----------
+// ---------- Without tools (pipeline.js and ai.js): the requests are known in advance, so the estimate is narrower ----------
 const ANTHROPIC_TIER = { light: 'haiku', medium: 'sonnet', strong: 'opus' };
 function callCost(tier, input, output, calls = 1) {
   const cfg = aiConfig();
@@ -106,7 +106,7 @@ function pipelineIngest(files, settings, kind) {
   const reader = cfg.engine === 'manual' ? 'medium' : TIER_OF[eff.reader] || 'light';
   const writer = cfg.engine === 'manual' ? 'medium' : TIER_OF[eff.writer] || 'medium';
   const rb = Math.max(1200, Math.floor(cfg.context * 0.85) - 1800 - 1100);
-  const batch = cfg.engine === 'manual' ? 12 : Math.max(1, Math.min(cfg.context >= 100000 ? 12 : 6, Math.floor((cfg.context * 0.35) / 650))); // като batchSize в pipeline.js
+  const batch = cfg.engine === 'manual' ? 12 : Math.max(1, Math.min(cfg.context >= 100000 ? 12 : 6, Math.floor((cfg.context * 0.35) / 650))); // like batchSize in pipeline.js
   const parts = [], items = [];
   for (const raw of files) {
     const ex = path.join(EXTRACTED, path.relative(RAW, path.join(ROOT, raw)) + '.md');
@@ -192,8 +192,8 @@ function pipelineEstimate(kind, b, settings) {
     title = $t('Library synthesis'); extra.past = pastAverage('synthesis');
     parts = [callCost('strong', M * (Math.min(budget, 6000) + 1500) + 2 * Math.min(budget, 8000), M * 1800 + 3500, M + 2)];
   } else return { ok: false, error: $t('Unknown action.') };
-  // Безплатният Groq дава определен брой токени на ден за всеки модел (Groq, n.d.-c). Задача, която иска
-  // повече, спира на дневния лимит и после започва източника отначало, затова се казва предварително.
+  // The free Groq gives a certain number of tokens per day for each model (Groq, n.d.-c). A task that needs
+  // more stops at the daily limit and then starts the source over, so this is said in advance.
   if (cfg.tpd && cfg.engine !== 'manual') {
     const per = {};
     for (const p of parts) per[p.model] = (per[p.model] || 0) + p.input + p.output;
@@ -210,7 +210,7 @@ function pipelineEstimate(kind, b, settings) {
 const DEPTH_FRAC = { light: 0.02, medium: 0.07, strong: 0.2 };
 const DEPTH_TURNS = { light: 4, medium: 8, strong: 16 };
 
-/** Колко е струвало досега: средно на задача от историята на обработките (ако има записан разход) */
+/** How much it has cost so far: the average per task from the history of processing (if a cost was recorded) */
 function pastAverage(kind) {
   try {
     const h = JSON.parse(fs.readFileSync(path.join(ROOT, 'outputs', '.agent-history.json'), 'utf8'));
@@ -232,7 +232,7 @@ function ingestParts(files, settings, kind) {
     const outW = Math.min(60000, (isBook ? 8000 : 5000) + (isBook ? 0.05 : 0.04) * tok + chapters * 1200);
     const mine = [];
     if (eff.delegate && isBook) {
-      // главите чете по-евтиният модел (отделно извикване за всяка), основният работи върху бележките му
+      // the chapters are read by the cheaper model (a separate call for each), the main one works on its notes
       for (let i = 0; i < chapters; i++) mine.push(runCost({ model: eff.reader, promptTokens: 400, reads: tok / chapters, out: 900, turns: 3 }));
       mine.push(runCost({ model: eff.writer, promptTokens: 800, reads: chapters * 900 + 6000, out: outW, turns }));
     } else {
@@ -278,7 +278,7 @@ export function estimate(kind, body = {}, { settings } = {}) {
     const L = PATH_LEVELS[b.level];
     if (!L) return { ok: false, error: $t('Unknown level.') };
     const s = reviewSize(b), per = { light: 2500, medium: 6000, strong: 12000 }[L.depth] || 6000;
-    const reads = s.works * per + 3000; // скилът, index.md, source страниците и цитираните страници от оригиналите
+    const reads = s.works * per + 3000; // the skill, index.md, the source pages and the cited pages of the originals
     title = $t('Review with {ai}');
     parts = [runCost({ model: L.model, promptTokens: s.text + 2500, reads, out: s.report ? 3500 : s.text + 3500, turns: Math.min(L.maxTurns * 2 + 20, 10 + s.works * 2) })];
     extra.reads = Math.round(reads);

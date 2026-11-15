@@ -1,6 +1,6 @@
-// Локален интерфейс на библиотеката: npm run serve → http://localhost:4321
-// Работи изцяло офлайн: Vue, Tailwind, marked и шрифтовете се зареждат от node_modules.
-// Пише само в raw/inbox/ (качване); wiki/ се пише от Claude Code.
+// The local interface of the library: npm run serve -> http://localhost:4321
+// Works fully offline: Vue, Tailwind, marked and the fonts are loaded from node_modules.
+// Writes only to raw/inbox/ (uploading); wiki/ is written by Claude Code.
 import express from 'express';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -9,7 +9,7 @@ import { ensureStarter, today, ROOT, RAW, WIKI, OUTPUTS, rawFiles, rel, wikiPage
 import { createAgent, legacySources, PATH_LEVELS } from './agent.js';
 import { askAI } from './ai.js';
 import { aiConfig, aiPublic, aiSettings, saveAiConfig, setKey, PRESETS } from './providers.js';
-import { listModels, manualList, manualAnswer, manualCancel, onManual, clipTokens, errorText } from './llm.js';
+import { listModels, modelHealth, manualList, manualAnswer, manualCancel, onManual, clipTokens, errorText } from './llm.js';
 import { buildLocal, writeWithClaude, continueWithClaude, blockWithClaude, saveDraft, createBlank, listDrafts, readDraft, updateDraft, trashDraft, LENGTHS, GENRES, creativityOf, bibHeads } from './write.js';
 import { askAboutPage, planConspect, proposeChange, applyProposal, saveAnswer, proposeReplace, locateForEdit, applyManualEdit, applyParagraphDelete, applyLink, renamePage } from './improve.js';
 import { fold, findDupes, planMerge, applyMerge, ignorePair, normalizeAuthors } from './merge.js';
@@ -20,7 +20,7 @@ import { importPaper } from './discover.js';
 import { estimate } from './estimate.js';
 import { reviewWithAI, saveReport } from './review.js';
 import { checkSetup, testAI, accountTerms } from './setup.js';
-import { versionInfo, checkCode, checkPackages, latestResults, runTests, testsBusy, applyUpdates, supervised, RESTART_CODE } from './updates.js';
+import { versionInfo, checkCode, quickCheck, installCodeUpdate, checkPackages, latestResults, runTests, testsBusy, applyUpdates, supervised, RESTART_CODE } from './updates.js';
 import { readCollections, saveCollection, deleteCollection, changeList, saveMenu } from './collections.js';
 import { authEnabled, isLocked, verifyPassword, setPassword, clearPassword, validPassword, hasSession, startSession, endSession, MIN_PASSWORD } from './auth.js';
 import { areaMap, areaKey, listAreas, setArea, renameArea, proposeClassification, applyAssignments, scopeFilter } from './areas.js';
@@ -42,23 +42,23 @@ const INBOX = path.join(RAW, 'inbox');
 const MAX_UPLOAD = 2 * 1024 ** 3; // 2 GB
 const app = express();
 
-// --- Защита: само localhost (срещу DNS rebinding) и заявки от самата страница ---
-// Домейнът, под който библиотеката се отваря локално (записан в hosts файла на Windows). Сменя се с WIKI_HOST.
-// .wiki е истински домейн от първо ниво: без запис в hosts my.wiki води към чужд сървър, който чрез DNS rebinding
-// би могъл да чете библиотеката. Затова името се приема само ако е зададено изрично или инсталаторът го е записал
-// в hosts (тогава съществува .wiki-launch).
+// --- Protection: only localhost (against DNS rebinding) and requests from the page itself ---
+// The domain under which the library opens locally (written in the Windows hosts file). Changed with WIKI_HOST.
+// .wiki is a real top-level domain: without an entry in hosts, my.wiki leads to a foreign server, which through DNS rebinding
+// could read the library. So the name is accepted only if it is set explicitly or the installer wrote it
+// into hosts (then .wiki-launch exists).
 const WIKI_HOST = String(process.env.WIKI_HOST || (fs.existsSync(path.join(ROOT, '.wiki-launch')) ? 'my.wiki' : '')).toLowerCase();
 const ALLOWED_HOSTS = new Set([`localhost:${PORT}`, `127.0.0.1:${PORT}`, `[::1]:${PORT}`, ...(WIKI_HOST ? [WIKI_HOST, `${WIKI_HOST}:${PORT}`] : [])]);
-app.use((req, res, next) => runWithLang(pickLang(req), next)); // езикът на заявката важи за всички $t() под нея
+app.use((req, res, next) => runWithLang(pickLang(req), next)); // the language of the request applies to all $t() under it
 app.disable('x-powered-by');
-// Втора защита след пречистването на HTML: вграден код и чужди адреси не работят.
-// 'unsafe-eval' е нужен на шаблоните на Vue, а 'unsafe-inline' за стилове на Tailwind; вграден скрипт остава забранен.
+// A second protection after the HTML is sanitised: embedded code and foreign addresses do not work.
+// 'unsafe-eval' is needed by the Vue templates, and 'unsafe-inline' for the Tailwind styles; embedded script stays forbidden.
 const CSP = ["default-src 'self'", "script-src 'self' 'unsafe-eval'", "style-src 'self' 'unsafe-inline'", "img-src 'self' data: blob:", "font-src 'self'", "connect-src 'self'", "object-src 'none'", "base-uri 'none'", "form-action 'self'", "frame-ancestors 'none'"].join('; ');
-/** Заявка от друг сайт. Самостоятелно отваряне на адрес (връзка от друго място) е позволено, но не и вграждане и fetch. */
+/** A request from another site. Opening an address on its own (a link from elsewhere) is allowed, but not embedding and fetch. */
 function fromElsewhere(req) {
   const origin = req.headers.origin;
   if (origin) {
-    try { if (new URL(origin).host !== req.headers.host) return true; } catch { return true; } // и 'null' от изолирани страници
+    try { if (new URL(origin).host !== req.headers.host) return true; } catch { return true; } // and 'null' from isolated pages
   }
   const site = req.headers['sec-fetch-site'];
   if (!site || site === 'same-origin' || site === 'none') return false;
@@ -69,15 +69,15 @@ app.use((req, res, next) => {
   if (req.path.startsWith('/api/')) res.set('Cache-Control', 'no-store');
   if (!ALLOWED_HOSTS.has(req.headers.host)) return res.status(403).send($t('Localhost only'));
   if (fromElsewhere(req)) return res.status(403).send($t('Forbidden'));
-  const isLogin = req.method === 'POST' && req.path === '/login'; // формата за вход няма как да прати заглавка; проверен е Origin
+  const isLogin = req.method === 'POST' && req.path === '/login'; // the sign-in form cannot send a header; the Origin is checked
   if (req.method !== 'GET' && req.method !== 'HEAD' && req.headers['x-library'] !== '1' && !isLogin) return res.status(403).send($t('Forbidden'));
   next();
 });
 
-// Колко прозореца са отворени сега. Стартерът (scripts/app.js) спира сървъра, когато ги няма; отговорът е само число.
+// How many windows are open now. The launcher (scripts/app.js) stops the server when there are none; the answer is only a number.
 app.get('/api/app/presence', (_req, res) => res.json({ clients: clients.size, boot: BOOT }));
 
-// --- Парола за интерфейса (по избор) ---
+// --- A password for the interface (optional) ---
 function loginPage(req, res, failed) {
   const e = failed ? `<p style="color:#b4532a;margin:0 0 12px">${isLocked() ? $t('Too many attempts. Try again in a minute.') : $t('Wrong password.')}</p>` : '';
   res.status(failed ? 401 : 200).type('html').send(`<!doctype html><html lang="${pickLang(req)}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>${$t('Sign in')}</title><style>body{margin:0;min-height:100vh;display:grid;place-items:center;background:#f6f3ec;color:#26231e;font:16px system-ui,sans-serif}form{width:min(340px,calc(100vw - 32px));padding:24px;background:#fffdf9;border:1px solid #e4dfd3;border-radius:16px;box-sizing:border-box}h1{font-size:20px;margin:0 0 16px}input,button{width:100%;box-sizing:border-box;padding:10px 12px;font:inherit;border-radius:10px}input{border:1px solid #cfc8b8;margin-bottom:12px}button{border:0;background:#2f6f62;color:#fff;cursor:pointer}@media (prefers-color-scheme:dark){body{background:#1c1b18;color:#ece7dc}form{background:#262420;border-color:#3a372f}input{background:#1c1b18;color:inherit;border-color:#4a463c}}</style></head><body><form method="post" action="/login"><h1>${$t('Sign in')}</h1>${e}<input type="password" name="password" autocomplete="current-password" aria-label="${$t('Password')}" placeholder="${$t('Password')}" autofocus required><button type="submit">${$t('Sign in')}</button></form></body></html>`);
@@ -114,8 +114,8 @@ app.get('/api/page/:slug', (req, res) => {
   res.json(d);
 });
 
-// ---------- Четец: текстът на една страница от книгата ----------
-// readUnits е в reader-data.js (ползва се и от архива)
+// ---------- Reader: the text of one page of a book ----------
+// readUnits is in reader-data.js (also used by the archive)
 
 app.get('/api/reader', (req, res) => {
   const { pages } = snapshot();
@@ -134,7 +134,7 @@ app.get('/api/reader', (req, res) => {
   const want = Number(req.query.page) || u.order[0];
   const page = u.units.has(want) ? want : u.order.reduce((best, n) => (Math.abs(n - want) < Math.abs(best - want) ? n : best), u.order[0]);
   const offset = Number(p.data.page_offset) || 0;
-  // В коя глава попада страницата
+  // Which chapter the page falls into
   const chapter = pages.filter((x) => x.data.type === 'chapter' && extractLinks(String(x.data.book || ''))[0] === p.slug)
     .map((x) => { const [a, b] = String(x.data.pages || '').split(/[-–]/).map(Number); return { slug: x.slug, title: x.data.title || x.slug, a, b: b || a }; })
     .find((c) => c.a && page >= c.a && page <= c.b) || null;
@@ -147,10 +147,10 @@ app.get('/api/reader', (req, res) => {
 
 app.get('/api/search', (req, res) => res.json(searchHits(req.query.q)));
 
-// ---------- Пътека за учене: въпрос → подредени стъпки (без Claude, не харчи от лимита) ----------
+// ---------- A learning path: question -> ordered steps (without Claude, does not use the limit) ----------
 const STOP = new Set(['как', 'какво', 'какви', 'каква', 'какъв', 'защо', 'кога', 'къде', 'или', 'при', 'към', 'между', 'който', 'която', 'които', 'има', 'дали', 'като', 'най', 'със', 'във', 'ако', 'тези', 'този', 'тази', 'това', 'още', 'само', 'може', 'мога', 'искам', 'разбера', 'научa', 'уча', 'how', 'what', 'which', 'who', 'why', 'when', 'where', 'the', 'and', 'for', 'with', 'about', 'between', 'does', 'are', 'was', 'can', 'want', 'understand', 'learn', 'tell']);
 const stem = (w) => (w.length > 6 ? w.slice(0, w.length - 2) : w.length > 4 ? w.slice(0, w.length - 1) : w);
-// Етапите на пътеката: функция, за да следват езика на заявката. Името не е „stages“, защото обработчиците ползват локален масив с това име
+// The stages of the path: a function, so that they follow the language of the request. The name is not "stages", because the handlers use a local array with that name
 const pathStages = () => [
   { id: 'frame', label: $t('Framework'), hint: $t('The big picture of the topic first.'), types: ['topic'], max: 3 },
   { id: 'concepts', label: $t('Concepts and people'), hint: $t('The main ideas and who developed them.'), types: ['concept', 'entity'], max: 7 },
@@ -160,8 +160,8 @@ const pathStages = () => [
 ];
 const CITE_RE = new RegExp(String.raw`\[\[([^\]|#]+)(?:#[^\]|]*)?(?:\|[^\]]*)?\]\],?\s*${pageUnits()}\s*(\d+)`, 'g');
 
-// Подрежда страниците по близост до въпроса (по думи; заглавията и псевдонимите се сравняват и по звучене)
-// Обхват на пътека или статия: избрани области и/или теми (фокус); без избор влизат всички страници
+// Orders the pages by closeness to the question (by words; titles and aliases are compared by sound too)
+// The scope of a path or article: chosen areas and/or topics (focus); without a choice all pages are included
 const listParam = (v) => (Array.isArray(v) ? v : String(v || '').split(',')).map((x) => String(x).trim()).filter(Boolean).slice(0, 40);
 const scopeOf = (src) => ({ areas: listParam(src?.areas ?? src?.a), focus: listParam(src?.focus ?? src?.f) });
 const scopeKey = (sc) => (sc.areas.length || sc.focus.length ? `${sc.areas.map(areaKey).sort().join(',')}~${sc.focus.slice().sort().join(',')}` : '');
@@ -195,7 +195,7 @@ function rank(q, sc = { areas: [], focus: [] }) {
       if (idx !== -1 && (first === -1 || idx < first)) first = idx;
     }
     if (!hit) continue;
-    score *= 1 + hit / terms.length; // страници, които хващат повече от думите на въпроса, излизат напред
+    score *= 1 + hit / terms.length; // pages that match more of the words of the question come first
     score += Math.log(1 + (backlinks.get(p.slug)?.length || 0));
     const start = Math.max(0, first - 60);
     const snippet = first === -1 ? excerpt(p.content) : (start ? '…' : '') + text.slice(start, first + 200) + '…';
@@ -205,7 +205,7 @@ function rank(q, sc = { areas: [], focus: [] }) {
   return { terms, scored, ctx };
 }
 
-/** Превръща страница в стъпка от пътеката (с книгата, страниците и точните цитати за четеца) */
+/** Turns a page into a step of the path (with the book, the pages and the exact citations for the reader) */
 function stepFactory({ pages, backlinks }) {
   const bySlug = new Map(pages.map((x) => [x.slug, x]));
   return (p, snippet, score = 0) => {
@@ -221,7 +221,7 @@ function stepFactory({ pages, backlinks }) {
     } else if (t === 'source' && p.data.raw_path) {
       step.readerSrc = p.slug; step.authors = base.authors; step.year = base.year;
     } else if (['concept', 'entity', 'topic', 'comparison'].includes(t)) {
-      // Точните страници, на които тази страница се опира: [[глава]], с. N
+      // The exact pages on which this page stands: [[chapter]], p. N
       const seen = new Set(); let m; CITE_RE.lastIndex = 0;
       while ((m = CITE_RE.exec(p.content)) && step.cites.length < 4) {
         const slug = m[1].trim().split('/').pop(), src = bySlug.get(slug);
@@ -240,7 +240,7 @@ function stepFactory({ pages, backlinks }) {
 
 const sourceCount = (steps) => new Set(steps.filter((s) => s.type === 'chapter' || s.type === 'source').map((s) => s.book?.slug || s.slug)).size;
 
-// Бърза пътека: без Claude, не харчи от лимита
+// A quick path: without Claude, does not use the limit
 app.get('/api/path', (req, res) => {
   const q = String(req.query.q || '').trim();
   const { terms, scored, ctx } = rank(q, scopeOf(req.query));
@@ -251,7 +251,7 @@ app.get('/api/path', (req, res) => {
   for (const st of pathStages()) {
     let items = scored.filter((s) => st.types.includes(s.p.data.type));
     if (st.id === 'texts') {
-      // най-много 3 глави от една книга; книга без глави влиза като цяла
+      // at most 3 chapters from one book; a book without chapters comes in whole
       const perBook = new Map(); const out = [];
       const chapterBooks = new Set(items.filter((s) => s.p.data.type === 'chapter').map((s) => extractLinks(String(s.p.data.book || ''))[0]));
       for (const s of items) {
@@ -274,9 +274,9 @@ app.get('/api/path', (req, res) => {
   res.json({ q, terms, steps, stages, note, sources: sourcesN, mode: 'local' });
 });
 
-// ---------- Пътека, подредена от Claude (избор: лек, среден, мощен) ----------
-// Claude само чете (Read, Glob, Grep) и връща JSON с етапи; сървърът проверява, че всяка страница съществува,
-// и сглобява стъпките със същите данни за четеца и цитатите като бързата пътека. Резултатът се пази в outputs/.
+// ---------- A path ordered by Claude (choice: light, medium, powerful) ----------
+// Claude only reads (Read, Glob, Grep) and returns JSON with stages; the server checks that every page exists,
+// and assembles the steps with the same data for the reader and the citations as the quick path. The result is kept in outputs/.
 const PATHS_FILE = path.join(OUTPUTS, '.claude-paths.json');
 const readPaths = () => { try { return JSON.parse(fs.readFileSync(PATHS_FILE, 'utf8')); } catch { return {}; } };
 const pathKey = (q, level, sc) => `${level}|${q.trim().toLowerCase()}${sc && scopeKey(sc) ? '|~' + scopeKey(sc) : ''}`;
@@ -287,7 +287,7 @@ const DEPTH = lazy(() => ({
   strong: P('Work thoroughly: read the key pages, follow the links and the citations to the chapters, search with Grep for the words and synonyms from the question and the other spellings of the names, check for contradictions between the sources and mark them in look. Up to 14 steps.'),
 }));
 
-/** За модел без инструменти: индексът и най-близките до въпроса страници (повече на по-силното ниво) */
+/** For a model without tools: the index and the pages closest to the question (more at the stronger level) */
 const PATH_PAGES = { light: 4, medium: 8, strong: 14 };
 function pathMaterial(level, ranked, budget) {
   let index = '';
@@ -377,8 +377,8 @@ app.get('/api/path/saved', (req, res) => {
   if (!PATH_LEVELS[level]) return res.json(null);
   const all = readPaths(), hit = all[pathKey(q, level, scopeOf(req.query))];
   if (hit) return res.json({ ...buildClaudePath(hit.plan, q, level, snapshot()), cached: true, savedAt: hit.at });
-  // Няма пътека за този обхват, но може да има за същия въпрос и ниво с друг обхват (темите не се помнят
-  // след презареждане). Връщаме ги, за да се отворят безплатно, вместо да се съставят наново.
+  // There is no path for this scope, but there may be one for the same question and level with another scope (the topics are not remembered
+  // after a reload). We return them so that they open for free, instead of being composed again.
   const base = pathKey(q, level);
   const others = Object.entries(all).filter(([k]) => k === base || k.startsWith(base + '|~'))
     .map(([, v]) => ({ areas: v.areas || [], focus: v.focus || [], at: v.at }))
@@ -403,7 +403,7 @@ app.post('/api/path/claude', async (req, res) => {
   const scored = rank(q, sc).scored;
   const hints = [scopeNote(sc, ctx.pages), scored.slice(0, 30).map((s) => `${s.p.slug} | ${s.p.data.type} | ${String(s.p.data.title || s.p.slug)}`).join('\n')].filter(Boolean).join('\n\n');
   const ac = new AbortController();
-  res.on('close', () => { if (!res.writableEnded) ac.abort(); }); // затвори ли страницата, спираме модела
+  res.on('close', () => { if (!res.writableEnded) ac.abort(); }); // if the page is closed, we stop the model
   const r = await askAI({
     level, json: true, maxTokens: 3500, signal: ac.signal, label: $t('Learning path'),
     agentPrompt: claudePathPrompt(q, level, hints),
@@ -420,8 +420,8 @@ app.post('/api/path/claude', async (req, res) => {
   res.json({ ...built, cached: false, savedAt: at });
 });
 
-// ---------- Пояснения и подобрения от страницата ----------
-// Claude само чете и предлага; промяната се прави от сървъра след потвърждение, с точка за „Върни“.
+// ---------- Explanations and improvements from the page ----------
+// Claude only reads and suggests; the change is made by the server after confirmation, with a point for "Undo".
 app.use(['/api/ask', '/api/improve', '/api/conspect'], express.json({ limit: '256kb' }));
 const levelOf = (v) => (PATH_LEVELS[v] ? v : 'medium');
 const clipText = (v, n) => String(v ?? '').slice(0, n);
@@ -480,7 +480,7 @@ app.post('/api/improve/apply', (req, res) => {
   res.json({ ...r, undoId: agent.snapshot().history[0]?.id || null });
 });
 
-// Ръчна редакция и преименуване (без Claude). Връзките [[…]] не се променят; всяка промяна има точка за „Върни“.
+// Manual editing and renaming (without Claude). The links [[...]] do not change; every change has a point for "Undo".
 app.use('/api/page', express.json({ limit: '256kb' }));
 function manual(res, label, run) {
   if (agent.isBusy()) return res.json({ ok: false, error: $t('Wait for the processing to finish.') });
@@ -509,7 +509,7 @@ app.post('/api/page/rename', (req, res) => {
   manual(res, $t('renaming'), () => renamePage({ slug: String(b.slug || ''), title: clipText(b.title, 400) }));
 });
 
-// ---------- Области на знанието ----------
+// ---------- Areas of knowledge ----------
 app.use('/api/areas', express.json({ limit: '64kb' }));
 app.get('/api/areas', (_req, res) => {
   const { pages } = snapshot();
@@ -523,12 +523,12 @@ app.post('/api/areas/apply', (req, res) => manual(res, $t('area detection'), () 
 app.post('/api/areas/classify', async (req, res) => {
   const level = PATH_LEVELS[req.body?.level] ? req.body.level : 'light', ac = new AbortController();
   res.on('close', () => { if (!res.writableEnded) ac.abort(); });
-  // Подреждането не чете файлове: един и същ текст и за агента, и без инструменти
+  // The ordering does not read files: the same text both for the agent and without tools
   const r = await proposeClassification((prompt) => askAI({ level, agentPrompt: prompt, textPrompt: prompt, json: true, maxTokens: 4000, maxTurns: 4, signal: ac.signal, label: $t('Areas') }));
   if (res.writableEnded || res.destroyed) return;
   r.ok ? res.json(r) : fail(res, r);
 });
-// Предложени теми в избраните области (без Claude): понятия, теми и сравнения, близки до въпроса
+// Suggested topics in the chosen areas (without Claude): concepts, topics and comparisons close to the question
 app.get('/api/topics', (req, res) => {
   const q = String(req.query.q || '').trim(), sc = { areas: scopeOf(req.query).areas, focus: [] };
   const { terms, scored, ctx } = rank(q, sc);
@@ -539,10 +539,10 @@ app.get('/api/topics', (req, res) => {
   res.json(list.slice(0, 14).map((p) => ({ slug: p.slug, title: String(p.data.title || p.slug), type: p.data.type, area: AREAS.get(p.slug)?.area || null, backlinks: ctx.backlinks.get(p.slug)?.length || 0 })));
 });
 
-// ---------- Писане с wiki: текст от страниците на библиотеката ----------
-// Вид текст (научна статия, есе, научно-популярна статия, обзор, художествен текст) и креативност от 1 до 5.
-// Бърза чернова (без Claude, само научна статия), текст от Claude (лек, среден, мощен) или празен документ.
-// Готовият текст се записва в drafts/<id>.md.
+// ---------- Write with the wiki: a text from the pages of the library ----------
+// A kind of text (a scientific article, an essay, a popular science article, a review, a literary text) and creativity from 1 to 5.
+// A quick draft (without Claude, for every kind of text), a text from Claude (light, medium, powerful) or a blank document.
+// The finished text is saved in drafts/<id>.md.
 app.use(['/api/write', '/api/drafts'], express.json({ limit: '4mb' }));
 const writeHints = (sc, scored, ctx) => [scopeNote(sc, ctx.pages), scored.slice(0, 30).map((s) => `${s.p.slug} | ${s.p.data.type} | ${String(s.p.data.title || s.p.slug)}`).join('\n')].filter(Boolean).join('\n\n');
 const genreParam = (v, fallback = 'article') => (GENRES.includes(v) ? v : fallback);
@@ -552,11 +552,10 @@ app.post('/api/write', async (req, res) => {
   const length = LENGTHS[b.length] ? b.length : 'medium';
   const genre = genreParam(b.genre), creativity = creativityOf(b.creativity, genre), voice = clipText(b.voice, 1500).trim();
   if (topic.length < 4) return res.status(400).json({ error: $t('Write the topic.') });
-  if (level === 'local' && genre !== 'article') return res.status(400).json({ error: $t('The quick draft can only arrange a scientific article. Choose a {ai} level.') });
   const sc = scopeOf(b), { scored, ctx } = rank(topic, sc);
   let r;
   if (level === 'local') {
-    r = buildLocal(topic, { pages: ctx.pages, scored });
+    r = buildLocal(topic, { pages: ctx.pages, scored }, genre);
     if (!r) return fail(res, { kind: 'empty', error: $t('The library says nothing on this topic. Try other words or process sources about it first.') });
   } else {
     const ac = new AbortController();
@@ -567,12 +566,12 @@ app.post('/api/write', async (req, res) => {
   }
   res.json({ ...saveDraft({ markdown: r.markdown, topic, level, length, genre, creativity, scope: sc, voice: level === 'local' ? '' : voice, cited: r.cited, warnings: r.warnings }), level });
 });
-// Празен документ: само заглавие; човекът пише сам и иска помощ по абзаци
+// A blank document: only a title; the person writes alone and asks for help with paragraphs
 app.post('/api/drafts', (req, res) => {
   const b = req.body || {};
   res.json({ ok: true, ...createBlank({ title: clipText(b.title, 200), genre: genreParam(b.genre), scope: scopeOf(b) }) });
 });
-// Дописване на записан текст с Claude: връща новия текст за преглед, записът е отделен (PUT)
+// Continuing a saved text with Claude: returns the new text for review, the saving is separate (PUT)
 app.post('/api/drafts/:id/continue', async (req, res) => {
   const b = req.body || {}, d = readDraft(req.params.id);
   if (!d) return res.status(404).json({ error: $t('There is no such text') });
@@ -587,14 +586,14 @@ app.post('/api/drafts/:id/continue', async (req, res) => {
   if (res.writableEnded || res.destroyed) return;
   r.ok ? res.json(r) : fail(res, r);
 });
-// Един абзац с Claude: пренаписване на [start, end) или нов абзац след end. Връща новото тяло за преглед, без запис.
+// One paragraph with Claude: rewriting [start, end) or a new paragraph after end. Returns the new body for review, without saving.
 app.post('/api/drafts/:id/block', async (req, res) => {
   const b = req.body || {}, d = readDraft(req.params.id);
   if (!d) return res.status(404).json({ error: $t('There is no such text') });
   if (!PATH_LEVELS[b.level]) return res.status(400).json({ error: $t('Choose a {ai} level.') });
   const action = b.action === 'rewrite' ? 'rewrite' : 'insert';
   const body = clipText(b.body, 200000), start = Number(b.start), end = Number(b.end);
-  // Браузърът праща и самия абзац: ако текстът се е разминал, по-добре отказ, отколкото промяна на друго място
+  // The browser also sends the paragraph itself: if the text has drifted, a refusal is better than a change in another place
   if (action === 'rewrite' && body.slice(start, end) !== String(b.target ?? '')) return fail(res, { kind: 'locate', error: $t('The place in the text was not found. Reload the text and try again.') });
   const instruction = clipText(b.instruction, 1000).trim(), n = Math.min(800, Math.max(40, Number(b.words) || 150));
   const genre = genreParam(b.genre, d.genre), creativity = creativityOf(b.creativity ?? d.creativity, genre);
@@ -607,8 +606,8 @@ app.post('/api/drafts/:id/block', async (req, res) => {
   if (res.writableEnded || res.destroyed) return;
   r.ok ? res.json(r) : fail(res, r);
 });
-// Преглед с wiki (скилът wiki-review): проверка на цитатите в оригиналите, APA, опора и изказ.
-// mode: fix (връща поправения текст за преглед, без запис) или report (само отчет). Отчетът се пази в drafts/.reviews/.
+// A review with the wiki (the wiki-review skill): a check of the citations in the originals, APA, grounding and wording.
+// mode: fix (returns the fixed text for review, without saving) or report (only a report). The report is kept in drafts/.reviews/.
 app.post('/api/drafts/:id/review', async (req, res) => {
   const b = req.body || {}, d = readDraft(req.params.id);
   if (!d) return res.status(404).json({ error: $t('There is no such text') });
@@ -622,7 +621,7 @@ app.post('/api/drafts/:id/review', async (req, res) => {
   const r = await reviewWithAI({ body, title, instruction, genre, mode, level: b.level, ranked: scored.slice(0, 30).map((s) => s.p), pages: ctx.pages, signal: ac.signal });
   if (res.writableEnded || res.destroyed) return;
   if (!r.ok) return fail(res, r);
-  let reportPath = null; try { reportPath = saveReport(d.id, r.report); } catch { /* отчетът остава в отговора */ }
+  let reportPath = null; try { reportPath = saveReport(d.id, r.report); } catch { /* the report stays in the answer */ }
   res.json({ ...r, reportPath });
 });
 app.get('/api/drafts', (req, res) => res.json(listDrafts(String(req.query.q || ''))));
@@ -630,7 +629,7 @@ app.get('/api/drafts/:id', (req, res) => { const d = readDraft(req.params.id); d
 app.put('/api/drafts/:id', (req, res) => res.json(updateDraft(req.params.id, req.body?.body, req.body?.meta)));
 app.delete('/api/drafts/:id', (req, res) => res.json(trashDraft(req.params.id)));
 
-// ---------- Дубликати по изписване и обединяване ----------
+// ---------- Duplicates by spelling and merging ----------
 app.use(['/api/merge', '/api/dupes', '/api/authors'], express.json({ limit: '32kb' }));
 app.get('/api/dupes', (_req, res) => res.json(findDupes()));
 app.post('/api/dupes/ignore', (req, res) => { ignorePair(String(req.body?.a || ''), String(req.body?.b || '')); res.json({ ok: true }); });
@@ -645,7 +644,7 @@ app.post('/api/merge', (req, res) => {
   agent.record({ kind: 'merge', target: keep, label: $t('Merged: {0} and {1}', [r.drop.title, r.keep.title]), report: $t('Links in {0} pages point to “{1}”. Archive: {2}.', [r.touched.length, r.keep.title, r.archive]), commitBefore: before, commitAfter: after, mode: null });
   res.json(r);
 });
-// ---------- Обединяване на отделно качени източници в книга с глави ----------
+// ---------- Merging separately uploaded sources into a book with chapters ----------
 app.use(['/api/merge-sources'], express.json({ limit: '32kb' }));
 app.post('/api/merge-sources/preview', (req, res) => {
   const title = String(req.body?.title || ''), slugs = [].concat(req.body?.slugs || []).map(String);
@@ -676,7 +675,7 @@ app.get('/api/stats', (_req, res) => {
   const { pages } = snapshot();
   const raw = rawFiles();
   const pending = ingestState(pages, raw).pending.map((f) => ({ path: normRaw(rel(f)), name: path.basename(f).normalize('NFC'), folder: rel(f).split('/')[1], bytes: fs.statSync(f).size }));
-  // Дубликати: първо по размер (бързо), после по SHA-256 спрямо manifest.json
+  // Duplicates: first by size (fast), then by SHA-256 against manifest.json
   const known = Object.entries(loadManifest().files);
   const inbox = walk(INBOX).filter((f) => !f.endsWith('.gitkeep') && !f.endsWith('.part')).map((f) => {
     const bytes = fs.statSync(f).size;
@@ -693,10 +692,10 @@ app.get('/api/stats', (_req, res) => {
 
 app.get('/api/graph', (_req, res) => res.json(graphData()));
 
-// Дневникът: всички записи от wiki/log.md, най-новите първи (страницата филтрира и групира по дни)
+// The log: all entries of wiki/log.md, newest first (the page filters and groups by days)
 app.get('/api/log', (_req, res) => res.json({ entries: logEntries() }));
 
-// ---------- Колекции на човека: умни (по филтър), ръчни списъци, ред и скриване на видовете в менюто ----------
+// ---------- The person's collections: smart (by filter), manual lists, order and hiding of the kinds in the menu ----------
 app.get('/api/collections', (_req, res) => res.json(readCollections()));
 app.use('/api/collections', express.json({ limit: '256kb' }));
 app.post('/api/collections', (req, res) => res.json(saveCollection(req.body || {})));
@@ -704,7 +703,7 @@ app.post('/api/collections/menu', (req, res) => res.json(saveMenu(req.body || {}
 app.post('/api/collections/:id/pages', (req, res) => res.json(changeList(String(req.params.id), req.body || {})));
 app.delete('/api/collections/:id', (req, res) => res.json(deleteCollection(String(req.params.id))));
 
-// ---------- Статичен архив за четене: ZIP с index.html и markdown файловете на wiki/ (без raw/) ----------
+// ---------- A static archive for reading: a ZIP with index.html and the markdown files of wiki/ (without raw/) ----------
 app.post('/api/archive', (req, res) => {
   try { res.json({ ok: true, ...writeArchive({ lang: pickLang(req) }) }); }
   catch (e) { res.status(500).json({ ok: false, error: $t('The archive could not be made.') + ' ' + e.message }); }
@@ -720,8 +719,8 @@ app.delete('/api/archive/:name', (req, res) => {
 });
 
 
-// ---------- Резервни копии и синхронизация с други папки (scripts/sync.js) ----------
-// Дългите операции вървят в отделна нишка (sync-worker.js), за да не замръзва интерфейсът; напредъкът се чете от /api/sync.
+// ---------- Backups and synchronisation with other folders (scripts/sync.js) ----------
+// The long operations run in a separate thread (sync-worker.js), so that the interface does not freeze; the progress is read from /api/sync.
 const syncJob = { busy: false, progress: null };
 function inWorker(op, args) {
   return new Promise((resolve) => {
@@ -760,11 +759,11 @@ app.post('/api/sync/:id/run', async (req, res) => {
   const b = req.body || {};
   const strategy = ['push', 'overwrite', 'review'].includes(b.strategy) ? b.strategy : 'push';
   syncJob.busy = true; syncJob.progress = { phase: 'plan', done: 0, total: 0 };
-  const before = strategy === 'review' ? agent.checkpoint(`Before: sync ${t.name}`) : null; // точка за „Върни“ само когато може да се вземе нещо
+  const before = strategy === 'review' ? agent.checkpoint(`Before: sync ${t.name}`) : null; // a point for "Undo" only when something can be taken
   try {
     const r = await inWorker('run', [t.id, { strategy, decisions: b.decisions && typeof b.decisions === 'object' ? b.decisions : {} }]);
     if (r.ok && (r.pulled || r.merged || r.log)) {
-      try { rebuildIndex(); } catch { /* индексът се строи наново и при следващо lint */ }
+      try { rebuildIndex(); } catch { /* the index is built again at the next lint too */ }
       fs.appendFileSync(path.join(WIKI, 'log.md'), `\n## ${today()} refactor: ${$t('Took changes from “{0}”', [t.name])}\n- ${$t('Taken')}: ${r.pulled}; ${$t('merged by paragraph')}: ${r.merged}; ${$t('log entries')}: ${r.log}\n- ${$t('Your versions of replaced files')}: ${r.undoBackup || '-'}\n`);
       const after = agent.checkpoint(`Sync: ${t.name}`);
       agent.record({ kind: 'merge', target: t.id, label: $t('Took changes from “{0}”', [t.name]), report: $t('Taken {0} files, merged {1}. Your old versions: {2}.', [r.pulled, r.merged, r.undoBackup || '-']), commitBefore: before, commitAfter: after, mode: null });
@@ -774,7 +773,7 @@ app.post('/api/sync/:id/run', async (req, res) => {
   } finally { syncJob.busy = false; syncJob.progress = null; }
 });
 
-// Качване на файл в raw/inbox (тялото на заявката е самият файл)
+// Uploading a file to raw/inbox (the body of the request is the file itself)
 app.put('/api/upload', (req, res) => {
   let name;
   try { name = decodeURIComponent(String(req.headers['x-filename'] || '')); } catch { name = ''; }
@@ -800,28 +799,28 @@ app.put('/api/upload', (req, res) => {
   out.on('error', (e) => { if (!aborted) { fs.rmSync(tmp, { force: true }); res.status(500).json({ error: e.message }); } });
 });
 
-// ---------- Живи събития към страницата ----------
+// ---------- Live events to the page ----------
 const clients = new Set();
 const broadcast = (obj) => { const msg = `data: ${JSON.stringify(obj)}\n\n`; clients.forEach((c) => c.write(msg)); };
 
-// ---------- Обработка с Claude Code ----------
+// ---------- Processing with Claude Code ----------
 ensureStarter();
 const agent = createAgent({ broadcast });
 onManual((items) => broadcast({ type: 'manual', items }));
 app.use('/api/agent', express.json({ limit: '64kb' }));
-// Смяна на езика: интерфейсът следва бисквитката, а езикът на съдържанието (CLAUDE.md, скилове, шаблони, промптове)
-// се сменя тук, за да са на един език. Без пакет за този език се ползва английският.
+// Changing the language: the interface follows the cookie, and the content language (CLAUDE.md, skills, templates, prompts)
+// is changed here, so that they are in one language. Without a pack for this language English is used.
 app.use('/api/lang', express.json({ limit: '1kb' }));
 app.post('/api/lang', async (req, res) => {
   const code = String(req.body?.code || '');
   if (!hasLocale(code)) return res.status(400).json({ error: $t('Unknown language.') });
-  // Докато Claude работи, езикът не се сменя (CLAUDE.md и шаблоните се четат при всяко задание): отказваме с причина
+  // While Claude works the language does not change (CLAUDE.md and the templates are read at every job): we refuse with a reason
   if (agent.isBusy()) return res.json({ ok: false, error: $t('Wait for the processing to finish.') });
   const pack = packs().includes(code) ? code : 'en';
   let inst = installPack(pack);
   if (inst.readOnly && process.env.LIB_SANDBOX_IPC) {
-    // В изолацията CLAUDE.md, .claude/ и scripts/ са само за четене: тях ги копира стартерът отвън (sandbox.js),
-    // и то само от пакетите в content/. Сървърът довършва това, което може да пише сам (шаблоните и contentLang).
+    // In the isolation CLAUDE.md, .claude/ and scripts/ are read-only: they are copied by the launcher outside (sandbox.js),
+    // and only from the packs in content/. The server finishes what it can write itself (the templates and contentLang).
     const outside = await askOutside('content-lang', { code: pack });
     inst = outside?.ok ? installPack(pack, { only: canWrite }) : { ok: false, readOnly: true };
   }
@@ -829,8 +828,8 @@ app.post('/api/lang', async (req, res) => {
   res.json({ ok: true, content: inst.ok ? pack : null });
 });
 app.use('/api/estimate', express.json({ limit: '64kb' }));
-// Оценка на токени и цена преди действие с Claude (нищо не се праща към Claude)
-/** Настройки само за едно действие: режим (с него се чистят изборите на модел) и език на индексиране */
+// An estimate of tokens and cost before an action with Claude (nothing is sent to Claude)
+/** Settings for one action only: the mode (it clears the model choices) and the indexing language */
 function cleanOpts(o) {
   const out = {};
   if (['economy', 'balanced', 'best'].includes(o?.mode)) Object.assign(out, { mode: o.mode, reader: '', writer: '' });
@@ -874,7 +873,7 @@ app.post('/api/remove', (req, res) => {
   agent.record({ kind: 'remove', target: slug, label: $t('Removed: {0}', [r.title]), report: $t('Removed {0} pages, cleaned citations in {1}. Archive: {2}.', [r.pages.length, r.touched.length, r.archive]), commitBefore: before, commitAfter: after, mode: null });
   res.json(r);
 });
-// ---------- Приложение: режим (обикновен или защитен), име на сайта, спиране ----------
+// ---------- The application: mode (normal or safe), site name, stopping ----------
 app.use('/api/app', express.json({ limit: '2kb' }));
 app.get('/api/app', (_req, res) => res.json(appInfo()));
 app.post('/api/app/mode', async (req, res) => res.json(await requestMode(req.body?.mode)));
@@ -887,8 +886,8 @@ app.post('/api/app/quit', async (_req, res) => res.json(await requestQuit()));
 app.get('/api/setup', (_req, res) => res.json(checkSetup()));
 app.post('/api/setup/test', async (_req, res) => res.json(await testAI()));
 
-// ---------- Модел: доставчик, ключ, модели, имена в интерфейса ----------
-// Ключът никога не се връща към страницата: само дали го има и последните 4 знака.
+// ---------- Model: provider, key, models, names in the interface ----------
+// The key is never returned to the page: only whether it exists and its last 4 characters.
 app.use('/api/ai', express.json({ limit: '64kb' }));
 function aiSettingsTranslated() {
   const s = aiSettings();
@@ -905,7 +904,7 @@ app.post('/api/ai', (req, res) => {
     const k = setKey(b.provider || aiConfig().provider, b.removeKey ? '' : b.key);
     if (!k.ok) return res.json({ ok: false, error: $t('The key looks wrong (it has spaces or is too long).') });
   }
-  agent.resume(); // опашка, спряла заради ненастроен модел, тръгва отново
+  agent.resume(); // a queue that stopped because of an unset model starts again
   res.json({ ok: true, ...aiSettingsTranslated() });
 });
 app.post('/api/ai/models', async (req, res) => {
@@ -916,7 +915,7 @@ app.post('/api/ai/models', async (req, res) => {
   res.json(r.ok ? r : { ok: false, error: errorText({ kind: r.kind || 'error', error: r.error }, cfg) });
 });
 
-// ---------- Ръчен режим: заявки, които чакат отговор от чата ----------
+// ---------- Manual mode: requests that wait for an answer from the chat ----------
 app.use('/api/manual', express.json({ limit: '2mb' }));
 app.get('/api/manual', (_req, res) => res.json(manualList()));
 app.post('/api/manual/:id', (req, res) => {
@@ -925,12 +924,34 @@ app.post('/api/manual/:id', (req, res) => {
 });
 app.post('/api/manual/:id/cancel', (req, res) => res.json(manualCancel(req.params.id)));
 
-// Страница „Настройки“. GET не излиза от компютъра; POST маршрутите се пускат само с бутон.
+// The "Settings" page. GET does not leave the computer; the POST routes run only with a button.
 app.get('/api/settings', (_req, res) => res.json({ ...versionInfo(), contentLang: contentLang(), account: accountTerms(), tests: latestResults(), testsRunning: testsBusy(), auth: authEnabled(), supervised: supervised(), isolated: !!process.env.LIB_SANDBOX_IPC }));
 app.post('/api/updates/code', async (_req, res) => res.json(await checkCode()));
 app.post('/api/updates/packages', async (_req, res) => res.json(await checkPackages()));
-// Обновяване до безопасните версии (npm update). После сървърът излиза с RESTART_CODE и стартерът го пуска отново.
-let updating = false;
+let updating = false; // one update at a time (packages or program)
+// The quiet check when the program starts: the answer is kept for a few hours (updates.js, quickCheck)
+// Is the chosen model still offered by its provider? One free request to the list of models, kept for a few hours.
+let healthCache = null;
+app.get('/api/ai/health', async (req, res) => {
+  const cfg = aiConfig(), key = JSON.stringify([cfg.provider, cfg.models, cfg.baseUrl]);
+  if (req.query.force !== '1' && healthCache && healthCache.key === key && Date.now() - healthCache.at < 6 * 60 * 60 * 1000) return res.json(healthCache.result);
+  const result = await modelHealth(cfg);
+  healthCache = { key, at: Date.now(), result };
+  res.json(result);
+});
+app.get('/api/updates/quick', async (req, res) => res.json(await quickCheck({ force: req.query.force === '1' })));
+// Installs the new version of the program (git fast-forward, packages, language pack); then the server restarts like after npm update
+app.post('/api/updates/code/install', express.json({ limit: '8kb' }), async (req, res) => {
+  if (agent.isBusy()) return res.json({ ok: false, message: $t('Wait for the processing to finish.') });
+  if (testsBusy()) return res.json({ ok: false, message: $t('Wait for the tests to finish.') });
+  if (updating) return res.json({ ok: false, message: $t('An update is already running.') });
+  updating = true;
+  let r;
+  try { r = await installCodeUpdate({ force: req.body?.force === true }); } finally { updating = false; }
+  res.json(r);
+  if (r.ok && r.restart) setTimeout(() => process.exit(RESTART_CODE), 600);
+});
+// Updating to the safe versions (npm update). Then the server exits with RESTART_CODE and the launcher starts it again.
 app.post('/api/updates/apply', express.json({ limit: '8kb' }), async (req, res) => {
   if (agent.isBusy()) return res.json({ ok: false, error: $t('Wait for the processing to finish.') });
   if (testsBusy()) return res.json({ ok: false, error: $t('Wait for the tests to finish.') });
@@ -953,7 +974,7 @@ app.post('/api/agent/settings', (req, res) => {
   res.json(agent.setSettings(s));
 });
 
-// Сортиране на inbox + извличане на текст (същото като npm run inbox && npm run extract)
+// Sorting the inbox + extracting text (the same as npm run inbox && npm run extract)
 let busy = false;
 function runScript(file) {
   return new Promise((resolve) => {
@@ -964,12 +985,12 @@ function runScript(file) {
     child.on('close', (code) => resolve({ code, out }));
   });
 }
-/** Подрежда inbox, извлича текста и (по избор на човека) пуска обработката. Един процес наведнъж. */
+/** Sorts the inbox, extracts the text and (at the person's choice) starts the processing. One process at a time. */
 async function processInbox({ auto = true } = {}) {
   const a = await runScript('inbox.js');
   const b = await runScript('extract.js');
   const ok = a.code === 0 && b.code === 0;
-  // при включено потвърждаване обработката не тръгва сама: човекът първо вижда оценката
+  // with confirmation turned on, the processing does not start by itself: the person first sees the estimate
   const queued = ok && auto && agent.settings.autoIngest && !agent.settings.confirmCost ? agent.enqueuePending() : 0;
   return { ok, queued, needsConfirm: ok && auto && agent.settings.autoIngest && !!agent.settings.confirmCost && ingestState().pending.length > 0, log: `${a.out}\n${b.out}`.trim() };
 }
@@ -979,8 +1000,8 @@ app.post('/api/inbox', async (_req, res) => {
   try { res.json(await processInbox()); } finally { busy = false; }
 });
 
-// Добавяне на статия по DOI или адрес. Обработката с Claude НЕ тръгва тук: страницата пита за режим и език,
-// после пуска обработката само за новите файлове (paths) с избраните настройки.
+// Adding an article by DOI or address. Processing with Claude does NOT start here: the page asks for the mode and the language,
+// then starts the processing only for the new files (paths) with the chosen settings.
 app.use('/api/web', express.json({ limit: '16kb' }));
 app.post('/api/web/import', async (req, res) => {
   if (busy) return res.status(409).json({ error: $t('Already running. Wait a moment.') });
@@ -998,8 +1019,8 @@ app.post('/api/web/import', async (req, res) => {
   finally { busy = false; }
 });
 
-// Изтриване на файл, който още не е обработен: от входящата кутия или от чакащите за обработка.
-// Файлът се мести в raw/.trash/ (скрита папка, извън обработката), не се трие безвъзвратно.
+// Deleting a file that is not processed yet: from the inbox or from those waiting for processing.
+// The file is moved to raw/.trash/ (a hidden folder, outside the processing), not deleted for good.
 app.use('/api/raw', express.json({ limit: '8kb' }));
 app.post('/api/raw/discard', (req, res) => {
   const kind = req.body?.kind === 'pending' ? 'pending' : 'inbox';
@@ -1010,7 +1031,7 @@ app.post('/api/raw/discard', (req, res) => {
     if (f && !name.startsWith('.') && fs.existsSync(f) && fs.statSync(f).isFile()) file = f;
   } else {
     const want = normRaw(String(req.body?.path || ''));
-    file = ingestState().pending.find((f) => normRaw(rel(f)) === want) || null; // само необработени
+    file = ingestState().pending.find((f) => normRaw(rel(f)) === want) || null; // only unprocessed ones
   }
   if (!file) return res.json({ ok: false, error: $t('The file is gone or already processed.') });
   const snap = agent.snapshot();
@@ -1020,7 +1041,7 @@ app.post('/api/raw/discard', (req, res) => {
   fs.mkdirSync(trash, { recursive: true });
   const to = path.join(trash, `${Date.now()}-${path.basename(file)}`);
   fs.renameSync(file, to);
-  // следи: запис в manifest и извлеченият текст
+  // watches: the entry in the manifest and the extracted text
   try {
     const m = loadManifest();
     for (const k of Object.keys(m.files || {})) if (normRaw(k) === key) delete m.files[k];
@@ -1030,7 +1051,7 @@ app.post('/api/raw/discard', (req, res) => {
   res.json({ ok: true, name: path.basename(file), trash: rel(to) });
 });
 
-// Живо обновяване: изпраща събитие, когато Claude промени нещо в wiki/ или raw/
+// Live update: sends an event when Claude changes something in wiki/ or raw/
 app.get('/api/events', (req, res) => {
   res.set({ 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache', Connection: 'keep-alive' });
   res.flushHeaders();
@@ -1047,22 +1068,22 @@ for (const dir of [WIKI, RAW]) {
       clearTimeout(debounce);
       debounce = setTimeout(() => broadcast({ type: 'files', t: Date.now(), dir: path.basename(dir) }), 400);
     });
-  } catch { /* без recursive watch страницата пак работи, просто без живо обновяване */ }
+  } catch { /* without a recursive watch the page still works, just without live updating */ }
 }
 
-// Оригинални файлове (само в raw/, без .extracted)
+// The original files (only in raw/, without .extracted)
 app.get('/raw/*splat', (req, res) => {
   const target = path.resolve(RAW, ...[].concat(req.params.splat));
   if (!target.startsWith(RAW + path.sep) || target.includes(`${path.sep}.extracted${path.sep}`) || !fs.existsSync(target)) return res.status(404).send($t('There is no such file'));
-  // Качен HTML или SVG не бива да се изпълнява като част от приложението: отваря се изолиран, без достъп до него.
-  // PDF и обикновените изображения не носят код към страницата, а вграденият четец на браузъра не работи с тази защита.
+  // An uploaded HTML or SVG must not run as a part of the application: it opens isolated, without access to it.
+  // A PDF and ordinary images carry no code for the page, and the built-in reader of the browser does not work with this protection.
   if (/\.(pdf|png|jpe?g|gif|webp|bmp|ico|tiff?)$/i.test(target)) res.removeHeader('Content-Security-Policy');
   else res.set('Content-Security-Policy', "sandbox; default-src 'none'; img-src data:; style-src 'unsafe-inline'");
   res.sendFile(target);
 });
 
-// Библиотеки от node_modules, за да работи без интернет
-// Преводите на интерфейса: window.__I18N = { lang, locales, messages } (езикът е от бисквитката `lang` или от браузъра)
+// The libraries from node_modules, so that it works without internet
+// The translations of the interface: window.__I18N = { lang, locales, messages } (the language is from the `lang` cookie or from the browser)
 app.get('/locale.js', (req, res) => {
   const lang = pickLang(req);
   res.set({ 'Content-Type': 'application/javascript; charset=utf-8', 'Cache-Control': 'no-store', Vary: 'Cookie, Accept-Language' });
@@ -1076,7 +1097,7 @@ app.get('/vendor/:file', (req, res) => {
 app.use('/fonts/inter', express.static(path.join(NM, '@fontsource-variable/inter')));
 app.use('/fonts/literata', express.static(path.join(NM, '@fontsource-variable/literata')));
 
-app.use('/product', express.static(path.join(ROOT, 'docs'))); // страницата за продукта; същата се публикува и в GitHub Pages
+app.use('/product', express.static(path.join(ROOT, 'docs'))); // the product page; the same one is published on GitHub Pages
 app.use(express.static(path.join(ROOT, 'scripts', 'viewer')));
 
 app.listen(PORT, '127.0.0.1', () => {

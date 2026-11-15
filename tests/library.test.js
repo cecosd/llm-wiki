@@ -1,4 +1,4 @@
-// Файлове и библиотека: подреждане, извличане на текст, проверки, премахване. Всичко е във временно копие.
+// Files and library: sorting, text extraction, checks, removal. Everything is in a temporary copy.
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -11,7 +11,7 @@ let box;
 before(() => { box = makeSandbox(); });
 after(() => box?.remove());
 
-/** Минимален истински PDF с една страница и текст */
+/** A minimal real PDF with one page and text */
 function tinyPdf(text) {
   const objs = [
     '<< /Type /Catalog /Pages 2 0 R >>',

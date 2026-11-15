@@ -1,4 +1,4 @@
-// Изолацията (scripts/sandbox.js): пробит пакет не бива да вижда нищо извън папката на проекта.
+// The isolation (scripts/sandbox.js): a compromised package must not see anything outside the project folder.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -13,9 +13,9 @@ const ipc = await import(pathToFileURL(path.join(PROJECT, 'scripts', 'sandbox-ip
 const IS_WIN = process.platform === 'win32';
 
 test(T('security', 'The isolation launcher loads no packages from node_modules', 'Стартерът на изолацията не зарежда пакети от node_modules'), () => {
-  // Стартерът работи извън клетката: ако зареди пакет, пробитият пакет би се изпълнил с всичките ти права.
-  const allowed = new Set(['./sandbox-ipc.js', './content-pack.js', './npm-update.js']);
-  for (const file of ['sandbox.js', 'sandbox-ipc.js', 'sandbox-probe.js', 'content-pack.js', 'npm-update.js']) {
+  // The launcher runs outside the cage: if it loads a package, the compromised package would run with all your rights.
+  const allowed = new Set(['./sandbox-ipc.js', './content-pack.js', './npm-update.js', './code-update.js', './git-setup.js']);
+  for (const file of ['sandbox.js', 'sandbox-ipc.js', 'sandbox-probe.js', 'content-pack.js', 'npm-update.js', 'code-update.js', 'git-setup.js']) {
     const code = fs.readFileSync(path.join(PROJECT, 'scripts', file), 'utf8');
     const specs = [...code.matchAll(/(?:^|\s)import\s[^'"]*?from\s+['"]([^'"]+)['"]|import\(\s*(?:new URL\(\s*)?['"]([^'"]+)['"]/gm)].map((m) => m[1] || m[2]);
     assert.ok(specs.length, file);
@@ -36,14 +36,14 @@ test(T('security', 'Requests from inside the isolation: only listed actions, lin
     await waitFor(() => fs.existsSync(path.join(dir, `res-${big}.json`)), 5000);
     assert.equal(JSON.parse(fs.readFileSync(path.join(dir, `res-${big}.json`), 'utf8')).ok, false, 'an oversized request is refused');
     if (!IS_WIN) {
-      // Клетката оставя връзка на мястото на отговора: стартерът не бива да пише през нея
+      // The cage leaves a link in the place of the answer: the launcher must not write through it
       fs.writeFileSync(victim, 'keep');
       const id = 'b'.repeat(16);
       fs.symlinkSync(victim, path.join(dir, `res-${id}.json.tmp`));
       fs.writeFileSync(path.join(dir, `req-${id}.json`), JSON.stringify({ kind: 'echo', data: { x: 2 } }));
       await waitFor(() => fs.existsSync(path.join(dir, `res-${id}.json`)), 5000);
       assert.equal(fs.readFileSync(victim, 'utf8'), 'keep', 'the reply was written through a link');
-      // Заявка, която е връзка към друг файл, не се чете
+      // A request that is a link to another file is not read
       const id2 = 'c'.repeat(16), other = victim + '.json';
       fs.writeFileSync(other, JSON.stringify({ kind: 'echo', data: { x: 3 } }));
       fs.symlinkSync(other, path.join(dir, `req-${id2}.json`));
@@ -69,7 +69,7 @@ test(T('security', 'Outside the isolation only real language packs and only prot
   } finally { box.remove(); }
 });
 
-/** Монтиранията от аргументите на bubblewrap: [{ kind, src, dst }] */
+/** The mounts from the arguments of bubblewrap: [{ kind, src, dst }] */
 function mountsOf(args) {
   const out = [];
   for (let i = 0; i < args.length; i++) {
@@ -100,14 +100,14 @@ test(T('security', 'The isolation mounts only the project, read-only code and th
   const m = mountsOf(args);
   const has = (kind, dst) => m.some((x) => x.kind === kind && x.dst === dst);
 
-  // Проектът е само за четене; запис има само в данните и в личното състояние на Claude Code
+  // The project is read-only; writing only in the data and in the private state of Claude Code
   assert.ok(has('--ro-bind', root), 'the project is read-only');
   const data = new Set(sandbox.WRITABLE_DIRS.concat(sandbox.WRITABLE_FILES).map((d) => path.posix.join(root, d)));
   for (const x of m.filter((y) => y.kind === '--bind')) assert.ok(data.has(x.dst) || x.dst === `${home}/.claude` || x.dst.startsWith(`${home}/.claude/`) || x.dst === `${home}/.claude.json`, `writable: ${x.dst}`);
   for (const code of ['scripts', 'node_modules', '.claude', 'CLAUDE.md', 'package.json', '.git', '.wiki-launch', '.npmrc']) assert.ok(!data.has(path.posix.join(root, code)), `code is writable: ${code}`);
   assert.ok(has('--ro-bind-try', `${root}/.library-git/config`) && has('--ro-bind-try', `${root}/.library-git/hooks`), 'git settings and hooks of the restore history are locked');
 
-  // Home е празна; нищо лично и нищо от Windows не се монтира
+  // Home is empty; nothing personal and nothing from Windows is mounted
   const emptyHome = args.findIndex((a, i) => a === '--tmpfs' && args[i + 1] === home);
   assert.ok(emptyHome >= 0, 'home is an empty folder');
   assert.ok(emptyHome < args.indexOf(root), 'the empty home comes before the project (otherwise it would hide it)');
@@ -117,7 +117,7 @@ test(T('security', 'The isolation mounts only the project, read-only code and th
     assert.ok(!x.src.startsWith('/run'), `WSL sockets: ${x.src}`);
   }
   assert.ok(args.join(' ').includes('--tmpfs /run'), '/run (WSL interop sockets) is hidden');
-  // Claude Code: общ е само файлът за вход; настройките (могат да съдържат куки) са само за четене
+  // Claude Code: only the sign-in file is shared; the settings (may contain hooks) are read-only
   assert.ok(has('--bind', `${home}/.claude/.credentials.json`));
   assert.ok(has('--ro-bind', `${home}/.claude/settings.json`));
   assert.ok(has('--ro-bind', node) && has('--ro-bind', claude.mount), 'Node and Claude Code are read-only');

@@ -1,7 +1,7 @@
-// Преводи (i18n): интерфейсът и съобщенията на сървъра.
-// Ключът е английският текст; locales/<код>.json го превежда. Липсващ превод показва самия ключ,
-// така че нов език може да е непълен. Нов език: копирай locales/en.json като locales/<код>.json,
-// промени "_meta" и преведи стойностите (виж README, раздел „Езици“).
+// Translations (i18n): the interface and the messages of the server.
+// The key is the English text; locales/<code>.json translates it. A missing translation shows the key itself,
+// so a new language can be incomplete. New language: copy locales/en.json as locales/<code>.json,
+// change "_meta" and translate the values (see README, section "Languages").
 import fs from 'node:fs';
 import path from 'node:path';
 import { AsyncLocalStorage } from 'node:async_hooks';
@@ -12,7 +12,7 @@ export const LOCALES_DIR = path.join(ROOT, 'locales');
 const FALLBACK = 'en';
 const CODE_RE = /^[a-z]{2,3}(?:-[A-Za-z0-9]{2,8})?$/;
 const als = new AsyncLocalStorage();
-const cache = new Map(); // код → { mtime, data }
+const cache = new Map(); // code -> { mtime, data }
 
 function load(code) {
   if (!CODE_RE.test(code)) return null;
@@ -28,10 +28,10 @@ function load(code) {
   } catch { return null; }
 }
 
-/** Наличните езици: [{ code, name }], по азбучен ред на кода. */
+/** The available languages: [{ code, name }], in alphabetical order of the code. */
 export function locales() {
   let files = [];
-  try { files = fs.readdirSync(LOCALES_DIR).filter((f) => f.endsWith('.json')); } catch { /* няма папка locales */ }
+  try { files = fs.readdirSync(LOCALES_DIR).filter((f) => f.endsWith('.json')); } catch { /* there is no locales folder */ }
   return files.map((f) => load(f.slice(0, -5))).filter(Boolean).map(({ code, name }) => ({ code, name })).sort((a, b) => a.code.localeCompare(b.code));
 }
 
@@ -46,7 +46,7 @@ function fromCookie(header, name) {
   return '';
 }
 
-/** Език на заявката: бисквитката `lang`, после Accept-Language, после LIB_LANG или езикът на системата, после английски. */
+/** Language of a request: the `lang` cookie, then Accept-Language, then LIB_LANG or the system language, then English. */
 export function pickLang(req) {
   const c = fromCookie(req.headers.cookie, 'lang');
   if (c && hasLocale(c)) return c;
@@ -60,7 +60,7 @@ export function pickLang(req) {
   return systemLang();
 }
 
-/** Език за конзолните скриптове и за работа без заявка. */
+/** Language for console scripts and for work without a request. */
 export function systemLang() {
   const env = process.env.LIB_LANG || process.env.LC_ALL || process.env.LC_MESSAGES || process.env.LANG || '';
   const base = env.split(/[._@]/)[0].replace('_', '-');
@@ -69,30 +69,30 @@ export function systemLang() {
   return short && hasLocale(short) ? short : FALLBACK;
 }
 
-/** Изпълнява fn с избран език: всяко t() вътре (и в асинхронните му продължения) превежда на него. */
+/** Runs fn with a chosen language: every t() inside (and in its async continuations) translates into it. */
 export const runWithLang = (lang, fn) => als.run(lang, fn);
 export const currentLang = () => als.getStore() || systemLang();
 
 const fmt = (s, args) => (args && args.length ? s.replace(/\{(\d+)\}/g, (m, i) => (args[i] ?? m)) : s);
 
-/** Превод по английски ключ; `{0}`, `{1}` се заместват от args, а `{ai}` от името на избрания модел (providers.js). */
+/** Translation by English key; `{0}`, `{1}` are replaced from args, and `{ai}` by the name of the chosen model (providers.js). */
 export function t(key, args) {
   const s = fmt(messagesFor(currentLang())[key] ?? key, args);
   return s.includes('{ai}') ? s.replace(/\{ai\}/g, aiName()) : s;
 }
 
-export const $t = t; // короткото име е същото като в интерфейса (в модулите `t` често е локална променлива)
+export const $t = t; // the short name is the same as in the interface (in modules `t` is often a local variable)
 
 /**
- * Език на съдържанието на wiki-то (страниците, които пише Claude). Различен е от езика на интерфейса.
- * Задава се с `npm run content -- <bg|en>` (записва `contentLang` в library.config.json);
- * без запис се познава по CLAUDE.md (кирилица в началото = bg, иначе en).
+ * Language of the wiki content (the pages Claude writes). It differs from the interface language.
+ * Set with `npm run content -- <bg|en>` (writes `contentLang` into library.config.json);
+ * without a setting it is guessed from CLAUDE.md (Cyrillic at the start = bg, otherwise en).
  */
 export function contentLang() {
   try {
     const c = JSON.parse(fs.readFileSync(path.join(ROOT, 'library.config.json'), 'utf8')).contentLang;
     if (c && CODE_RE.test(c)) return c;
-  } catch { /* няма настройка */ }
+  } catch { /* no setting */ }
   try {
     return /[\u0400-\u04FF]/.test(fs.readFileSync(path.join(ROOT, 'CLAUDE.md'), 'utf8').slice(0, 300)) ? 'bg' : 'en';
   } catch { return 'en'; }

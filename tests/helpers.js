@@ -1,5 +1,5 @@
-// Обща подготовка: всеки файл с тестове работи във временно копие на приложението.
-// Истинската библиотека (raw/, wiki/, drafts/) не се копира и не се пипа. Claude е фалшив (CLAUDE_BIN).
+// Common setup: every test file works in a temporary copy of the application.
+// The real library (raw/, wiki/, drafts/) is not copied and not touched. Claude is fake (CLAUDE_BIN).
 import fs from 'node:fs';
 import os from 'node:os';
 import net from 'node:net';
@@ -12,7 +12,7 @@ export const PROJECT = path.resolve(path.dirname(fileURLToPath(import.meta.url))
 const COPY = ['scripts', 'content', 'locales', 'docs', 'tests', 'package.json', 'CLAUDE.md', '.claude', 'wiki/_templates'];
 const IS_WIN = process.platform === 'win32';
 
-/** Име на тест, което run-tests.js разбира: група, английски и български текст */
+/** A test name that run-tests.js understands: a group, an English and a Bulgarian text */
 export const T = (group, en, bg) => `${group}|${en}|${bg}`;
 
 export function freePort() {
@@ -63,7 +63,7 @@ export function makeSandbox() {
   };
 }
 
-/** Заявка без нормализиране на адреса и с произволна заглавка Host (fetch не позволява това). */
+/** A request without normalising the address and with an arbitrary Host header (fetch does not allow that). */
 export function rawRequest(port, { method = 'GET', url = '/', headers = {}, body = null }) {
   return new Promise((resolve, reject) => {
     const req = http.request({ host: '127.0.0.1', port, method, path: url, headers: { host: `localhost:${port}`, ...headers } }, (res) => {
@@ -78,7 +78,7 @@ export function rawRequest(port, { method = 'GET', url = '/', headers = {}, body
   });
 }
 
-/** Заявка така, както я прави самата страница (със заглавка x-library) */
+/** A request as the page itself makes it (with the x-library header) */
 export async function api(port, method, url, body) {
   const r = await rawRequest(port, {
     method, url,
@@ -86,11 +86,11 @@ export async function api(port, method, url, body) {
     body: body !== undefined ? JSON.stringify(body) : null,
   });
   let json = null;
-  try { json = JSON.parse(r.body); } catch { /* не е JSON */ }
+  try { json = JSON.parse(r.body); } catch { /* not JSON */ }
   return { ...r, json };
 }
 
-/** Пуска истинския сървър на приложението във временното копие */
+/** Starts the real server of the application in the temporary copy */
 export async function startServer(box, extraEnv = {}) {
   const port = await freePort();
   const child = spawn(process.execPath, [path.join(box.root, 'scripts', 'server.js')], {
@@ -124,7 +124,7 @@ export async function waitFor(check, ms = 15000) {
   }
 }
 
-/** Примерен източник с понятие: минимална библиотека за тестовете */
+/** A sample source with a concept: a minimal library for the tests */
 export function seedLibrary(box) {
   box.write('raw/articles/sample-2020-note.txt', 'A short sample text about entropy.\n');
   box.write('wiki/sources/sample-2020-note.md', `---

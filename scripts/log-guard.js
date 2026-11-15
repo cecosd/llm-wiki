@@ -1,9 +1,9 @@
-// Дневникът wiki/log.md е само за добавяне: записите, които са били в него преди задача, не бива да изчезват.
-// Агентът сравнява дневника преди и след всяка задача. Ако някой стар запис липсва, връща всичко от „преди“
-// и добавя новите записи от „след“. Редактирането на текста на стар запис (заглавието му е същото) не се връща.
+// The log wiki/log.md is append-only: the entries that were in it before a task must not disappear.
+// The agent compares the log before and after every task. If an old entry is missing, it restores everything from "before"
+// and adds the new entries from "after". Editing the text of an old entry (the same heading) is not undone.
 import fs from 'node:fs';
 
-/** Брой на всяко заглавие („## ...“). Едно заглавие може да се повтаря, затова се брои. */
+/** The count of every heading ("## ..."). A heading can repeat, so it is counted. */
 export function entryCounts(text) {
   const counts = new Map();
   for (const line of String(text).replace(/\r\n/g, '\n').split('\n')) {
@@ -12,14 +12,14 @@ export function entryCounts(text) {
   return counts;
 }
 
-/** Блоковете на дневника: всеки започва с „## “. Първият блок е заглавната част (без запис). */
+/** The blocks of the log: each starts with "## ". The first block is the header part (no entry). */
 export function splitEntries(text) {
   return String(text).replace(/\r\n/g, '\n').split(/^(?=## )/m);
 }
 
 /**
- * Какво трябва да остане в дневника след задача. before: текстът преди задачата (null, ако е нямало файл),
- * after: текстът след нея. Връща { text, lost, added }; lost е броят изчезнали стари записи.
+ * What must remain in the log after a task. before: the text before the task (null if there was no file),
+ * after: the text after it. Returns { text, lost, added }; lost is the number of old entries that disappeared.
  */
 export function repairLog(before, after) {
   if (before == null) return { text: after, lost: 0, added: 0 };
@@ -29,7 +29,7 @@ export function repairLog(before, after) {
   let lost = 0;
   for (const [title, n] of need) lost += Math.max(0, n - (have.get(title) || 0));
   if (!lost) return { text: current, lost: 0, added: 0 };
-  // Новите записи са тези, които в „след“ надхвърлят броя си в „преди“ (по ред на поява)
+  // The new entries are those that in "after" exceed their count in "before" (in order of appearance)
   const seen = new Map();
   const added = [];
   for (const block of splitEntries(current)) {
@@ -43,7 +43,7 @@ export function repairLog(before, after) {
   return { text, lost, added: added.length };
 }
 
-/** Чете дневника (или null, ако го няма). Използва се в агента преди и след всяка задача. */
+/** Reads the log (or null if there is none). Used in the agent before and after every task. */
 export function readLog(file) {
   try { return fs.readFileSync(file, 'utf8'); } catch { return null; }
 }

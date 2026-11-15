@@ -1,6 +1,6 @@
-// Страната на сървъра за стартера (scripts/app.js): какъв е режимът, какви защити има тази система, и заявките за
-// смяна на режима, име на сайта и спиране. Заявките се предават с файл в outputs/.launcher/, защото сървърът върви
-// в клетка или под `node --permission` и няма друг канал към стартера, който е извън тях.
+// The server side for the launcher (scripts/app.js): what the mode is, which protections this system has, and the requests for
+// changing the mode, the site name and stopping. Requests are passed with a file in outputs/.launcher/, because the server runs
+// in a cage or under `node --permission` and has no other channel to the launcher, which is outside them.
 import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
@@ -11,23 +11,23 @@ const RESULT = path.join(REQUEST_DIR, 'result.json');
 const REQUEST = path.join(REQUEST_DIR, 'request.json');
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-/** Пуснат ли е от стартера (тогава заявките имат кой да ги изпълни). */
+/** Was it started by the launcher (then there is someone to carry out the requests). */
 export const underLauncher = () => process.env.LIB_LAUNCHER === '1';
-/** Нов при всяко пускане на сървъра: страницата по него разбира, че сървърът е тръгнал отново. */
+/** New at every start of the server: the page uses it to understand that the server started again. */
 export const BOOT = crypto.randomBytes(6).toString('hex');
 
-/** Какво вижда страницата за режима и адреса. */
+/** What the page sees about the mode and the address. */
 export function appInfo() {
   const launch = readLaunch();
   const backend = chooseBackend();
   const mode = process.env.LIB_MODE === 'safe' ? 'safe' : 'normal';
   let hosts = null;
-  try { hosts = readHostsName(hostsFilePath()); } catch { /* в клетката hosts на Windows не се вижда */ }
+  try { hosts = readHostsName(hostsFilePath()); } catch { /* the Windows hosts file is not visible in the cage */ }
   const port = Number(process.env.PORT) || launch.port;
   return {
     launcher: underLauncher(),
     mode,
-    wanted: launch.mode, // какво е запазено за следващото пускане
+    wanted: launch.mode, // what is saved for the next start
     isolation: process.env.LIB_SANDBOX === '1' ? 'bubblewrap' : (process.env.LIB_ISOLATION || 'none'),
     canSafe: backend.id !== 'none',
     backend: backend.id,
@@ -43,12 +43,12 @@ export function appInfo() {
   };
 }
 
-/** Праща заявка към стартера и чака отговор. */
+/** Sends a request to the launcher and waits for the answer. */
 async function ask(payload, { wait = 8000 } = {}) {
   if (!underLauncher()) return { ok: false, error: 'no-launcher' };
   const id = crypto.randomBytes(6).toString('hex');
   fs.mkdirSync(REQUEST_DIR, { recursive: true });
-  try { fs.rmSync(RESULT, { force: true }); } catch { /* няма */ }
+  try { fs.rmSync(RESULT, { force: true }); } catch { /* none */ }
   fs.writeFileSync(REQUEST, JSON.stringify({ ...payload, id }));
   const end = Date.now() + wait;
   while (Date.now() < end) {
@@ -56,7 +56,7 @@ async function ask(payload, { wait = 8000 } = {}) {
     try {
       const r = JSON.parse(fs.readFileSync(RESULT, 'utf8'));
       if (r.id === id) return r;
-    } catch { /* още няма */ }
+    } catch { /* not yet */ }
   }
   return { ok: false, error: 'timeout' };
 }
@@ -64,7 +64,7 @@ async function ask(payload, { wait = 8000 } = {}) {
 export const requestMode = (mode) => (mode === 'safe' || mode === 'normal' ? ask({ type: 'mode', mode }) : { ok: false, error: 'mode' });
 export const requestQuit = () => ask({ type: 'quit' }, { wait: 3000 });
 
-/** Име на сайта: запис в hosts с права на администратор (потребителят потвърждава в системния прозорец). */
+/** Site name: a record in hosts with administrator rights (the user confirms in the system window). */
 export function requestHost(name, force = false) {
   if (name) {
     const c = checkHostName(name);
@@ -75,7 +75,7 @@ export function requestHost(name, force = false) {
   return ask({ type: 'host', name: name || null, force: !!force }, { wait: 130000 });
 }
 
-/** Командата за ръчно записване в hosts (когато няма стартер). */
+/** The command for writing to hosts by hand (when there is no launcher). */
 export function hostsCommand(name) {
   const c = checkHostName(name);
   if (!c.ok) return null;

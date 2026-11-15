@@ -1,12 +1,12 @@
-// Код на страницата за продукта (docs/index.html). Текстовете и демо данните са в landing.js.
-// Външен файл, защото Content-Security-Policy на сървъра забранява вградения код.
+// The code of the product page (docs/index.html). The texts and the demo data are in landing.js.
+// An external file, because the Content-Security-Policy of the server forbids embedded code.
 const { createApp, reactive, defineComponent, nextTick, markRaw } = Vue;
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 const REDUCED = matchMedia('(prefers-reduced-motion: reduce)').matches;
 const IS_MAC = /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent || '');
 const LANGS = ['bg', 'en'];
 
-/* ===== Език ===== */
+/* ===== Language ===== */
 function initLang() {
   let l = null;
   try { l = new URLSearchParams(location.search).get('lang'); } catch (e) {}
@@ -19,7 +19,7 @@ function loadTour() { let t = {}; try { t = JSON.parse(localStorage.getItem('llm
 const store = reactive({ lang: initLang(), page: 'forgetting-curve', history: [], reader: null, search: false, toast: null, edits: { bg: {}, en: {} }, tour: loadTour(), setTab: null });
 const T = () => I18N[store.lang];
 
-/* ===== Страници на текущия език ===== */
+/* ===== Pages in the current language ===== */
 const PSETS = {}, PBY = {};
 LANGS.forEach(L => {
   PSETS[L] = LIB.map(p => { const { bg, en, ...meta } = p; return { ...meta, ...p[L], area: p.area ? I18N[L].areas[p.area] : undefined }; });
@@ -35,7 +35,7 @@ const typeCount = k => LIB.filter(p => p.type === k).length;
 const LINK_RE = /\[\[([^\]|]+)(?:\|([^\]]+))?\]\]/g;
 const linksOf = body => { const s = new Set(); for (const m of body.matchAll(LINK_RE)) if (m[1] in PBY.bg) s.add(m[1]); return [...s]; };
 
-/* Връзките са едни и същи на двата езика: изчисляват се от българския текст */
+/* The links are the same in both languages: they are computed from the Bulgarian text */
 const OUT = {}, IN = {};
 PSETS.bg.forEach(p => {
   const o = linksOf(p.body).filter(x => x !== p.slug);
@@ -117,7 +117,7 @@ function chartSvg() {
   return `<figure style="margin:1.2em 0"><svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;max-width:620px" role="img" aria-label="${CHART_TXT[store.lang][0]}"><defs><linearGradient id="ga" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="var(--sage)" stop-opacity=".28"/><stop offset="1" stop-color="var(--sage)" stop-opacity="0"/></linearGradient></defs>${grid}<path d="${area}" fill="url(#ga)"/><path d="${line}" fill="none" stroke="var(--sage)" stroke-width="2.5" stroke-linejoin="round"/>${dots}</svg><figcaption class="text-xs faint">${CHART_TXT[store.lang][1]}</figcaption></figure>`;
 }
 
-/* ===== Търсене ===== */
+/* ===== Search ===== */
 const STOP = new Set(['как', 'какво', 'защо', 'кой', 'кои', 'коя', 'има', 'общо', 'между', 'това', 'тази', 'този', 'които', 'който', 'така', 'мога', 'моите', 'моят', 'моята', 'си', 'ги', 'го', 'при', 'без', 'или', 'но', 'не', 'са', 'съм', 'да', 'на', 'за', 'се', 'от', 'по', 'ли', 'ми', 'работи',
   'the', 'and', 'what', 'how', 'why', 'does', 'do', 'have', 'has', 'with', 'about', 'can', 'should', 'are', 'is', 'my', 'that', 'this', 'for', 'from', 'common', 'work', 'works']);
 const stem = w => w.length <= 4 ? w : w.slice(0, Math.max(4, Math.min(6, w.length - 2)));
@@ -139,7 +139,7 @@ function snippet(p, words) {
   return (a ? '…' : '') + h + '…';
 }
 
-/* ===== Брояч ===== */
+/* ===== Counter ===== */
 const CountUp = defineComponent({
   props: { to: Number, from: { type: Number, default: 0 }, suffix: { type: String, default: '' } },
   data() { return { v: this.from }; },
@@ -151,7 +151,7 @@ const CountUp = defineComponent({
   beforeUnmount() { this.io.disconnect(); },
 });
 
-/* ===== Начало: живо платно ===== */
+/* ===== Home: the live canvas ===== */
 const HeroCanvas = defineComponent({
   template: '<canvas aria-hidden="true"></canvas>',
   mounted() {
@@ -205,7 +205,7 @@ const HeroCanvas = defineComponent({
   beforeUnmount() { this.stop(); this.ro.disconnect(); this.io.disconnect(); this.mo.disconnect(); },
 });
 
-/* ===== Начало: поток на агента ===== */
+/* ===== Home: the stream of the agent ===== */
 const HeroFeed = defineComponent({
   template: '#tpl-feed',
   data() { return { shown: [], i: 0, made: 0, upd: 0, contra: 0, pct: 4, id: 0 }; },
@@ -222,7 +222,7 @@ const HeroFeed = defineComponent({
   },
 });
 
-/* ===== Карта на връзките ===== */
+/* ===== The link map ===== */
 const shortLabel = p => p.format === 'dataset' ? T().common.dataShort : p.type === 'chapter' ? T().common.chShort(p.chapter) : p.type === 'source' ? p.short.split('/')[0] : (p.title.length > 26 ? p.title.slice(0, 24) + '…' : p.title);
 const KgGraph = defineComponent({
   template: '#tpl-kg',
@@ -316,7 +316,7 @@ const GraphSection = defineComponent({
   },
 });
 
-/* ===== Демо 1: симулатор ===== */
+/* ===== Demo 1: the simulator ===== */
 const fakeHash = s => { let h = 2166136261; for (const c of s) { h ^= c.charCodeAt(0); h = Math.imul(h, 16777619) >>> 0; } return (h.toString(16) + (h * 7919 >>> 0).toString(16)).slice(0, 12); };
 const fmtN = n => n.toLocaleString(store.lang === 'bg' ? 'bg-BG' : 'en-US');
 const IngestSim = defineComponent({
@@ -446,7 +446,7 @@ const IngestSim = defineComponent({
   },
 });
 
-/* ===== Демо 2: библиотеката ===== */
+/* ===== Demo 2: the library ===== */
 function sortedPages() { return pages().slice().sort((a, b) => TYPE_KEYS.indexOf(a.type) - TYPE_KEYS.indexOf(b.type) || a.title.localeCompare(b.title, store.lang)); }
 function yamlOf(p) {
   const q = v => `"${String(v).replace(/"/g, '\\"')}"`, arr = a => '[' + a.join(', ') + ']';
@@ -464,7 +464,7 @@ const WikiExplorer = defineComponent({
   data() { return { store, coll: PBY.bg[store.page].type, raw: false, focus: false, bubble: null, panel: null, linkQ: '', typeKeys: TYPE_KEYS, list: ['ahrens-2017-smart-notes', 'zettelkasten', 'why-we-forget'] }; },
   computed: {
     page() { return BY[store.page]; },
-    /* Колекции като в приложението: умна (по условие за етикет, пълни се сама) и ръчен списък (бутонът „Списък“) */
+    /* Collections as in the application: smart (by a condition on a tag, fills itself) and a manual list (the "List" button) */
     cols() {
       const C = this.t.exp.col, tags = C.smartTags;
       return [
@@ -492,7 +492,7 @@ const WikiExplorer = defineComponent({
   },
   watch: {
     'store.page'(s) {
-      if (!(this.curCol && this.curCol.pages.some(p => p.slug === s))) this.coll = PBY.bg[s].type; // в колекция остава, ако страницата е в нея
+      if (!(this.curCol && this.curCol.pages.some(p => p.slug === s))) this.coll = PBY.bg[s].type; // it stays in a collection if the page is in it
       this.bubble = null; this.panel = null;
       nextTick(() => { const b = this.$refs.box; if (b && b.getBoundingClientRect().top < 0) b.scrollIntoView({ behavior: REDUCED ? 'auto' : 'smooth', block: 'start' }); });
     },
@@ -553,7 +553,7 @@ const WikiExplorer = defineComponent({
   },
 });
 
-/* ===== Четец ===== */
+/* ===== Reader ===== */
 const ReaderDrawer = defineComponent({
   template: '#tpl-reader',
   data() { return { store }; },
@@ -573,7 +573,7 @@ const ReaderDrawer = defineComponent({
   },
 });
 
-/* ===== Търсене ===== */
+/* ===== Search ===== */
 const SearchPalette = defineComponent({
   template: '#tpl-search',
   data() { return { store, q: '', idx: 0 }; },
@@ -596,7 +596,7 @@ const SearchPalette = defineComponent({
   },
 });
 
-/* ===== Работа със страница: редакция, махане, въпрос, план-конспект, промяна с Claude, заглавие, връзка, фокус ===== */
+/* ===== Working with a page: editing, removing, a question, an outline, a change with Claude, a title, a link, focus ===== */
 const PT_ICO = {
   edit: '<path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/>',
   del: '<path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"/>',
@@ -611,7 +611,7 @@ const PT_BTN = ['ask', 'edit', 'link', 'del', 'claude'];
 const linkCounts = s => { const m = new Map(); for (const x of String(s).matchAll(LINK_RE)) m.set(x[1], (m.get(x[1]) || 0) + 1); return m; };
 const sameLinks = (a, b) => { const x = linkCounts(a), y = linkCounts(b), d = []; for (const k of new Set([...x.keys(), ...y.keys()])) if ((x.get(k) || 0) !== (y.get(k) || 0)) d.push(k); return d; };
 const isHead = md => md.startsWith('## ');
-/* Като plain(), но цитатите пазят номера на страницата: (Ebbinghaus, 1885/1913, гл. 8, с. 96) */
+/* Like plain(), but the citations keep the page number: (Ebbinghaus, 1885/1913, ch. 8, p. 96) */
 const ptPlain = x => plain(String(x).replace(CITE_RE, (m, s, kind, n) => `(${BY[s] ? citeLabel(BY[s]) : s}, ${kind} ${n})`));
 function ptState(L) { const P = I18N[L].pt; return { blocks: P.blocks.map((md, id) => ({ id, md })), title: P.title, aliases: [...P.aliases], tags: [...P.tags], hist: [] }; }
 const freshAi = level => ({ open: false, sel: '', bid: null, intent: 'ask', q: '', level, busy: false, waited: 1, kind: null, answer: '', prop: null, applied: false, saved: false });
@@ -658,7 +658,7 @@ const PageTools = defineComponent({
     closeAll() { this.stopTimers(); this.bubble = null; this.pulse = null; this.man.open = this.del.open = this.lk.open = false; this.ai = freshAi(this.ai.level); },
     done(k) { if (!this.tried[k]) this.tried = { ...this.tried, [k]: true }; if (this.tool === k) this.pulse = null; },
 
-    /* --- избор на текст --- */
+    /* --- selecting text --- */
     onSelect(e) { if (e && e.target && e.target.closest && e.target.closest('.pt-ai, .bubble, input, textarea, button')) return; setTimeout(() => this.measureSel(), 10); },
     measureSel() {
       const sel = getSelection(), txt = sel ? sel.toString().replace(/\s+/g, ' ').trim() : '';
@@ -698,7 +698,7 @@ const PageTools = defineComponent({
       else if (kind === 'link') { this.lk = { open: true, bid: block.id, text: b.text, q: '', err: '' }; if (this.tool === 'link') this.pulse = 'pick'; nextTick(() => this.$refs.lkInp && this.$refs.lkInp.focus()); }
     },
 
-    /* --- промени и връщане --- */
+    /* --- changes and undoing --- */
     snap() { const s = this.st; s.hist.push(JSON.stringify({ blocks: s.blocks, title: s.title, aliases: s.aliases, tags: s.tags })); if (s.hist.length > 40) s.hist.shift(); },
     undo() { const s = this.st, h = s.hist.pop(); if (!h) return; const o = JSON.parse(h); Object.assign(s, { blocks: o.blocks, title: o.title, aliases: o.aliases, tags: o.tags }); this.ai.applied = false; this.bubble = null; toast(this.P.undone); },
     flashBlock(id) { this.flash = null; nextTick(() => { this.flash = id; clearTimeout(this.flashT); this.flashT = setTimeout(() => { this.flash = null; }, 1800); }); },
@@ -732,7 +732,7 @@ const PageTools = defineComponent({
     },
     toggleFocus() { this.focus = !this.focus; if (this.focus) this.done('focus'); this.pulse = null; this.bubble = null; },
 
-    /* --- помощникът --- */
+    /* --- the helper --- */
     openAi(intent = 'ask', sel = null) {
       this.stopTimers(); this.bubble = null;
       this.ai = { ...freshAi(this.ai.level), open: true, intent, sel: sel ? sel.text : '', bid: sel ? sel.bid : null, q: intent === 'edit' ? this.P.ai.presetEdit : '' };
@@ -792,7 +792,7 @@ const PageTools = defineComponent({
     saveQ() { this.ai.saved = true; toast(this.P.ai.savedToast); },
     async copyAns() { try { await navigator.clipboard.writeText(this.ai.answer); toast(this.t.common.copied); } catch (_) { toast(this.t.common.copyFail); } },
 
-    /* --- водене по инструментите --- */
+    /* --- guiding by the tools --- */
     async demoTool(name) {
       this.tool = name; this.pulse = null; this.bubble = null; this.man.open = this.del.open = this.lk.open = false; this.renaming = false;
       if (!['ask', 'outline'].includes(name) && this.ai.open) this.closeAi();
@@ -820,7 +820,7 @@ const PageTools = defineComponent({
   },
 });
 
-/* ===== Настройки: парола, архив, инсталация, обновления, тестове ===== */
+/* ===== Settings: password, archive, setup, updates, tests ===== */
 const SET_ICO = {
   model: '<rect x="6" y="6" width="12" height="12" rx="2"/><path d="M9 2v4M15 2v4M9 18v4M15 18v4M2 9h4M2 15h4M18 9h4M18 15h4"/>',
   pwd: '<rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/>',
@@ -851,7 +851,7 @@ const SettingsDemo = defineComponent({
     dateStr() { return new Date(TESTS.date + 'T12:00:00').toLocaleDateString(this.loc, { day: 'numeric', month: 'long', year: 'numeric' }); },
     groups() { return TESTS.groups.map(([id, bg, en]) => { const items = TESTS.tests.filter(x => x[0] === id); return { id, name: this.L === 'bg' ? bg : en, items, pass: items.filter(x => x[1] === 'pass').length, known: items.some(x => x[1] === 'known') }; }); },
     curTest() { const x = TESTS.tests[Math.max(0, Math.min(this.run.n, TESTS.tests.length) - 1)]; return x ? x[this.L === 'bg' ? 2 : 3] : ''; },
-    /* Обновяване на пакети: както в приложението, бутонът е само за версиите, които package.json позволява */
+    /* Updating packages: as in the application, the button is only for the versions that package.json allows */
     safeLeft() { return TESTS.outdated.filter(p => p.wanted !== p.current && !this.pkg.updated.includes(p.name)); },
     majorOnly() { return TESTS.outdated.filter(p => p.major && p.wanted === p.current); },
   },
@@ -861,7 +861,7 @@ const SettingsDemo = defineComponent({
     toast,
     setTab(k) { this.tab = k; if (!this.seen[k]) this.seen = { ...this.seen, [k]: true }; },
     mark() { store.tour.settings = true; },
-    /* Модел: избор на начин на работа, стъпките на обработката и опит за връзка (всичко е само в паметта на страницата) */
+    /* Model: a choice of the way of working, the steps of the processing and a connection attempt (everything is only in the memory of the page) */
     pickModel(id) { this.mdl = { sel: id, step: -1, busy: false, done: false, test: { busy: false, ok: false, s: '' } }; },
     async runFlow() {
       const M = this.mdl, id = M.sel; if (M.busy) return; M.busy = true; M.done = false;
@@ -896,7 +896,7 @@ const SettingsDemo = defineComponent({
       A.step = 99; A.busy = false; A.done = true; if (!A.list.includes(A.name)) A.list.unshift(A.name); this.mark();
     },
     delArchive(i) { this.arc.list.splice(i, 1); toast(this.S.arc.deleted); },
-    /* Резервни копия: две копия в паметта на страницата. Резервното не пита; общата папка показва чужди промени и пита */
+    /* Backups: two copies in the memory of the page. The backup does not ask; the shared folder shows foreign changes and asks */
     async runBk(kind) {
       const B = this.bk; if (B.busy) return;
       Object.assign(B, { mode: kind, busy: true, done: false, stage: '', step: 0, pc: 't' });
@@ -916,7 +916,7 @@ const SettingsDemo = defineComponent({
       P.act = name || '*'; P.msg = '';
       await sleep(REDUCED ? 100 : 1500); // npm update --ignore-scripts
       P.act = ''; P.restarting = true;
-      await sleep(REDUCED ? 100 : 1800); // библиотеката се пуска отново с новите версии
+      await sleep(REDUCED ? 100 : 1800); // the library is started again with the new versions
       P.restarting = false; P.updated = [...P.updated, ...list.map(p => p.name)];
       P.msg = this.S.upd.updated(list.map(p => `${p.name} ${p.current} → ${p.wanted}`).join(', ')); this.mark();
     },
@@ -929,7 +929,7 @@ const SettingsDemo = defineComponent({
   },
 });
 
-/* ===== Демо 4: учене ===== */
+/* ===== Demo 4: learning ===== */
 const TYPE_RANK = { topic: 0, concept: 1, comparison: 2, chapter: 3, source: 3, question: 4, entity: 5 };
 const MINS = { topic: 3, concept: 4, comparison: 3, source: 6, chapter: 5, entity: 2, question: 2 };
 function tokens(text) { const out = [], re = /\(\[\[[^\]]+\]\](?:,\s*(?:с\.|разд\.|p\.|sec\.)\s*\d+)?\)[.,;:]?|\[\[[^\]]+\]\][.,;:]?|\S+/g; let m; while ((m = re.exec(text))) out.push(m[0]); return out; }
@@ -967,10 +967,10 @@ const LearnDemo = defineComponent({
   },
 });
 
-/* ===== Демо 5: писане ===== */
+/* ===== Demo 5: writing ===== */
 const ctWrap = s => s.replace(/\(([A-Z][^()]*?\d{4}[^()]*?)\)/g, '<span class="ct">($1)</span>');
 const unesc = s => String(s).replace(/<[^>]+>/g, '').replace(/&quot;/g, '"').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
-// Видове текст и креативност по подразбиране, както в приложението (scripts/write.js)
+// Kinds of text and creativity by default, as in the application (scripts/write.js)
 const KIND_CREAT = { article: 2, essay: 3, popular: 3, review: 1, story: 4 };
 const WriteDemo = defineComponent({
   template: '#tpl-write',
@@ -983,7 +983,7 @@ const WriteDemo = defineComponent({
     fileName() { return this.blank ? this.W.blankFile : this.variant ? this.tp.file.replace(/\.md$/, '-' + this.kind + '.md') : this.tp.file; },
     docTitle() { return this.title ?? (this.blank ? this.W.blankTitle : (this.variant || this.tp).title); },
     creatInfo() { return this.W.creatLv[this.creat - 1]; },
-    // едно и също твърдение, написано на избраната степен: показва какво сменя креативността
+    // the same claim written at the chosen degree: shows what creativity changes
     sample() { return ctWrap(esc(this.tp.creat[this.creat - 1])); },
   },
   watch: {
@@ -995,7 +995,7 @@ const WriteDemo = defineComponent({
     focus() { nextTick(() => this.$el.querySelector('[data-focus]')?.focus()); },
     snap() { this.undo.push(JSON.stringify(this.out)); if (this.undo.length > 30) this.undo.shift(); },
     undoLast() { if (!this.undo.length) return; this.out = JSON.parse(this.undo.pop()); this.edit = null; this.ins = null; this.fresh = null; this.continued = this.out.some(b => b.added); },
-    // Празен документ: човекът пише сам, после работи абзац по абзац
+    // A blank document: the person writes alone, then works paragraph by paragraph
     blankDoc() { this.reset(); this.out = [{ h: '', ps: [] }]; this.blank = true; this.ins = { b: 0, j: -1, text: '' }; this.focus(); },
     startTitle() { this.titleEdit = this.docTitle; this.focus(); },
     saveTitle() { const t = String(this.titleEdit || '').trim(); this.titleEdit = null; if (t && t !== this.docTitle) this.title = t; },
@@ -1028,7 +1028,7 @@ const WriteDemo = defineComponent({
           cur.ps[cur.ps.length - 1] = ctWrap(esc(p));
         }
       }
-      // художественият текст няма цитати в текста: източниците му са под „По мотиви от“
+      // a literary text has no citations in the text: its sources are under "Based on"
       const bib = { h: this.kind === 'story' && this.level !== 0 ? this.W.basedOnH : this.W.bibH, ps: [], bib: true }; this.out.push(bib);
       for (const k of (v && this.level !== 0 ? v.bib : tp.bib)) { if (tok !== this.gen) return; bib.ps.push(REF[k]); await sleep(sp * 8); }
       this.busy = false; store.tour.write = true;
@@ -1048,7 +1048,7 @@ const WriteDemo = defineComponent({
   },
 });
 
-/* ===== Поверителност ===== */
+/* ===== Privacy ===== */
 const PrivacyFlow = defineComponent({
   template: '#tpl-privacy',
   data() { return { sel: 3, hit: 'ai', packet: null, ZONES, ACT_TO }; },
@@ -1067,7 +1067,7 @@ const PrivacyFlow = defineComponent({
   },
 });
 
-/* ===== Терминал ===== */
+/* ===== Terminal ===== */
 const TerminalDemo = defineComponent({
   template: '#tpl-terminal',
   data() { return { sel: 0, typed: '', lines: [], phase: 2, auto: true, run: 0 }; },
@@ -1088,7 +1088,7 @@ const TerminalDemo = defineComponent({
   },
 });
 
-/* ===== Малки демота ===== */
+/* ===== Small demos ===== */
 const DupesDemo = defineComponent({
   template: '#tpl-dupes',
   data() { return { merged: false }; },
@@ -1098,7 +1098,7 @@ const DupesDemo = defineComponent({
 });
 const UndoDemo = defineComponent({ template: '#tpl-undo', data() { return { at: 4 }; } });
 
-/* ===== Обиколка ===== */
+/* ===== Tour ===== */
 const TourWidget = defineComponent({
   template: '#tpl-tour',
   data() { return { store, open: false, boom: false, keys: TOUR_KEYS }; },
@@ -1123,7 +1123,7 @@ const TourWidget = defineComponent({
   },
 });
 
-/* ===== Приложението ===== */
+/* ===== The application ===== */
 const app = createApp({
   data() {
     return {

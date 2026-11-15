@@ -1,4 +1,4 @@
-// npm run docs: копира в docs/ файловете, нужни на страницата за продукта, за да работи и в GitHub Pages (там няма node_modules).
+// npm run docs: copies into docs/ the files that the product page needs, so that it also works on GitHub Pages (there is no node_modules there).
 import fs from 'node:fs';
 import path from 'node:path';
 import { ROOT } from './lib.js';
@@ -18,5 +18,5 @@ const FONTS = [
 ];
 for (const [from, to] of FONTS) fs.copyFileSync(path.join(NM, from), path.join(OUT, to));
 
-fs.writeFileSync(path.join(ROOT, 'docs', '.nojekyll'), ''); // GitHub Pages да връща файловете такива, каквито са
+fs.writeFileSync(path.join(ROOT, 'docs', '.nojekyll'), ''); // GitHub Pages should return the files as they are
 console.log(`✔ docs/vendor: ${fs.readdirSync(OUT).length} files`);

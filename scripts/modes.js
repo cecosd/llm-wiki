@@ -1,10 +1,10 @@
-// Режими на работа (обикновен и защитен) и име на локалния сайт. Ползва се от стартера (scripts/app.js), който върви
-// ИЗВЪН изолацията, затова файлът ползва САМО вградените модули на Node: пакет тук би се изпълнил без защита.
+// Working modes (normal and safe) and the name of the local site. Used by the launcher (scripts/app.js), which runs
+// OUTSIDE the isolation, so this file uses ONLY the built-in Node modules: a package here would run without protection.
 //
-// Защитен режим има в две форми (избира се сам според системата):
-//   bubblewrap   Linux и WSL с bwrap: сървърът и пакетите му виждат само папката на проекта (scripts/sandbox.js).
-//   permission   Windows, macOS и Linux без bwrap: `node --permission` ограничава файловете, до които стига Node.
-//                Това е предпазен колан, не клетка: програмите, които Node пуска (git, claude, pdftotext), не са ограничени.
+// Safe mode comes in two forms (chosen automatically by the system):
+//   bubblewrap   Linux and WSL with bwrap: the server and its packages see only the project folder (scripts/sandbox.js).
+//   permission   Windows, macOS and Linux without bwrap: `node --permission` limits the files that Node can reach.
+//                This is a seat belt, not a cage: the programs that Node runs (git, claude, pdftotext) are not limited.
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -13,7 +13,7 @@ import { fileURLToPath } from 'node:url';
 
 export const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 export const MODES = ['normal', 'safe'];
-/** Папка за заявки от сървъра към стартера (стартерът я гледа). Само в outputs/: там сървърът може да пише и в клетката. */
+/** The folder for requests from the server to the launcher (the launcher watches it). Only in outputs/: the server can write there, in the cage too. */
 export const REQUEST_DIR = path.join(ROOT, 'outputs', '.launcher');
 export const LAUNCH_FILE = path.join(ROOT, '.launch.json');
 export const DEFAULT_PORT = 4321;
@@ -27,30 +27,30 @@ function which(name) {
   return r.status === 0 ? (r.stdout || '').split(/\r?\n/)[0].trim() || null : null;
 }
 
-/** Каква защита е възможна на тази система. */
+/** Which protection is possible on this system. */
 export function chooseBackend({ platform = process.platform, wsl = isWSL(), force = process.env.LIB_BACKEND, bwrap = platform === 'linux' && force !== 'permission' ? which('bwrap') : null, nodeVersion = process.versions.node } = {}) {
-  // LIB_BACKEND=permission избира защита с права на Node дори когато има bubblewrap (за тест или по желание)
+  // LIB_BACKEND=permission chooses the Node permission protection even when bubblewrap is there (for a test or by choice)
   const major = Number(String(nodeVersion).split('.')[0]) || 0;
   if (platform === 'linux' && bwrap && force !== 'permission') return { id: 'bubblewrap', strong: true, bwrap };
   if (major >= 23) return { id: 'permission', strong: false, bwrap: null, canHaveBwrap: platform === 'linux' };
   return { id: 'none', strong: false, bwrap: null, canHaveBwrap: platform === 'linux' };
 }
 
-/** Папките и файловете с данни, в които сървърът пише в защитен режим (както в sandbox.js). */
+/** The folders and data files that the server writes to in safe mode (as in sandbox.js). */
 export const WRITABLE_DIRS = ['raw', 'wiki', 'drafts', 'outputs', '.library-git', '.ocr-data'];
 export const WRITABLE_FILES = ['library.config.json', '.library-auth.json', '.library-secrets.json'];
 
 /**
- * Аргументи за `node --permission`. Четене: проектът и временната папка. Запис: само данните и временната папка.
- * `--allow-child-process` е нужен: извличането на текст, git за „Върни“ и Claude Code са отделни процеси.
- * `--allow-net` има от Node 25; по-старите не ограничават мрежата.
+ * Arguments for `node --permission`. Read: the project and the temporary folder. Write: only the data and the temporary folder.
+ * `--allow-child-process` is needed: text extraction, git for "Undo" and Claude Code are separate processes.
+ * `--allow-net` exists since Node 25; the older ones do not limit the network.
  */
 export function permissionArgs(root = ROOT, { flags = process.allowedNodeEnvironmentFlags, tmp = os.tmpdir(), extraRead = [] } = {}) {
   const has = (f) => flags?.has?.(f);
   const args = ['--permission', `--allow-fs-read=${root}`, `--allow-fs-read=${tmp}`, `--allow-fs-write=${tmp}`];
   for (const p of extraRead) args.push(`--allow-fs-read=${p}`);
-  // node_modules може да е връзка към друга папка (общ кеш на пакети): Node проверява истинския път
-  try { const real = fs.realpathSync(path.join(root, 'node_modules')); if (path.relative(root, real).startsWith('..')) args.push(`--allow-fs-read=${real}`); } catch { /* няма node_modules */ }
+  // node_modules can be a link to another folder (a shared package cache): Node checks the real path
+  try { const real = fs.realpathSync(path.join(root, 'node_modules')); if (path.relative(root, real).startsWith('..')) args.push(`--allow-fs-read=${real}`); } catch { /* there is no node_modules */ }
   for (const d of WRITABLE_DIRS) args.push(`--allow-fs-write=${path.join(root, d)}`);
   for (const f of WRITABLE_FILES) args.push(`--allow-fs-write=${path.join(root, f)}`);
   args.push('--allow-child-process', '--allow-worker');
@@ -58,24 +58,24 @@ export function permissionArgs(root = ROOT, { flags = process.allowedNodeEnviron
   return args;
 }
 
-/** Командата, с която стартерът пуска сървъра в даден режим. */
+/** The command with which the launcher starts the server in a given mode. */
 export function serverCommand(mode, { root = ROOT, backend = chooseBackend(), node = process.execPath } = {}) {
   if (mode === 'safe' && backend.id === 'bubblewrap') return { cmd: node, args: [path.join(root, 'scripts', 'sandbox.js')], isolation: 'bubblewrap' };
   if (mode === 'safe' && backend.id === 'permission') return { cmd: node, args: [...permissionArgs(root, { extraRead: [hostsFilePath(), path.join(os.homedir(), '.local', 'bin')] }), path.join(root, 'scripts', 'server.js')], isolation: 'permission' };
   return { cmd: node, args: [path.join(root, 'scripts', 'server.js')], isolation: 'none' };
 }
 
-// ---------- Име на локалния сайт ----------
+// ---------- The name of the local site ----------
 
 const LABEL = '[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?';
 const HOST_RE = new RegExp(`^${LABEL}(?:\\.${LABEL}){0,3}$`);
-/** Окончания, които не водят към истински сайт: за тях не е нужно предупреждение. */
+/** Endings that do not lead to a real site: no warning is needed for them. */
 export const SAFE_SUFFIXES = ['localhost', 'test', 'local', 'lan', 'internal', 'home.arpa', 'wiki', 'library'];
 const RESERVED = new Set(['localhost', 'broadcasthost', 'ip6-localhost', 'ip6-loopback']);
 
 /**
- * Проверява име за локалния сайт. Връща { ok, name, warn, error }.
- * `warn: 'real-domain'` значи, че името изглежда като истински сайт: след записа в hosts той не се отваря от този компютър.
+ * Checks a name for the local site. Returns { ok, name, warn, error }.
+ * `warn: 'real-domain'` means the name looks like a real site: after the hosts entry it will not open from this computer.
  */
 export function checkHostName(input) {
   const name = String(input ?? '').trim().toLowerCase().replace(/^https?:\/\//, '').replace(/\/.*$/, '');
@@ -91,11 +91,11 @@ export const HOSTS_END = '# llm-wiki end';
 
 export function hostsFilePath(platform = process.platform) {
   if (platform === 'win32') return path.join(process.env.SystemRoot || 'C:\\Windows', 'System32', 'drivers', 'etc', 'hosts');
-  if (isWSL()) return '/mnt/c/Windows/System32/drivers/etc/hosts'; // името е за Windows; Linux в WSL има свой /etc/hosts
+  if (isWSL()) return '/mnt/c/Windows/System32/drivers/etc/hosts'; // the name is for Windows; Linux in WSL has its own /etc/hosts
   return '/etc/hosts';
 }
 
-/** Текстът на hosts със записа на библиотеката (name) или без него (name = null). Пази всичко останало и вида на редовете. */
+/** The hosts text with the entry of the library (name) or without it (name = null). Keeps everything else and the kind of the lines. */
 export function withHostsBlock(text, name) {
   const eol = text.includes('\r\n') ? '\r\n' : '\n';
   const lines = text.split(/\r?\n/);
@@ -111,7 +111,7 @@ export function withHostsBlock(text, name) {
   return out.join(eol) + eol;
 }
 
-/** Кое име е записано в hosts (от блока на библиотеката) или null. */
+/** Which name is written in hosts (from the block of the library) or null. */
 export function hostsName(text) {
   const m = new RegExp(`${HOSTS_BEGIN}\\s*\\r?\\n\\s*127\\.0\\.0\\.1\\s+(\\S+)`).exec(text || '');
   return m ? m[1] : null;
@@ -121,7 +121,7 @@ export function readHostsName(file = hostsFilePath()) {
   try { return hostsName(fs.readFileSync(file, 'utf8')); } catch { return null; }
 }
 
-/** Записва името (или го маха при name = null). Иска права на администратор. */
+/** Writes the name (or removes it when name = null). Needs administrator rights. */
 export function writeHosts(name, file = hostsFilePath()) {
   const before = fs.readFileSync(file, 'utf8');
   const after = withHostsBlock(before, name);
@@ -131,11 +131,11 @@ export function writeHosts(name, file = hostsFilePath()) {
   return { changed: true };
 }
 
-// ---------- Файлът на стартера ----------
+// ---------- The launcher file ----------
 
 export function readLaunch(file = LAUNCH_FILE) {
   let j = {};
-  try { j = JSON.parse(fs.readFileSync(file, 'utf8')); } catch { /* още няма */ }
+  try { j = JSON.parse(fs.readFileSync(file, 'utf8')); } catch { /* not yet */ }
   const port = Number(j.port);
   return {
     mode: MODES.includes(j.mode) ? j.mode : 'normal',

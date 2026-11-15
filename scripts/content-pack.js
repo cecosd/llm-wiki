@@ -1,11 +1,11 @@
-// Инсталиране на езиков пакет на съдържанието (виж content.js за командата и server.js за смяната от интерфейса).
-// Език на съдържанието: npm run content -- <код>   (например bg или en)
-// Инсталира езиковия пакет от content/<код>/ на мястото, където го чете Claude Code:
+// Installing a content language pack (see content.js for the command and server.js for switching from the interface).
+// Content language: npm run content -- <code>   (for example bg or en)
+// Installs the language pack from content/<code>/ where Claude Code reads it:
 //   CLAUDE.md, .claude/skills/*/SKILL.md, .claude/agents/*.md, wiki/_templates/*, scripts/starter/*
-// и записва `contentLang` в library.config.json (така промптовете знаят на какъв език да пише Claude).
-// Страниците, които вече са в wiki/, не се пипат. Нов език: копирай content/en/ като content/<код>/ и го преведи.
-// Ползва САМО вградените модули на Node (без lib.js): така стартерът на изолацията (sandbox.js) го вика извън
-// клетката, без да зарежда нито един пакет.
+// and writes `contentLang` into library.config.json (so the prompts know which language Claude writes in).
+// The pages already in wiki/ are not touched. New language: copy content/en/ as content/<code>/ and translate it.
+// Uses ONLY the built-in Node modules (no lib.js): this way the isolation launcher (sandbox.js) calls it outside
+// the cage without loading a single package.
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -16,7 +16,7 @@ const CLAUDE = path.join(ROOT, 'CLAUDE.md');
 const CONFIG = path.join(ROOT, 'library.config.json');
 export const packs = () => fs.existsSync(CONTENT) ? fs.readdirSync(CONTENT).filter((d) => fs.statSync(path.join(CONTENT, d)).isDirectory()) : [];
 
-/** [откъде, накъде] за всеки файл на пакета */
+/** [from, to] for every file of the pack */
 function plan(code) {
   const dir = path.join(CONTENT, code);
   const out = [];
@@ -30,7 +30,7 @@ function plan(code) {
   return out;
 }
 
-/** Може ли да се пише тук: самият файл, ако го има, иначе най-близката съществуваща папка над него. */
+/** Can it be written here: the file itself if it exists, otherwise the nearest existing folder above it. */
 export function canWrite(p) {
   let cur = p;
   while (!fs.existsSync(cur)) { const up = path.dirname(cur); if (up === cur) return false; cur = up; }
@@ -38,10 +38,10 @@ export function canWrite(p) {
 }
 
 /**
- * Инсталира пакета content/<код>/ и записва contentLang. Връща { ok, files, backedUp }, { ok: false } при непознат
- * пакет или { ok: false, readOnly: true }, ако някое място е само за четене (тогава нищо не е пипнато).
- * В изолацията CLAUDE.md, .claude/ и scripts/ са само за четене, за да не може пробит пакет да ги подмени. Тогава
- * стартерът отвън (sandbox.js) копира тях (only, config: false), а сървърът вътре останалото (only: canWrite).
+ * Installs the pack content/<code>/ and writes contentLang. Returns { ok, files, backedUp }, { ok: false } for an unknown
+ * pack, or { ok: false, readOnly: true } if some place is read-only (then nothing is touched).
+ * In the isolation CLAUDE.md, .claude/ and scripts/ are read-only, so that a compromised package cannot replace them. Then
+ * the launcher outside (sandbox.js) copies those (only, config: false), and the server inside the rest (only: canWrite).
  */
 export function installPack(code, { only = () => true, config = true } = {}) {
   if (!packs().includes(code)) return { ok: false };
@@ -53,7 +53,7 @@ export function installPack(code, { only = () => true, config = true } = {}) {
   if (backup) {
     const cur = fs.readFileSync(CLAUDE, 'utf8');
     const same = packs().some((p) => { const f = path.join(CONTENT, p, 'CLAUDE.md'); return fs.existsSync(f) && fs.readFileSync(f, 'utf8') === cur; });
-    if (!same) { fs.copyFileSync(CLAUDE, CLAUDE + '.bak'); backedUp = true; } // редактиран на ръка: пазим копие
+    if (!same) { fs.copyFileSync(CLAUDE, CLAUDE + '.bak'); backedUp = true; } // edited by hand: keep a copy
   }
   let files = 0;
   for (const [from, to] of steps) {
@@ -62,7 +62,7 @@ export function installPack(code, { only = () => true, config = true } = {}) {
   }
   if (config) {
     let cfg = {};
-    try { cfg = JSON.parse(fs.readFileSync(CONFIG, 'utf8')); } catch { /* още няма настройки */ }
+    try { cfg = JSON.parse(fs.readFileSync(CONFIG, 'utf8')); } catch { /* there are no settings yet */ }
     cfg.contentLang = code;
     fs.writeFileSync(CONFIG, JSON.stringify(cfg, null, 2) + '\n');
   }

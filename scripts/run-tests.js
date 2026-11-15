@@ -1,8 +1,8 @@
-// npm test: пуска тестовете от tests/ и записва четим отчет за страницата „Настройки“ и страницата за продукта.
-//   npm test                 записва outputs/test-results.json (само на този компютър)
-//   npm test -- --publish    записва и docs/test-results.json (отчетът, който излиза с изданието)
-// Тестовете работят във временна папка с фалшив claude: не пипат библиотеката и не харчат токени.
-// Име на тест: "група|English|Български". Причина при todo: "English :: Български".
+// npm test: runs the tests from tests/ and writes a readable report for the "Settings" page and the product page.
+//   npm test                 writes outputs/test-results.json (only on this computer)
+//   npm test -- --publish    also writes docs/test-results.json (the report that ships with the release)
+// The tests work in a temporary folder with a fake claude: they do not touch the library and spend no tokens.
+// Test name: "group|English|Български". Reason for todo: "English :: Български".
 import fs from 'node:fs';
 import path from 'node:path';
 import { run } from 'node:test';
@@ -25,7 +25,7 @@ function record(ev, data) {
   const error = data.details?.error;
   const failed = ev === 'fail' || !!error;
   if (parts.length !== 3) {
-    // Файл, който изобщо не е тръгнал, се брои за неуспех: иначе проблемът остава невидим.
+    // A file that did not start at all counts as a failure: otherwise the problem stays invisible.
     if (failed && !data.todo) crashes.push(scrub(error?.cause?.message || error?.message || data.name));
     return;
   }
@@ -56,7 +56,7 @@ let packages = null;
 try {
   const p = await checkPackages();
   packages = { outdated: p.outdated.ok ? p.outdated.items : null, audit: p.audit.ok ? { total: p.audit.total, critical: p.audit.critical, high: p.audit.high, moderate: p.audit.moderate, low: p.audit.low } : null };
-} catch { /* без интернет отчетът просто няма този раздел */ }
+} catch { /* without internet the report simply has no such section */ }
 
 const report = {
   version: versionInfo().version,

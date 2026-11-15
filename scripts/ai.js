@@ -1,7 +1,7 @@
-// Кратки въпроси към модела (въпрос към страница, конспект, предложение за промяна, пътека, писане, области).
-// С Claude Code моделът чете файловете сам (agentPrompt). Без инструменти сървърът слага материала в самия текст
-// на заявката (textPrompt), колкото позволява контекстът на модела: textPrompt(budget) получава броя токени, които
-// могат да влязат. Нивата light, medium и strong съвпадат с трите модела на доставчика.
+// Short questions to the model (a question to a page, an outline, a suggested change, a path, writing, areas).
+// With Claude Code the model reads the files itself (agentPrompt). Without tools the server puts the material into the text
+// of the request itself (textPrompt), as much as the context of the model allows: textPrompt(budget) receives the number of tokens that
+// can fit. The levels light, medium and strong match the three models of the provider.
 import { askClaude, PATH_LEVELS } from './agent.js';
 import { aiConfig, readiness } from './providers.js';
 import { complete, errorText } from './llm.js';
@@ -14,17 +14,17 @@ const SYSTEM = () => [
   P('Write in English, clearly and simply, without an em dash (—).'),
 ].join(' ');
 
-/** Колко токена материал влизат в заявката на това ниво (по-лекото ниво праща по-малко) */
+/** How many tokens of material go into the request at this level (a lighter level sends less) */
 export function textBudget(level = 'medium', out = 2500, cfg = aiConfig()) {
   const frac = { light: 0.5, medium: 0.75, strong: 0.9 }[level] || 0.75;
   return Math.max(1500, Math.floor(cfg.context * 0.85 * frac) - out - 900);
 }
 
 /**
- * Един въпрос към избрания модел. Връща { ok, text, cost } или { ok:false, kind, error, detail } (като askClaude).
- * agentPrompt: за Claude Code (чете файловете сам). textPrompt: низ или функция(budget) с целия материал вътре.
- * temperature и system важат само без инструменти: Claude Code няма такива настройки (креативността при писане
- * стига до него като указание в самия промпт).
+ * One question to the chosen model. Returns { ok, text, cost } or { ok:false, kind, error, detail } (like askClaude).
+ * agentPrompt: for Claude Code (it reads the files itself). textPrompt: a string or a function(budget) with all the material inside.
+ * temperature and system apply only without tools: Claude Code has no such settings (the creativity of writing
+ * reaches it as an instruction in the prompt itself).
  */
 export async function askAI({ level = 'medium', agentPrompt, textPrompt, json = false, maxTokens = 2500, maxTurns, timeoutMs, signal, label, temperature, system }) {
   const cfg = aiConfig();

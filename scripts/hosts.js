@@ -1,9 +1,9 @@
-// Запис на името на локалния сайт в hosts файла. Иска права на администратор.
-//   node scripts/hosts.js show             кое име е записано
-//   node scripts/hosts.js set <име>        записва (или сменя) името, напр. biblioteka.test
-//   node scripts/hosts.js remove           маха записа на библиотеката
-// Променя само блока между "# llm-wiki begin" и "# llm-wiki end"; остава резервно копие hosts.llm-wiki.bak.
-// Само вградени модули: стартерът го пуска с повишени права (виж elevatedHosts в scripts/app.js).
+// Writing the name of the local site into the hosts file. Needs administrator rights.
+//   node scripts/hosts.js show             which name is written
+//   node scripts/hosts.js set <name>       writes (or changes) the name, for example biblioteka.test
+//   node scripts/hosts.js remove           removes the entry of the library
+// Changes only the block between "# llm-wiki begin" and "# llm-wiki end"; a backup hosts.llm-wiki.bak stays.
+// Built-in modules only: the launcher runs it with raised rights (see elevatedHosts in scripts/app.js).
 import { checkHostName, hostsFilePath, readHostsName, writeHosts } from './modes.js';
 
 const [cmd, arg] = process.argv.slice(2);

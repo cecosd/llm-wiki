@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-# Еднократна настройка на Windows (иска администраторски права през UAC):
-#  1) записва  127.0.0.1 my.wiki  в hosts файла
-#  2) пренасочва порт 80 към порта на библиотеката, ако порт 80 е свободен (тогава адресът е http://my.wiki)
-#  3) създава пряк път „Библиотека“ на работния плот
+# One-time Windows setup (needs administrator rights through UAC):
+#  1) writes  127.0.0.1 my.wiki  into the hosts file
+#  2) redirects port 80 to the port of the library, if port 80 is free (then the address is http://my.wiki)
+#  3) creates a "Library" shortcut on the desktop
 set -u
 cd "$(dirname "${BASH_SOURCE[0]}")/../.." || exit 1
 ROOT="$PWD"

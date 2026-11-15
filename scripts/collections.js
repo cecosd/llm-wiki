@@ -1,11 +1,11 @@
-// Колекции, които човекът си прави в интерфейса:
-//   - умни: филтър по вид, етикет, област, формат, увереност, статус, автор, година и дума в заглавието;
-//     страниците се изчисляват наново при всяко отваряне, затова колекцията се пълни сама;
-//   - ръчни списъци: подредени страници, добавени на ръка (напр. „За дипломната“);
-//   - менюто: редът и скриването на видовете страници, които има в wiki/ (Източници, Глави, Понятия и т.н.).
-// Пазят се в outputs/collections.json: това са данни на човека, не част от wiki/, и Claude не ги чете.
-// Страниците не се променят. Ако страница от списък бъде обединена или премахната, тя остава в списъка като
-// липсваща, докато човекът не я махне.
+// Collections that the person makes in the interface:
+//   - smart: a filter by kind, tag, area, format, confidence, status, author, year and a word in the title;
+//     the pages are computed again at every opening, so the collection fills itself;
+//   - manual lists: ordered pages added by hand (for example "For the thesis");
+//   - the menu: the order and hiding of the kinds of pages that exist in wiki/ (Sources, Chapters, Concepts and so on).
+// They are kept in outputs/collections.json: this is the person's data, not part of wiki/, and Claude does not read it.
+// The pages are not changed. If a page of a list is merged or removed, it stays in the list as
+// missing until the person removes it.
 import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
@@ -26,7 +26,7 @@ const yearOf = (v) => { const n = Number(v); return v !== '' && v != null && Num
 const slugList = (v) => (Array.isArray(v) ? [...new Set(v.map(String).filter((s) => SLUG_RE.test(s)))].slice(0, LIMIT.slugs) : []);
 const empty = () => ({ version: 1, menu: { order: [], hidden: [] }, items: [] });
 
-/** Филтърът на умна колекция: И между полетата, ИЛИ между стойностите в едно поле. Празно поле не ограничава. */
+/** The filter of a smart collection: AND between the fields, OR between the values in one field. An empty field does not limit. */
 export function cleanFilter(f = {}) {
   const out = {};
   for (const k of LISTS) out[k] = textList(f?.[k], k === 'types' ? TYPE_RE : null);
@@ -66,7 +66,7 @@ function write(data) {
   return data;
 }
 
-/** Нова колекция (без id) или промяна на съществуваща (име и филтър; видът ѝ не се сменя). */
+/** A new collection (without id) or a change of an existing one (name and filter; its kind does not change). */
 export function saveCollection(input = {}) {
   const data = readCollections();
   const name = text(input.name, LIMIT.name);
@@ -99,7 +99,7 @@ export function deleteCollection(id) {
   return { ok: true, collections: data };
 }
 
-/** Ръчен списък: add (slug или списък), remove (slug), move ({ slug, dir: -1 | 1 }). */
+/** A manual list: add (slug or list), remove (slug), move ({ slug, dir: -1 | 1 }). */
 export function changeList(id, { add, remove, move } = {}) {
   const data = readCollections();
   const it = data.items.find((x) => x.id === id);
@@ -117,7 +117,7 @@ export function changeList(id, { add, remove, move } = {}) {
   return { ok: true, item: it, collections: data };
 }
 
-/** Менюто: редът и скритите видове страници, плюс редът на колекциите (по id). */
+/** The menu: the order and the hidden kinds of pages, plus the order of the collections (by id). */
 export function saveMenu({ order, hidden, items } = {}) {
   const data = readCollections();
   if (order !== undefined) data.menu.order = textList(order, TYPE_RE);

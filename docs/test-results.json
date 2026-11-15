@@ -924,8 +924,8 @@
       }
     },
     {
-      "en": "Backups and sync in a real browser, with Google Drive, Dropbox, pCloud or a network disk, and with a second person",
-      "bg": "Резервните копии и синхронизацията в истински браузър, с Google Drive, Dropbox, pCloud или мрежов диск и с втори човек",
+      "en": "Backups and sync in a real browser, with Google Drive, Dropbox, another cloud service or a network disk, and with a second person",
+      "bg": "Резервните копии и синхронизацията в истински браузър, с Google Drive, Dropbox, друга облачна услуга или мрежов диск и с втори човек",
       "why": {
         "en": "The tests use ordinary folders and call the API; the review window was only compiled, not looked at. Cloud drives can change file times and lock files while syncing. Try one backup and one shared folder with real data.",
         "bg": "Тестовете ползват обикновени папки и викат API; прозорецът за преглед е само компилиран, не е гледан. Облачните дискове могат да променят времената на файловете и да заключват файлове, докато синхронизират. Опитайте едно резервно копие и една обща папка с истински данни."

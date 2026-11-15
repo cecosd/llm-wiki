@@ -1,5 +1,5 @@
-// Вграден OCR без външни програми: tesseract.js + езикови данни от npm (български и английски).
-// Работи офлайн. По-бавен е от ocrmypdf, затова extract.js предпочита ocrmypdf, ако е инсталиран.
+// Built-in OCR without external programs: tesseract.js + language data from npm (Bulgarian and English).
+// Works offline. It is slower than ocrmypdf, so extract.js prefers ocrmypdf if it is installed.
 import fs from 'node:fs';
 import path from 'node:path';
 import { createRequire } from 'node:module';
@@ -9,7 +9,7 @@ const require = createRequire(import.meta.url);
 const LANGS = ['bul', 'eng'];
 const DATA_DIR = path.join(ROOT, '.ocr-data');
 
-/** Събира езиковите файлове на едно място (tesseract.js чете от една папка) */
+/** Gathers the language files in one place (tesseract.js reads from one folder) */
 function prepareLangs() {
   fs.mkdirSync(DATA_DIR, { recursive: true });
   for (const l of LANGS) {
@@ -29,14 +29,14 @@ export function builtinOcrAvailable() {
 }
 
 /**
- * OCR на PDF страница по страница. Връща текст с маркери <!-- стр. N -->.
- * onProgress(done, total) се вика след всяка страница.
+ * OCR of a PDF page by page. Returns text with markers <!-- стр. N -->.
+ * onProgress(done, total) is called after every page.
  */
 export async function ocrPdf(file, onProgress = () => {}) {
   prepareLangs();
   const { getDocumentProxy, renderPageAsImage, definePDFJSModule } = await import('unpdf');
-  // Целият pdf.js (не вграденият в unpdf) + wasm декодери: сканираните PDF често са JBIG2/JPEG2000,
-  // а без декодер страницата излиза бяла и OCR не намира текст.
+  // The whole pdf.js (not the one built into unpdf) + wasm decoders: scanned PDFs are often JBIG2/JPEG2000,
+  // and without a decoder the page comes out white and OCR finds no text.
   await definePDFJSModule(() => import('pdfjs-dist/legacy/build/pdf.mjs'));
   const wasmUrl = path.join(path.dirname(require.resolve('pdfjs-dist/package.json')), 'wasm') + path.sep;
   const { createWorker } = await import('tesseract.js');

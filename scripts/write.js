@@ -1,18 +1,18 @@
-// Писане с wiki: готов текст върху страниците на библиотеката.
+// Write with the wiki: a finished text built on the pages of the library.
 //
-// Видове текст (GENRES): научна статия, есе, научно-популярна статия, обзор на литературата и художествен текст.
-// Три начина за съставяне:
-//  - Бърза чернова: без Claude, подрежда и пренарежда текста на страниците в структура на статия (само научна статия).
-//  - Claude (лек, среден, мощен): пише свързан текст, като чете страниците и оригиналите.
-//  - Празен документ: човекът пише сам и иска помощ по абзаци (пренаписване, вмъкване) или дописване.
-// Креативността (1 до 5) сменя стила и тълкуването, не фактите: те и цитатите са винаги само от библиотеката.
-// При модел без инструменти тя е и температурата на заявката; Claude Code няма такава настройка и я получава като указание.
-// Цитатите от wiki ([[глава]], с. N) се превръщат автоматично в APA 7 в текста, а библиографията
-// се събира САМО от реално цитираните източници (по полето apa на source страниците). Така Claude не може да добави
-// литература, която я няма в библиотеката. Художественият текст няма цитати в самия текст: източниците му са в „По мотиви от“.
+// Kinds of text (GENRES): a scientific article, an essay, a popular science article, a literature review and a literary text.
+// Three ways of composing:
+//  - Quick draft: without Claude, arranges the text of the pages into the structure of the chosen kind of text (an essay: introduction, thesis, antithesis, conclusion).
+//  - Claude (light, medium, powerful): writes a coherent text by reading the pages and the originals.
+//  - Blank document: the person writes alone and asks for help with paragraphs (rewriting, inserting) or continuing.
+// Creativity (1 to 5) changes the style and the interpretation, not the facts: they and the citations always come only from the library.
+// With a model without tools it is also the temperature of the request; Claude Code has no such setting and receives it as an instruction.
+// The citations from the wiki ([[chapter]], p. N) are turned automatically into APA 7 in the text, and the bibliography
+// is gathered ONLY from the sources that are really cited (by the apa field of the source pages). This way Claude cannot add
+// literature that is not in the library. A literary text has no citations in the text itself: its sources are in "Based on".
 //
-// Готовите текстове се пазят като .md файлове в drafts/ (извън wiki/, за да не се бъркат с него),
-// с предишните версии в drafts/.history/ при всеки запис.
+// The finished texts are kept as .md files in drafts/ (outside wiki/, so that they are not mixed with it),
+// with the previous versions in drafts/.history/ at every save.
 import fs from 'node:fs';
 import path from 'node:path';
 import matter from 'gray-matter';
@@ -37,10 +37,10 @@ export const LENGTHS = {
   long: { label: 'Дълга', words: 3000 },
 };
 
-// ---------- Видове текст и креативност ----------
+// ---------- Kinds of text and creativity ----------
 export const GENRES = ['article', 'essay', 'popular', 'review', 'story'];
 export const genreOf = (g) => (GENRES.includes(g) ? g : 'article');
-/** Креативност по подразбиране за всеки вид: обзорът е най-строг, разказът най-свободен */
+/** Default creativity for each kind: the review is the strictest, the story the freest */
 export const CREATIVITY_DEFAULT = { article: 2, essay: 3, popular: 3, review: 1, story: 4 };
 export function creativityOf(c, genre) {
   const n = Math.round(Number(c));
@@ -49,13 +49,13 @@ export function creativityOf(c, genre) {
 const TEMPERATURE = [0.2, 0.4, 0.7, 0.9, 1];
 export const temperatureOf = (c) => TEMPERATURE[c - 1] ?? 0.4;
 const citesInText = (genre) => genre !== 'story';
-/** Името на вида текст на езика на съдържанието („научна статия“ и т.н.), за заявките в review.js */
+/** The name of the kind of text in the content language ("a scientific article" and so on), for the requests in review.js */
 export const genreName = (g) => GENRE[genreOf(g)].name;
 const bibTitle = (genre) => (citesInText(genre) ? P('Bibliography') : P('Based on'));
-// Заглавието на библиографията на всеки език и при всеки вид; моделите понякога пишат и „References“
+// The title of the bibliography in every language and for every kind; models sometimes write "References" too
 const BIB_HEADS = () => `(?:${anyP('Bibliography')}|${anyP('Based on')}|${anyP('References')})`;
 const BIB_LINE = () => new RegExp(`^##[ \\t]*${BIB_HEADS()}[ \\t]*:?[ \\t]*$`, 'im');
-/** Същите заглавия като текст: редакторът по тях знае кои абзаци са библиографията (тях ги попълва сървърът) */
+/** The same titles as text: the editor uses them to know which paragraphs are the bibliography (the server fills them in) */
 export const bibHeads = () => [...new Set([...Pall('Bibliography'), ...Pall('Based on'), ...Pall('References')])];
 const cutBib = (s) => { const m = s.match(BIB_LINE()); return (m ? s.slice(0, m.index) : s).trim(); };
 
@@ -125,7 +125,7 @@ const GENRE = lazy(() => ({
   },
 }));
 
-/** Правилата за опора в библиотеката и за цитиране, според вида текст (part: дописване или абзац, без „заключение“) */
+/** The rules for relying on the library and for citing, by the kind of text (part: continuing or a paragraph, without a "conclusion") */
 function groundRules(genre, part = false) {
   if (!citesInText(genre)) return [
     P('- The ideas, the facts and the real people in the story come ONLY from the library. The plot, the characters, the dialogue and the images are invented by you.'),
@@ -163,19 +163,19 @@ const WRITER_SYSTEM = () => [
   P('You are a careful writer who works from the material of a personal knowledge library. The ideas, the facts and the citations come only from the material in the request; invent only what the request allows.'),
   P('Write in English, clearly and simply, without an em dash (—).'),
 ].join(' ');
-/** Отговорът на модела без обвивката ``` и без дълги тирета */
+/** The answer of the model without the ``` wrapper and without long dashes */
 const cleanAnswer = (s) => noDash(s).trim().replace(/^```(?:markdown|md)?\s*/i, '').replace(/\s*```$/, '');
 
 /**
- * Цитатите в новия текст: при научните видове стават APA 7 в текста, а библиографията, ако моделът я е написал,
- * се маха (прави я сървърът). При художествен текст цитатите се записват, но се махат от текста, а списъкът
- * „По мотиви от“ на модела се маха след това.
+ * The citations in the new text: in the scientific kinds they become APA 7 in the text, and the bibliography, if the model wrote it,
+ * is removed (the server makes it). In a literary text the citations are recorded but removed from the text, and the list
+ * "Based on" of the model is removed afterwards.
  */
 function finishText(md, citer, genre) {
   return citesInText(genre) ? citer.convert(cutBib(md)) : cutBib(citer.convert(md, { inline: false }));
 }
 
-// ---------- Цитати: wiki → APA 7 ----------
+// ---------- Citations: wiki -> APA 7 ----------
 export function makeCiter(pages) {
   const bySlug = new Map(pages.map((p) => [p.slug, p]));
   const cited = new Map(), missing = new Set();
@@ -184,7 +184,7 @@ export function makeCiter(pages) {
     const t = String(a).trim();
     if (t.includes(',')) return t.split(',')[0].trim();
     const w = t.split(/\s+/);
-    return w.length <= 2 ? w[w.length - 1] : t; // организация: цялото име
+    return w.length <= 2 ? w[w.length - 1] : t; // an organisation: the whole name
   };
   const authorsOf = (s) => [].concat(s.data.authors || []).map(String).filter(Boolean);
   const label = (src) => {
@@ -192,7 +192,7 @@ export function makeCiter(pages) {
     const who = n === 0 ? String(src.data.title || src.slug) : n === 1 ? au[0] : n === 2 ? `${au[0]} ${P('and')} ${au[1]}` : `${au[0]} ${P('et al.')}`;
     return { who, year: src.data.year ? String(src.data.year) : P('n.d.') };
   };
-  // PDF страницата от wiki → печатната, която иска APA (чрез page_offset на книгата)
+  // The PDF page from the wiki -> the printed one that APA wants (through the page_offset of the book)
   const pg = (src, unit, a, b) => {
     if (new RegExp('^' + anyP('sect.').replace(/^\(\?:/, '(?:')).test(unit) || /^(разд|sect)/.test(unit)) return `${P('sect.')} ${a}${b ? '–' + b : ''}`;
     const off = Number(src.data.page_offset) || 0, f = (n) => (off && Number(n) - off > 0 ? Number(n) - off : Number(n));
@@ -207,9 +207,9 @@ export function makeCiter(pages) {
     return { p, src };
   };
 
-  // inline: false (художествен текст): източниците се записват за списъка накрая, но в текста не остават цитати
+  // inline: false (a literary text): the sources are recorded for the list at the end, but no citations stay in the text
   function convert(text, { inline = true } = {}) {
-    // 1) в скоби: ([[x]], с. 5; [[y]], с. 7) → (Автор, 1974, с. 5; Автор2, 1980, с. 7)
+    // 1) in parentheses: ([[x]], p. 5; [[y]], p. 7) -> (Author, 1974, p. 5; Author2, 1980, p. 7)
     text = text.replace(/(\s?)\(([^()\n]*\[\[[^()\n]*)\)/g, (_, sp, inner) => {
       const parts = inner.split(';').map((part) => {
         let any = false, bad = false;
@@ -224,7 +224,7 @@ export function makeCiter(pages) {
       }).filter(Boolean);
       return parts.length && inline ? `${sp}(${parts.join('; ')})` : '';
     });
-    // 2) в текста: [[x]], с. N → Автор (1974, с. N); [[x]] → Автор (1974) или заглавие
+    // 2) in the text: [[x]], p. N -> Author (1974, p. N); [[x]] -> Author (1974) or the title
     text = text.replace(LINK, (m, slug, lab, unit, a, b) => {
       const { p, src } = srcOf(slug);
       if (src && inline) { const { who, year } = label(src); return `${who} (${year}${a ? ', ' + pg(src, unit, a, b) : ''})`; }
@@ -247,12 +247,12 @@ export function makeCiter(pages) {
   return { convert, bibliography, cited, missing, label, citedList };
 }
 
-// ---------- Бърза чернова: без Claude ----------
+// ---------- Quick draft: without Claude ----------
 const stripSections = (body) => body
   .replace(/^\s*#\s+.*\n/, '')
   .replace(new RegExp(`^##\\s*(${any('notes')}|${any('related')}[^\\n]*|${any('chapters')}|${any('contradictions')}|${any('relies')}|${any('sources')})\\s*\\n[\\s\\S]*?(?=^##\\s|(?![\\s\\S]))`, 'gm'), '');
 
-/** Първите абзаци на страницата, до max знака (по граница на изречение) */
+/** The first paragraphs of the page, up to max characters (at a sentence boundary) */
 const SEE = /\s*(?:Вижте|Виж|Вж\.?)\s[^.\n]*\.(?=\s|$)/g;
 function lead(p, max = 900, content = p.content) {
   const paras = stripSections(content).replace(SEE, '').split(/\n[ \t]*\n/).map((s) => s.trim()).filter(Boolean);
@@ -269,7 +269,7 @@ function lead(p, max = 900, content = p.content) {
 }
 const contradictions = (p) => (p.content.match(new RegExp(`^##\\s*${any('contradictions')}\\s*\\n([\\s\\S]*?)(?=^##\\s|(?![\\s\\S]))`, 'm'))?.[1] || '').trim();
 const plainTitle = (p) => String(p.data.title || p.slug).replace(new RegExp(String.raw`^${anyP('Ch.')}\s*\d+\.?\s*`), '');
-// първото изречение без цитатите и без съкращението „с.“
+// the first sentence without the citations and without the abbreviation "p."
 const firstSentence = (s) => {
   const t = String(s).replace(/\([^()]*\[\[[^()]*\)/g, '').replace(/\[\[[^\]]*\]\]/g, '').replace(/\s+/g, ' ').replace(/ +([,.;:])/g, '$1').trim();
   return (t.match(/^.*?[.!?](?=\s+[А-ЯA-Z„"]|$)/)?.[0] || t).slice(0, 240);
@@ -281,33 +281,34 @@ const plural = (n, a, b) => (n === 1 ? a : b);
 
 export function titleOf(topic) { return cap(String(topic).trim().replace(/[?!.…\s]+$/, '')); }
 
-/** Подрежда страниците в структура на научна статия. Връща null, ако библиотеката нищо не казва по темата. */
-export function buildLocal(topic, { pages, scored }) {
+/** Arranges library pages into the structure of the chosen kind of text. Returns null when the library says nothing on the topic. */
+export function buildLocal(topic, { pages, scored }, genre = 'article') {
   const pick = (types, n) => scored.filter((s) => types.includes(s.p.data.type)).slice(0, n).map((s) => s.p);
   const topics = pick(['topic'], 2), concepts = pick(['concept'], 6), people = pick(['entity'], 3), comps = pick(['comparison'], 3);
   const asked = pick(['question'], 2), texts = pick(['chapter', 'source'], 6);
   if (!topics.length && !concepts.length && !people.length && !comps.length && !texts.length) return null;
+  if (genre !== 'article') return buildOther(genre, topic, { pages, scored, topics, concepts, people, comps, asked, texts });
   const citer = makeCiter(pages), warnings = [];
   const sec = [];
   const add = (h, body) => { if (String(body).trim()) sec.push(`## ${h}\n\n${String(body).trim()}`); };
 
-  // Увод
+  // Introduction
   const [q1, q2] = [P('“'), P('”')];
   const names = concepts.slice(0, 4).map((c) => `${q1}${plainTitle(c)}${q2}`);
   const plan = names.length
     ? P('The article presents {0} in turn{1}; every claim rests on cited texts.', [listOf(names), comps.length ? P(', then compares the positions of the authors') : ''])
     : P('Every claim in the article rests on cited texts.');
-  // уводът ползва хъба на темата; ако няма такъв, не повтаря текста от следващия раздел
+  // the introduction uses the hub of the topic; if there is none, it does not repeat the text of the next section
   add(P('Introduction'), topics[0] ? `${lead(topics[0], 800)}\n\n${plan}` : P('The topic “{0}” is examined through a survey of the available texts on it. {1}', [titleOf(topic), plan]));
 
-  // Теоретична рамка
+  // Theoretical framework
   const theory = [];
   for (const c of concepts) theory.push(`### ${plainTitle(c)}\n\n${lead(c, 900)}`);
   if (people.length) theory.push(`### ${P('Authors and schools')}\n\n` + people.map((e) => `**${plainTitle(e)}.** ${lead(e, 450)}`).join('\n\n'));
   if (!theory.length && topics[1]) theory.push(lead(topics[1], 900));
   add(P('Theoretical framework'), theory.join('\n\n'));
 
-  // Анализ: сравнения и противоречия
+  // Analysis: comparisons and contradictions
   const analysis = [];
   for (const c of comps) analysis.push(`### ${plainTitle(c)}\n\n${lead(c, 1100)}`);
   const contra = [...concepts, ...topics, ...comps].map((p) => ({ p, t: contradictions(p) })).filter((x) => x.t).slice(0, 3);
@@ -315,14 +316,14 @@ export function buildLocal(topic, { pages, scored }) {
   if (!analysis.length) warnings.push($t('The library has no comparisons on the topic, so the “Analysis” section is short. The “Synthesis” button on the home page creates them.'));
   add(P('Analysis'), analysis.join('\n\n') || P('[This is where the positions of the authors are compared: there are not enough comparisons on the topic yet.]'));
 
-  // Дискусия: отговорите, които вече са записани
+  // Discussion: the answers that are already recorded
   if (asked.length) add(P('Discussion'), asked.map((q) => `**${plainTitle(q)}** ${lead(q, 700, answerOf(q))}`).join('\n\n'));
 
-  // Заключение
+  // Conclusion
   const kp = concepts.slice(0, 5).map((c) => `- **${plainTitle(c)}:** ${firstSentence(lead(c, 400))}`);
   add(P('Conclusion'), (kp.length ? `${P('The main lines that emerge:')}\n\n${kp.join('\n')}\n\n` : '') + P('The conclusions are limited by the texts reviewed. They are a starting point for reading and further checking, not a full survey of the literature.'));
 
-  // Цитатите се преобразуват; после се знае върху какво е стъпила статията
+  // The citations are converted; then it is known what the article stands on
   let text = noDash(citer.convert(sec.join('\n\n')));
   if (citer.cited.size < 2) warnings.push($t('The text relies on few sources. Add more books and articles on the topic and run the Synthesis.'));
   if (citer.missing.size) warnings.push($t('Citations to non-existent pages were skipped: {0}.', [[...citer.missing].join(', ')]));
@@ -343,14 +344,80 @@ export function buildLocal(topic, { pages, scored }) {
   return { markdown: md, cited: cl, warnings };
 }
 
+/**
+ * Quick drafts for the other kinds of text. Each one is a skeleton built only from library pages, with the same
+ * cited claims as the article draft; whatever the library cannot supply is left as a "[Fill in: ...]" mark for the author.
+ */
+function buildOther(genre, topic, { pages, scored, topics, concepts, people, comps, asked, texts }) {
+  const citer = makeCiter(pages), warnings = [];
+  const [q1, q2] = [P("“"), P("”")];
+  const fill = (what) => P("[Fill in: {0}]", [what]);
+  const sec = (h, body) => (String(body).trim() ? `## ${h}\n\n${String(body).trim()}` : "");
+  const sub = (p, max = 900) => `### ${plainTitle(p)}\n\n${lead(p, max)}`;
+  const hub = topics[0] || concepts[0] || texts[0];
+  const contra = [...concepts, ...topics, ...comps].map((p) => ({ p, t: contradictions(p) })).filter((x) => x.t).slice(0, 3);
+  const contraText = contra.map((x) => `${P("On")} ${q1}${plainTitle(x.p)}${q2}: ${x.t.replace(/^[-*+]\s*/gm, "").replace(/\n+/g, " ").slice(0, 700)}`).join("\n\n");
+  const parts = [];
+
+  if (genre === "essay") {
+    // Introduction, thesis, antithesis, conclusion: the shortest classical shape of an essay
+    parts.push(sec(P("Introduction"), `${hub ? lead(hub, 700) : ""}\n\n${P("The question of this essay: what can be claimed about {0}, and what can be said against it?", [`${q1}${titleOf(topic)}${q2}`])}`));
+    parts.push(sec(P("Thesis"), concepts.length ? concepts.slice(0, 2).map((c) => lead(c, 700)).join("\n\n") : (comps[0] ? lead(comps[0], 800) : fill(P("state your thesis in one or two sentences")))));
+    const anti = [contraText, ...comps.slice(0, 2).map((c) => lead(c, 700))].filter(Boolean).join("\n\n");
+    if (!anti) warnings.push($t("The library has no contradictions or comparisons on the topic, so the antithesis is left for you to write."));
+    parts.push(sec(P("Antithesis"), anti || fill(P("the strongest objection to the thesis, with its source"))));
+    const kp = concepts.slice(0, 3).map((c) => `- **${plainTitle(c)}:** ${firstSentence(lead(c, 400))}`);
+    parts.push(sec(P("Conclusion"), `${kp.length ? `${P("Where the two positions meet:")}\n\n${kp.join("\n")}\n\n` : ""}${fill(P("your own position after weighing the thesis and the antithesis"))}`));
+  } else if (genre === "popular") {
+    parts.push(hub ? `${lead(hub, 600)}` : fill(P("an opening question or scene that draws the reader in")));
+    for (const c of concepts.slice(0, 5)) parts.push(`## ${plainTitle(c)}\n\n${lead(c, 700)}`);
+    if (people.length) parts.push(sec(P("Who stands behind the ideas"), people.map((e) => `**${plainTitle(e)}.** ${lead(e, 350)}`).join("\n\n")));
+    parts.push(sec(P("What this means for you"), fill(P("one practical consequence for the reader, in plain words"))));
+  } else if (genre === "review") {
+    parts.push(sec(P("Introduction"), `${hub ? lead(hub, 700) : ""}\n\n${P("This review asks what the available texts say about {0}.", [`${q1}${titleOf(topic)}${q2}`])}`));
+    const n = new Set(texts.map((t) => t.slug)).size;
+    parts.push(sec(P("Method"), P("The review covers {0} texts from the library that are closest to the topic. They are grouped by theme below.", [n])));
+    for (const c of concepts.slice(0, 5)) parts.push(`## ${plainTitle(c)}\n\n${lead(c, 900)}`);
+    for (const c of comps.slice(0, 2)) parts.push(`## ${plainTitle(c)}\n\n${lead(c, 900)}`);
+    if (contraText) parts.push(sec(P("Differences and contradictions"), contraText));
+    const rows = texts.filter((t) => t.data.type === "source").slice(0, 8).map((t) => `| ${[].concat(t.data.authors || []).map(String).join("; ") || plainTitle(t)} | ${firstSentence(t.data.emphasis || lead(t, 300)).replace(/\|/g, "/")} | [[${t.slug}]] |`);
+    if (rows.length) parts.push(sec(P("Summary of the positions"), `| ${P("Author")} | ${P("Main claim")} | ${P("Citation")} |\n|---|---|---|\n${rows.join("\n")}`));
+    parts.push(sec(P("Gaps and directions"), fill(P("what the reviewed texts do not cover and what is worth reading next"))));
+    parts.push(sec(P("Conclusion"), fill(P("the overall picture that the texts give"))));
+  } else {
+    // story: an outline of ideas to write the story from; nothing is cited in the text
+    // one prose sentence per page, keeping its citation so that the sources still reach "Based on"
+    const idea = (p) => {
+      const para = stripSections(p.content).replace(SEE, '').split(/\n[ \t]*\n/).map((x) => x.trim()).find((x) => x && !/^(#|\||>|```|[-*+]\s)/.test(x) && !/\n\s*[-*+]\s/.test(x)) || '';
+      return (para.replace(/\s+/g, ' ').match(/^.*?[.!?](?=\s+[А-ЯA-Z„"]|$)/)?.[0] || para).slice(0, 300);
+    };
+    const ideas = concepts.slice(0, 3).map(idea).filter(Boolean);
+    const cast = people.slice(0, 3).map((e) => idea(e) && `**${plainTitle(e)}:** ${idea(e)}`).filter(Boolean);
+    const line = (h, hint, idea) => `## ${h}\n\n${idea ? `${idea}\n\n` : ""}${fill(hint)}`;
+    parts.push(line(P("Setting"), P("where and when the story takes place, with two concrete details"), hub ? idea(hub) : ""));
+    parts.push(line(P("Characters"), P("who they are, what each of them wants"), cast.join("\n\n")));
+    parts.push(line(P("Conflict"), P("what stands between the character and what they want"), ideas[0] || ""));
+    parts.push(line(P("Turning point"), P("the scene where something changes"), ideas[1] || ""));
+    parts.push(line(P("Ending"), P("how the story closes, what the character understands"), ideas[2] || ""));
+    warnings.push($t("The quick draft for a story is only an outline of ideas from the library. Write the scenes yourself, or choose a {ai} level to have them written."));
+  }
+
+  const body = parts.filter(Boolean).join("\n\n");
+  const text = noDash(citer.convert(body, { inline: genre !== "story" }));
+  if (genre !== "story" && citer.cited.size < 2) warnings.push($t("The text relies on few sources. Add more books and articles on the topic and run the Synthesis."));
+  if (citer.missing.size) warnings.push($t("Citations to non-existent pages were skipped: {0}.", [[...citer.missing].join(", ")]));
+  const md = [`# ${titleOf(topic)}`, text, bibSection(citer, genre)].join("\n\n");
+  return { markdown: md, cited: citer.citedList(), warnings };
+}
+
 function bibSection(citer, genre = 'article') {
   const b = citer.bibliography();
   return `## ${bibTitle(genre)}\n\n${b.length ? b.join('\n\n') : P('[No sources cited.]')}`;
 }
 
 /**
- * Разделя текста на основна част, библиография (или „По мотиви от“) и всичко след нея.
- * Записите в библиографията са абзаците под заглавието до следващото ## заглавие.
+ * Splits the text into the main part, the bibliography (or "Based on") and everything after it.
+ * The entries of the bibliography are the paragraphs under the heading up to the next ## heading.
  */
 export function splitBib(text) {
   const m = String(text).match(BIB_LINE());
@@ -361,7 +428,7 @@ export function splitBib(text) {
   return { main: text.slice(0, m.index).replace(/\s+$/, ''), entries, head: m[0].replace(/^##[ \t]*/, '').trim(), tail: next < 0 ? '' : rest.slice(next).trim() };
 }
 const letters = (s) => s.replace(/[^\p{L}\p{N}]/gu, '');
-/** Сглобява текста отново: старите записи остават, новоцитираните се добавят. Без цитати не се добавя празен раздел. */
+/** Puts the text together again: the old entries stay, the newly cited ones are added. Without citations an empty section is not added. */
 export function joinBib({ main, entries, head, tail }, citer, genre) {
   const all = [...new Set([...entries, ...citer.bibliography()])].sort((a, b) => letters(a).localeCompare(letters(b), contentLang()));
   const bib = all.length || head ? `\n\n## ${head || bibTitle(genre)}\n\n${all.length ? all.join('\n\n') : P('[No sources cited.]')}` : '';
@@ -376,8 +443,8 @@ const DEPTH = lazy(() => ({
 }));
 
 /**
- * За модел без инструменти: най-близките до темата страници (по търсачката), всяка с [[slug]] над нея.
- * Източниците и главите идват първи, защото само тях статията цитира; понятията дават рамката.
+ * For a model without tools: the pages closest to the topic (by the search), each with [[slug]] above it.
+ * The sources and chapters come first, because only they are cited by the article; the concepts give the frame.
  */
 const PAGES_PER_LEVEL = { light: 6, medium: 12, strong: 20 };
 function materialOf(ranked, budget, level) {
@@ -452,12 +519,12 @@ export async function writeWithClaude({ topic, genre, creativity, level, length,
   return { ok: true, markdown: `${body}\n\n${bibSection(citer, genre)}`, cited: citer.citedList(), warnings, genre, creativity };
 }
 
-// ---------- Дописване и работа по абзаци в записан текст ----------
+// ---------- Continuing and paragraph work in a saved text ----------
 const workRole = (genre) => [
   P('You are working on a text in English based on the author\'s materials (the wiki/ folder in the current directory). This is your working environment, not the topic of the text.'),
   P('KIND OF TEXT: {0}.', [GENRE[genre].name]),
 ];
-/** Общата част на указанията за дописване и за абзац: опора, цитати, креативност, стил */
+/** The common part of the instructions for continuing and for a paragraph: grounding, citations, creativity, style */
 const workRules = ({ genre, creativity, level, text }) => [
   P('HOW TO WORK'),
   ...workLines(text, level, 'part'),
@@ -493,9 +560,9 @@ function continuePrompt({ title, body, instruction, words: n, genre, creativity,
 }
 
 /**
- * Дописва текста с Claude. Не записва нищо: връща новото тяло (за преглед и запис от човека).
- * В научна статия новият текст влиза преди „Заключение“ (ако има), иначе преди библиографията, иначе накрая.
- * Библиографията се допълва с новоцитираните източници, като вече написаните записи се пазят.
+ * Continues the text with Claude. Writes nothing: returns the new body (for review and saving by the person).
+ * In a scientific article the new text goes before "Conclusion" (if there is one), otherwise before the bibliography, otherwise at the end.
+ * The bibliography is extended with the newly cited sources, and the entries already written are kept.
  */
 export async function continueWithClaude({ body, title, instruction, genre, creativity, level, voice, words: n = 600, hints, ranked, pages, signal }) {
   genre = genreOf(genre); creativity = creativityOf(creativity, genre);
@@ -506,7 +573,7 @@ export async function continueWithClaude({ body, title, instruction, genre, crea
   const args = { title, instruction: ins, words: n, genre, creativity, level, voice };
   const r = await askAI({
     level, agentPrompt: continuePrompt({ ...args, body: text, hints }), maxTokens: Math.round(n * 2.6) + 600, label: $t('Continue with {ai}'),
-    // без инструменти: текстът (отрязан, ако е дълъг) плюс страниците по темата, в рамките на контекста
+    // without tools: the text (cut if long) plus the pages on the topic, within the context
     textPrompt: (budget) => continuePrompt({ ...args, body: clipTokens(text, Math.floor(budget * 0.4)), material: materialOf(ranked, Math.floor(budget * 0.55), level) }),
     temperature: temperatureOf(creativity), system: WRITER_SYSTEM(),
     maxTurns: L.maxTurns + 12, timeoutMs: Math.round(L.timeoutMs * 1.4), signal,
@@ -528,7 +595,7 @@ export async function continueWithClaude({ body, title, instruction, genre, crea
   };
 }
 
-// ---------- Един абзац: пренаписване или нов абзац на избрано място ----------
+// ---------- One paragraph: rewriting or a new paragraph at the chosen place ----------
 const MARK = lazy(() => ({
   start: `⟦${P('START OF THE PASSAGE TO REWRITE')}⟧`, end: `⟦${P('END OF THE PASSAGE')}⟧`, here: `⟦${P('INSERT THE NEW TEXT HERE')}⟧`,
 }));
@@ -559,8 +626,8 @@ function blockPrompt({ title, before, target, after, action, instruction, words:
 }
 
 /**
- * Пренаписва абзаца в [start, end) или пише нов абзац след end (action: rewrite | insert). Не записва нищо:
- * връща новото тяло и къде е новият текст, за преглед и запис от човека. Библиографията се допълва както при дописване.
+ * Rewrites the paragraph in [start, end) or writes a new paragraph after end (action: rewrite | insert). Writes nothing:
+ * returns the new body and where the new text is, for review and saving by the person. The bibliography is extended as when continuing.
  */
 export async function blockWithClaude({ body, start, end, action, title, instruction, genre, creativity, level, voice, words: n = 150, hints, ranked, pages, signal }) {
   genre = genreOf(genre); creativity = creativityOf(creativity, genre);
@@ -590,19 +657,19 @@ export async function blockWithClaude({ body, start, end, action, title, instruc
   if (citer.missing.size) warnings.push($t('{ai} cited non-existent pages ({0}): the citations were removed.', [[...citer.missing].join(', ')]));
   if (citesInText(genre) && /library|wiki|knowledge base|collection|библиотек|база знания|колекци/i.test(add)) warnings.push($t('The new text mentions the library or the wiki. Check and rewrite those sentences.'));
 
-  // Новият текст на мястото си; позициите преди библиографията не се местят при допълването ѝ
-  const sep = end === 0 ? '' : '\n\n'; // в самото начало на текста (документ без заглавие) няма празен ред отпред
+  // The new text in its place; the positions before the bibliography do not move when it is extended
+  const sep = end === 0 ? '' : '\n\n'; // at the very beginning of the text (a document without a title) there is no empty line in front
   const next = rewrite ? text.slice(0, start) + add + text.slice(end) : `${text.slice(0, end)}${sep}${add}${end === 0 && text.trim() ? '\n\n' : ''}${text.slice(end)}`;
   const at = rewrite ? start : end + sep.length;
   return { ok: true, markdown: joinBib(splitBib(next), citer, genre), start: at, end: at + add.length, added: words(add), cited: citer.citedList(), warnings };
 }
 
-// ---------- Файлове в drafts/ ----------
+// ---------- Files in drafts/ ----------
 const latin = (s) => [...String(s).toLowerCase()].map((c) => (c in CYR ? CYR[c] : c)).join('').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 48) || 'tekst';
 const okId = (id) => /^[a-z0-9][a-z0-9-]{0,80}$/.test(String(id));
 const fileOf = (id) => path.join(DRAFTS, id + '.md');
 
-// Обхватът (области и теми), с който е писан текстът: пази се в текста, за да се вижда и сменя при следваща помощ
+// The scope (areas and topics) with which the text was written: kept in the text, so that it can be seen and changed at the next help
 const strList = (v, max, len) => [...new Set([].concat(v || []).map((x) => String(x).trim().slice(0, len)).filter(Boolean))].slice(0, max);
 const cleanScope = (sc) => ({ areas: strList(sc?.areas, 30, 80), focus: strList(sc?.focus, 60, 120).filter((s) => /^[\p{L}\p{N}._/-]+$/u.test(s)) });
 const okSlug = (s) => /^[\p{L}\p{N}._-]{1,160}$/u.test(s);
@@ -625,7 +692,7 @@ export function saveDraft({ markdown, topic, level, length, genre, creativity, s
   return { id, title, words: data.words, path: `drafts/${id}.md`, cited, warnings };
 }
 
-/** Празен документ: само заглавие. Човекът пише сам и иска помощ по абзаци. */
+/** A blank document: only a title. The person writes alone and asks for help with paragraphs. */
 export function createBlank({ title, genre, scope }) {
   const t = titleOf(String(title || '').replace(/\s+/g, ' ').slice(0, 200)) || P('Untitled text');
   return saveDraft({ markdown: `# ${t}\n`, topic: '', level: 'blank', genre, scope });
@@ -655,8 +722,8 @@ export function listDrafts(q = '') {
 }
 
 /**
- * Запис на редактиран текст. Предишната версия отива в drafts/.history/<id>/.
- * meta (по желание): вид, креативност, обхват и цитирани източници, сменени в редактора.
+ * Saving an edited text. The previous version goes to drafts/.history/<id>/.
+ * meta (optional): kind, creativity, scope and cited sources, changed in the editor.
  */
 export function updateDraft(id, body, meta = null) {
   const cur = readFile(id);
@@ -669,8 +736,8 @@ export function updateDraft(id, body, meta = null) {
   fs.copyFileSync(fileOf(id), path.join(dir, stamp + '.md'));
   const old = fs.readdirSync(dir).sort();
   for (const f of old.slice(0, Math.max(0, old.length - 15))) fs.rmSync(path.join(dir, f), { force: true });
-  // Копие: gray-matter пази разбора в кеш по текста на файла и връща същия обект. Промяна на място би стигнала
-  // до всеки друг файл със същия текст (напр. два празни документа със същото заглавие от един ден).
+  // A copy: gray-matter keeps the parse in a cache by the text of the file and returns the same object. A change in place would reach
+  // every other file with the same text (for example two blank documents with the same title on the same day).
   const data = { ...matter(fs.readFileSync(fileOf(id), 'utf8')).data };
   data.title = (text.match(/^#\s+(.+)$/m)?.[1] || data.title || id).trim();
   data.updated = today(); data.words = words(text);
@@ -685,7 +752,7 @@ export function updateDraft(id, body, meta = null) {
   return { ok: true, title: data.title, words: data.words, updated: data.updated };
 }
 
-/** „Изтриване“ = преместване в drafts/.trash/, за да не се губи нищо безвъзвратно. */
+/** "Delete" = a move to drafts/.trash/, so that nothing is lost for good. */
 export function trashDraft(id) {
   if (!readFile(id)) return { ok: false, error: $t('There is no such text.') };
   fs.mkdirSync(TRASH, { recursive: true });

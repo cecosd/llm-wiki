@@ -74,10 +74,10 @@
       .nav-item.active { @apply bg-panel text-ink shadow-soft dark:bg-night-panel dark:text-night-ink; }
       .nav-group { @apply flex w-full items-center gap-2 rounded-lg px-3 pb-1.5 pt-1 text-left text-[11px] font-semibold uppercase tracking-[.14em] text-muted transition hover:text-ink dark:text-night-muted dark:hover:text-night-ink; }
 
-      /* Четивен текст на wiki страниците */
+      /* Readable text of the wiki pages */
       .reading { @apply font-serif text-[17.5px] leading-[1.75] text-ink/90 dark:text-night-ink/90; }
       .reading > * + * { @apply mt-5; }
-      .reading .blk > :first-child { @apply mt-0; } /* „Писане с wiki“: абзац по абзац, отстъпът е на обвивката */
+      .reading .blk > :first-child { @apply mt-0; } /* "Write with the wiki": paragraph by paragraph, the indent is on the wrapper */
       .reading .blk > * + * { @apply mt-5; }
       .reading h1 { @apply font-serif text-3xl font-semibold tracking-tight; }
       .reading h2 { @apply mt-12 scroll-mt-24 border-b border-line pb-2 font-sans text-xl font-semibold tracking-tight text-ink dark:border-night-line dark:text-night-ink; }
@@ -110,11 +110,11 @@
 <body>
 <div id="app" v-cloak></div>
 
-<!-- ============================ ШАБЛОН НА ПРИЛОЖЕНИЕТО ============================ -->
+<!-- ============================ TEMPLATE OF THE APPLICATION ============================ -->
 <script type="text/x-template" id="tpl-app">
 <div class="flex min-h-dvh">
 
-  <!-- Странична лента -->
+  <!-- Sidebar -->
   <div v-if="drawer" class="fixed inset-0 z-30 bg-ink/30 backdrop-blur-sm lg:hidden" @click="drawer=false"></div>
   <aside v-if="!focusOn" :class="['fixed inset-y-0 left-0 z-40 flex w-[288px] flex-col border-r border-line/70 bg-paper/95 backdrop-blur-xl transition-transform duration-300 dark:border-night-line dark:bg-night/95 lg:sticky lg:top-0 lg:h-dvh lg:translate-x-0', navHidden && 'lg:hidden', drawer ? 'translate-x-0' : '-translate-x-full']">
     <div class="flex items-center gap-3 px-5 pt-6 pb-4">
@@ -143,32 +143,32 @@
         <a data-tour="home" href="#/" :class="['nav-item', route.name==='home' && 'active']" @click="drawer=false"><ic name="home" class="size-4"></ic>{{ $t('Home') }}</a>
       </div>
 
-      <!-- Учене и писане: всичко, което работи с модела -->
+      <!-- Learn and write: everything that works with the model -->
       <div v-if="!ro" data-tour="work">
         <button type="button" class="nav-group" :aria-expanded="navOpen('work')" @click="navToggle('work')"><span class="flex-1">{{ $t('Learn and write') }}</span><ic name="chevron" :class="['size-3 transition', navOpen('work') && 'rotate-90']"></ic></button>
         <div v-show="navOpen('work')" class="space-y-0.5">
           <a href="#/path" :class="['nav-item', route.name==='path' && 'active']" @click="drawer=false"><ic name="route" class="size-4"></ic>{{ $t('Learn by question') }}</a>
           <a href="#/write" :class="['nav-item', route.name==='write' && 'active']" @click="drawer=false"><ic name="pen" class="size-4"></ic>{{ $t('Write with the wiki') }}</a>
-          <a href="#/find" :class="['nav-item', route.name==='find' && 'active']" @click="drawer=false"><ic name="link" class="size-4"></ic>{{ $t('Add an article') }}</a>
+          <a v-if="atLeast('librarian')" href="#/find" :class="['nav-item', route.name==='find' && 'active']" @click="drawer=false"><ic name="link" class="size-4"></ic>{{ $t('Add an article') }}</a>
         </div>
       </div>
 
-      <!-- Библиотеката като цяло -->
+      <!-- The library as a whole -->
       <div data-tour="lib">
         <button type="button" class="nav-group" :aria-expanded="navOpen('lib')" @click="navToggle('lib')"><span class="flex-1">{{ $t('Library') }}</span><ic name="chevron" :class="['size-3 transition', navOpen('lib') && 'rotate-90']"></ic></button>
         <div v-show="navOpen('lib')" class="space-y-0.5">
           <a href="#/p/index" :class="['nav-item', route.slug==='index' && 'active']" @click="drawer=false"><ic name="list" class="size-4"></ic>{{ $t('Index') }}</a>
-          <a href="#/log" :class="['nav-item', (route.name==='log' || route.slug==='log') && 'active']" @click="drawer=false"><ic name="clock" class="size-4"></ic>{{ $t('Log') }}</a>
+          <a v-if="atLeast('librarian')" href="#/log" :class="['nav-item', (route.name==='log' || route.slug==='log') && 'active']" @click="drawer=false"><ic name="clock" class="size-4"></ic>{{ $t('Log') }}</a>
           <a href="#/graph" :class="['nav-item', route.name==='graph' && 'active']" @click="drawer=false"><ic name="graph" class="size-4"></ic>{{ $t('Link map') }}</a>
-          <a v-if="!ro" href="#/areas" :class="['nav-item', route.name==='areas' && 'active']" @click="drawer=false"><ic name="grid" class="size-4"></ic>{{ $t('Areas') }}</a>
+          <a v-if="!ro && atLeast('librarian')" href="#/areas" :class="['nav-item', route.name==='areas' && 'active']" @click="drawer=false"><ic name="grid" class="size-4"></ic>{{ $t('Areas') }}</a>
         </div>
       </div>
 
-      <!-- Колекции: видовете от wiki/ (ред и скриване в #/collections), умните колекции и ръчните списъци -->
+      <!-- Collections: the kinds from wiki/ (order and hiding in #/collections), the smart collections and the manual lists -->
       <div data-tour="cols">
         <div class="flex items-center">
           <button type="button" class="nav-group flex-1" :aria-expanded="navOpen('col')" @click="navToggle('col')"><span class="flex-1">{{ $t('Collections') }}</span><ic name="chevron" :class="['size-3 transition', navOpen('col') && 'rotate-90']"></ic></button>
-          <template v-if="!ro">
+          <template v-if="!ro && atLeast('librarian')">
             <button type="button" class="btn-ghost !p-1 text-muted" :title="$t('New collection')" :aria-label="$t('New collection')" @click="openColEditor({ kind: 'smart' })"><ic name="plus" class="size-3.5"></ic></button>
             <a href="#/collections" class="btn-ghost !p-1 text-muted" :title="$t('Arrange the collections')" :aria-label="$t('Arrange the collections')" @click="drawer=false"><ic name="gear" class="size-3.5"></ic></a>
           </template>
@@ -199,15 +199,15 @@
         </div>
       </div>
 
-      <!-- Системата: инсталация и настройки -->
+      <!-- The system: setup and settings -->
       <div v-if="!ro">
         <button type="button" class="nav-group" :aria-expanded="navOpen('sys')" @click="navToggle('sys')"><span class="flex-1">{{ $t('System') }}</span><ic name="chevron" :class="['size-3 transition', navOpen('sys') && 'rotate-90']"></ic></button>
         <div v-show="navOpen('sys')" class="space-y-0.5">
-          <a href="#/setup" :class="['nav-item', route.name==='setup' && 'active']" @click="drawer=false"><ic name="check" class="size-4"></ic><span class="flex-1">{{ $t('Setup') }}</span><span v-if="setupLeft" class="size-2 rounded-full bg-amber-500" :title="$t('{0} required steps are left.', [setupLeft])"></span></a>
+          <a v-if="atLeast('librarian')" href="#/setup" :class="['nav-item', route.name==='setup' && 'active']" @click="drawer=false"><ic name="check" class="size-4"></ic><span class="flex-1">{{ $t('Setup') }}</span><span v-if="setupLeft" class="size-2 rounded-full bg-amber-500" :title="$t('{0} required steps are left.', [setupLeft])"></span></a>
           <a data-tour="settings" href="#/settings" :class="['nav-item', route.name==='settings' && 'active']" @click="drawer=false"><ic name="gear" class="size-4"></ic>{{ $t('Settings') }}</a>
         </div>
       </div>
-      <!-- Помощ: приветствие и документация -->
+      <!-- Help: welcome and documentation -->
       <div v-if="!ro">
         <button type="button" class="nav-group" :aria-expanded="navOpen('help')" @click="navToggle('help')"><span class="flex-1">{{ $t('Help') }}</span><ic name="chevron" :class="['size-3 transition', navOpen('help') && 'rotate-90']"></ic></button>
         <div v-show="navOpen('help')" class="space-y-0.5">
@@ -217,8 +217,8 @@
       </div>
     </nav>
 
-    <!-- Режим на работа: обикновен или защитен; отваря обяснението и превключвателя -->
-    <a v-if="!ro && appInfo" href="#/settings/mode" @click="drawer=false"
+    <!-- Working mode: normal or safe; opens the explanation and the switch -->
+    <a v-if="!ro && appInfo && atLeast('keeper')" href="#/settings/mode" @click="drawer=false"
        :class="['mx-3 mb-3 flex items-center gap-3 rounded-2xl border px-3 py-2 text-left text-sm transition', appInfo.mode==='safe' ? 'border-sage-200 bg-sage-50 text-sage-800 dark:border-sage-700 dark:bg-sage-900/40 dark:text-sage-200' : 'border-line text-muted hover:border-sage-200 dark:border-night-line dark:text-night-muted']">
       <ic :name="appInfo.mode==='safe' ? 'lock' : 'monitor'" class="size-4 shrink-0"></ic>
       <span class="min-w-0 flex-1">
@@ -247,6 +247,23 @@
       </span>
     </button>
 
+    <button v-if="!ro && updInfo" type="button" class="mx-3 mb-3 flex items-center gap-3 rounded-2xl bg-sage-600 px-3 py-2.5 text-left text-sm text-white shadow-soft transition hover:bg-sage-700" @click="updOpen=true">
+      <ic name="download" class="size-4 shrink-0"></ic>
+      <span class="min-w-0 flex-1"><span class="block truncate font-medium">{{ $t('New version {0}', [updInfo.remote]) }}</span><span class="block truncate text-xs opacity-80">{{ updInfo.breaks ? $t('Read what changes first') : $t('See what is new') }}</span></span>
+    </button>
+    <a v-if="!ro && modelWarn && !modelWarnHidden" href="#/settings/model" class="mx-3 mb-3 flex items-center gap-3 rounded-2xl border border-amber-300 bg-amber-50 px-3 py-2.5 text-left text-sm text-amber-900 dark:border-amber-500/40 dark:bg-amber-500/10 dark:text-amber-200" @click="drawer=false">
+      <ic name="alert" class="size-4 shrink-0"></ic>
+      <span class="min-w-0 flex-1"><span class="block truncate font-medium">{{ $t('A chosen model is no longer offered') }}</span><span class="block truncate text-xs opacity-80">{{ modelWarn.missing.map((m) => m.model).join(', ') }}</span></span>
+    </a>
+
+    <label v-if="!ro" class="mx-3 mb-3 flex items-center gap-2 rounded-2xl border border-line px-3 py-2 text-xs text-muted dark:border-night-line dark:text-night-muted" :title="$t('How much of the program to show. Nothing is lost: it only hides menu items.')">
+      <ic :name="USE_LEVELS.find((l) => l.id===useState.id).icon" class="size-4 shrink-0"></ic>
+      <span class="shrink-0">{{ $t('I am a') }}</span>
+      <select :value="useState.id" @change="setUseLevel($event.target.value)" :aria-label="$t('Level of use')" class="min-w-0 flex-1 truncate bg-transparent font-medium text-ink outline-none dark:text-night-ink">
+        <option v-for="l in USE_LEVELS" :key="l.id" :value="l.id" class="text-ink">{{ l.name }}</option>
+      </select>
+    </label>
+
     <div class="flex items-center justify-between border-t border-line/70 px-4 py-3 dark:border-night-line">
       <span v-if="ro" class="text-xs text-muted dark:text-night-muted">{{ $t('Read-only copy') }}</span>
       <span v-else class="flex items-center gap-2 text-xs text-muted dark:text-night-muted" :title="live ? $t('The page refreshes itself while {ai} writes') : $t('No connection to the server')">
@@ -271,7 +288,7 @@
 
   <button v-if="navHidden && !focusOn" class="btn-ghost fixed left-3 top-3 z-30 hidden !p-2 lg:block" @click="setNav(true)" :title="$t('Show the sidebar')" :aria-label="$t('Show the sidebar')"><ic name="panel" class="size-5"></ic></button>
 
-  <!-- Основна част -->
+  <!-- Main part -->
   <div class="grain flex min-w-0 flex-1 flex-col">
     <header v-if="!focusOn" class="sticky top-0 z-20 flex items-center gap-3 border-b border-line/60 bg-paper/80 px-4 py-3 backdrop-blur-xl dark:border-night-line dark:bg-night/80 lg:hidden">
       <button class="btn-ghost !p-2" @click="drawer=true" :aria-label="$t('Menu')"><ic name="menu" class="size-5"></ic></button>
@@ -298,7 +315,7 @@
     </main>
   </div>
 
-  <!-- Оценка на токени и цена преди действие с Claude -->
+  <!-- An estimate of tokens and cost before an action with Claude -->
   <transition enter-from-class="opacity-0" leave-to-class="opacity-0" enter-active-class="transition duration-150" leave-active-class="transition duration-100">
     <div v-if="cost" class="fixed inset-0 z-[60] flex items-center justify-center bg-ink/30 p-4 backdrop-blur-sm" @keydown.esc="costAnswer(false)" @mousedown.self="costAnswer(false)">
       <div class="card w-full max-w-lg animate-rise !shadow-lift" role="dialog" aria-modal="true" aria-labelledby="cost-title">
@@ -358,11 +375,22 @@
     </div>
   </transition>
 
+  <div v-if="updOpen && updInfo" class="fixed inset-0 z-[58] flex items-center justify-center bg-ink/30 p-4 backdrop-blur-sm" @keydown.esc="updOpen=false" @mousedown.self="updOpen=false">
+    <div class="card flex max-h-[92vh] w-full max-w-xl animate-rise flex-col !shadow-lift" role="dialog" aria-modal="true" aria-labelledby="upd-title">
+      <div class="scrollbar-thin overflow-y-auto p-6">
+        <p class="eyebrow">{{ $t('A new version') }}</p>
+        <h2 id="upd-title" class="mt-1 mb-4 font-serif text-2xl font-semibold">{{ $t('What is new') }}</h2>
+        <code-update :info="updInfo" skippable @skip="skipVersion"></code-update>
+      </div>
+      <div class="flex justify-end border-t border-line px-6 py-3 dark:border-night-line"><button class="btn-ghost" @click="updOpen=false">{{ $t('Later') }}</button></div>
+    </div>
+  </div>
+
   <sync-modal v-if="syncReq" :req="syncReq" @close="closeSync"></sync-modal>
 
   <tour-overlay v-if="tour" @close="tour=false"></tour-overlay>
 
-  <!-- Сървърът е спрян от бутона „Спри библиотеката“ -->
+  <!-- The server was stopped by the "Quit the library" button -->
   <div v-if="stopped" class="fixed inset-0 z-[80] grid place-items-center bg-paper p-6 text-center dark:bg-night">
     <div class="max-w-sm">
       <span class="mx-auto grid size-14 place-items-center rounded-2xl bg-sage-600 text-white shadow-soft"><ic name="power" class="size-7"></ic></span>
@@ -371,7 +399,7 @@
     </div>
   </div>
 
-  <!-- Нова или съществуваща колекция: умна (по филтър) или ръчен списък -->
+  <!-- A new or existing collection: smart (by filter) or a manual list -->
   <div v-if="colEdit" class="fixed inset-0 z-[58] flex items-center justify-center bg-ink/30 p-4 backdrop-blur-sm" @keydown.esc="colEdit=null" @mousedown.self="colEdit=null">
     <form class="card flex max-h-[92vh] w-full max-w-xl animate-rise flex-col !shadow-lift" role="dialog" aria-modal="true" aria-labelledby="col-title" @submit.prevent="saveColEditor">
       <div class="scrollbar-thin overflow-y-auto p-6">
@@ -465,7 +493,7 @@
     </form>
   </div>
 
-  <!-- Ръчен режим: заявка, която чака отговор от чата в браузъра -->
+  <!-- Manual mode: a request waiting for an answer from the chat in the browser -->
   <div v-if="!ro && manual.length && !manualHidden" class="fixed inset-0 z-[55] flex items-center justify-center bg-ink/30 p-4 backdrop-blur-sm">
     <div class="card flex max-h-[92vh] w-full max-w-2xl animate-rise flex-col !shadow-lift" role="dialog" aria-modal="true" aria-labelledby="manual-title">
       <div class="scrollbar-thin overflow-y-auto p-6">
@@ -502,7 +530,7 @@
   </div>
   <button v-if="!ro && manual.length && manualHidden" class="btn-primary fixed bottom-4 right-4 z-[55] !shadow-lift" @click="manualHidden = false"><ic name="clock" class="size-4"></ic>{{ $t('A request is waiting for your answer ({0})', [manual.length]) }}</button>
 
-  <!-- Палитра за търсене -->
+  <!-- Search palette -->
   <transition enter-from-class="opacity-0" leave-to-class="opacity-0" enter-active-class="transition duration-150" leave-active-class="transition duration-100">
     <div v-if="palette" class="fixed inset-0 z-50 flex items-start justify-center bg-ink/25 p-4 pt-[12vh] backdrop-blur-sm" @mousedown.self="palette=false">
       <div class="card w-full max-w-xl overflow-hidden !shadow-lift animate-rise">
@@ -529,7 +557,7 @@
     </div>
   </transition>
 
-  <!-- Четец: самият текст на страницата от книгата -->
+  <!-- Reader: the text itself of the page of a book -->
   <transition enter-from-class="translate-x-full" leave-to-class="translate-x-full" enter-active-class="transition duration-300 ease-out" leave-active-class="transition duration-200 ease-in">
     <aside v-if="reader" class="fixed inset-y-0 right-0 z-50 flex w-full max-w-2xl flex-col border-l border-line bg-panel shadow-lift dark:border-night-line dark:bg-night-panel">
       <header class="flex items-start gap-3 border-b border-line px-5 py-4 dark:border-night-line">
@@ -559,7 +587,7 @@
   </transition>
   <div v-if="reader" class="fixed inset-0 z-40 bg-ink/20 backdrop-blur-[2px]" @click="reader=null"></div>
 
-  <!-- Известия -->
+  <!-- Notifications -->
   <div class="pointer-events-none fixed bottom-5 right-5 z-50 flex flex-col items-end gap-2">
     <transition-group enter-from-class="opacity-0 translate-y-2" leave-to-class="opacity-0" enter-active-class="transition duration-200" leave-active-class="transition duration-200">
       <div v-for="t in toasts" :key="t.id" class="pointer-events-auto flex max-w-sm items-center gap-3 rounded-2xl bg-ink px-4 py-3 text-sm text-white shadow-lift dark:bg-night-ink dark:text-night">
@@ -570,7 +598,7 @@
 </div>
 </script>
 
-<!-- ============================ НАЧАЛО ============================ -->
+<!-- ============================ HOME ============================ -->
 <script type="text/x-template" id="tpl-home">
 <div class="mx-auto max-w-6xl px-5 py-8 sm:px-8 lg:py-12">
   <section class="animate-rise">
@@ -582,7 +610,7 @@
     </p>
   </section>
 
-  <!-- Път на файла -->
+  <!-- The path of the file -->
   <section class="mt-8 grid grid-cols-2 gap-3 sm:grid-cols-4">
     <div v-for="(s,i) in steps" :key="i"
          :class="['relative rounded-3xl border p-4 transition', i===step ? 'border-sage-500 bg-sage-50 shadow-soft dark:border-sage-500 dark:bg-sage-900/30' : 'border-line/80 bg-panel/60 dark:border-night-line dark:bg-night-panel/60', i<step && 'opacity-70']">
@@ -596,7 +624,7 @@
     </div>
   </section>
 
-  <!-- Надграждане на старите източници + синтез -->
+  <!-- Upgrading the old sources + synthesis -->
   <section v-if="stats.depth?.legacy?.length || canSynthesize" class="card mt-6 overflow-hidden">
     <div class="flex flex-col gap-5 p-6 lg:flex-row lg:items-center">
       <div class="min-w-0 flex-1">
@@ -631,7 +659,7 @@
   </section>
 
   <div class="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-5">
-    <!-- Качване -->
+    <!-- Upload -->
     <section class="min-w-0 lg:col-span-3">
       <label @dragover.prevent="drag=true" @dragleave.prevent="drag=false" @drop.prevent="onDrop"
              :class="['card group relative flex cursor-pointer flex-col items-center justify-center overflow-hidden border-2 border-dashed px-6 py-12 text-center transition', drag ? 'border-sage-500 bg-sage-50 dark:bg-sage-900/30' : 'hover:border-sage-200 dark:hover:border-sage-700']">
@@ -688,12 +716,12 @@
       </div>
     </section>
 
-    <!-- Обработка с Claude -->
+    <!-- Processing with Claude -->
     <section class="min-w-0 lg:col-span-2">
       <div class="card relative flex h-full flex-col overflow-hidden p-6">
         <div class="pointer-events-none absolute -right-10 -top-10 size-40 rounded-full bg-clay-400/15 blur-2xl"></div>
 
-        <!-- А. Работи -->
+        <!-- A. Working -->
         <template v-if="agent?.current">
           <div class="flex items-center justify-between gap-3">
             <p class="eyebrow flex items-center gap-2"><span class="relative flex size-2"><span class="absolute inline-flex size-full animate-ping rounded-full bg-sage-400 opacity-70"></span><span class="relative inline-flex size-2 rounded-full bg-sage-500"></span></span>{{ $t('{ai} is working') }}</p>
@@ -715,7 +743,7 @@
           </div>
         </template>
 
-        <!-- Б. Лимит -->
+        <!-- B. Limit -->
         <template v-else-if="agent?.paused?.reason==='limit'">
           <p class="eyebrow">{{ $t('Pause') }}</p>
           <p class="mt-2 font-serif text-2xl font-semibold">{{ AI.subscription ? $t('The subscription limit has been reached') : $t('{ai} has reached its limit') }}</p>
@@ -728,7 +756,7 @@
           </label>
         </template>
 
-        <!-- Б2. Моделът не е настроен (ключ, адрес или модел липсва) -->
+        <!-- B2. The model is not set up (the key, the address or the model is missing) -->
         <template v-else-if="agent?.paused?.reason==='no-ai' || (agent && AI.ready && !AI.ready.ok)">
           <p class="eyebrow">{{ $t('Processing') }}</p>
           <p class="mt-2 font-serif text-2xl font-semibold">{{ $t('The model is not set up') }}</p>
@@ -736,7 +764,7 @@
           <a href="#/settings" class="btn-primary mt-5 self-start"><ic name="gear" class="size-4"></ic>{{ $t('Open Settings → Model') }}</a>
         </template>
 
-        <!-- В. Няма Claude Code -->
+        <!-- C. There is no Claude Code -->
         <template v-else-if="agent && !agent.claude">
           <p class="eyebrow">{{ $t('Processing') }}</p>
           <p class="mt-2 font-serif text-2xl font-semibold">{{ $t('Claude Code not found') }}</p>
@@ -748,14 +776,14 @@
           </div>
         </template>
 
-        <!-- Г. Чака подреждане -->
+        <!-- D. Waiting to be sorted -->
         <template v-else-if="newInbox.length && !stats.pending?.length">
           <p class="eyebrow">{{ $t('Next step') }}</p>
           <p class="mt-2 font-serif text-2xl font-semibold">{{ $t('Sort the inbox') }}</p>
           <p class="mt-2 text-sm text-muted dark:text-night-muted">{{ $t('Press “Sort and extract text”.') }}<template v-if="agent?.settings?.autoIngest"> {{ $t('After that {ai} starts processing on its own.') }}</template></p>
         </template>
 
-        <!-- Д. Чака обработка -->
+        <!-- E. Waiting for processing -->
         <template v-else-if="stats.pending?.length">
           <p class="eyebrow">{{ $t('Next step') }}</p>
           <p class="mt-2 font-serif text-2xl font-semibold">{{ $t('{0} {1} processing', [stats.pending.length, plural(stats.pending.length, $t('file is waiting'), $t('files are waiting'))]) }}</p>
@@ -771,7 +799,7 @@
           </ul>
         </template>
 
-        <!-- Е. Отчет от последната обработка -->
+        <!-- F. A report of the last processing -->
         <template v-else-if="lastJob && !lastJob.undone && isRecent(lastJob)">
           <p class="eyebrow">{{ {done:$t('Done'),cancelled:$t('Stopped'),'needs-ocr':$t('OCR needed'),limited:$t('Limit')}[lastJob.status] || $t('Processing failed') }} · {{ relDate(lastJob.finishedAt) }}</p>
           <p class="mt-2 font-serif text-xl font-semibold leading-snug">{{ lastJob.kind==='ingest' ? $t('“{0}”', [lastJob.label]) : lastJob.label }}</p>
@@ -797,16 +825,16 @@
           </div>
         </template>
 
-        <!-- Ж. Всичко е готово -->
+        <!-- G. Everything is ready -->
         <template v-else>
           <p class="eyebrow">{{ $t('Next step') }}</p>
           <p class="mt-2 font-serif text-2xl font-semibold">{{ stats.pages ? $t('Everything is processed') : $t('Ready for the first file') }}</p>
           <p class="mt-2 text-sm text-muted dark:text-night-muted">{{ stats.pages ? $t('Search with Ctrl K, browse chapters or the link map.') : $t('Drop files on the left.') + (agent?.settings?.autoIngest ? $t(' After sorting, {ai} processes them on its own.') : '') }}</p>
         </template>
 
-        <!-- Режим: кой модел чете -->
+        <!-- Mode: which model reads -->
         <div v-if="agent?.claude" class="mt-5 border-t border-line pt-4 dark:border-night-line">
-          <!-- Кой модел работи: доставчикът и начинът (агент, без инструменти, ръчно) -->
+          <!-- Which model works: the provider and the way (agent, without tools, manual) -->
           <a href="#/settings" class="mb-3 flex items-center gap-2 rounded-2xl bg-ink/[.04] px-3 py-2 text-xs hover:bg-ink/[.07] dark:bg-white/5" :title="$t('Change the model in Settings → Model')">
             <ic name="sparkle" class="size-3.5 shrink-0 text-sage-600"></ic>
             <span class="min-w-0 flex-1 truncate"><b>{{ AI.name }}</b> · {{ AI.engine === 'agent' ? $t('agent with tools') : AI.engine === 'manual' ? $t('copy and paste') : $t('without tools') }}<template v-if="AI.local"> · {{ $t('on this computer') }}</template><template v-else-if="AI.free && AI.engine !== 'manual'"> · {{ $t('free tier') }}</template></span>
@@ -850,7 +878,7 @@
           </label>
         </div>
 
-        <!-- Настройка и история -->
+        <!-- Setting and history -->
         <div v-if="agent?.claude" class="mt-4 flex items-center gap-3 text-sm">
           <button role="switch" :aria-checked="!!agent.settings.autoIngest" @click="setSetting('autoIngest', !agent.settings.autoIngest)"
                   :class="['relative h-5 w-9 shrink-0 rounded-full transition', agent.settings.autoIngest ? 'bg-sage-500' : 'bg-ink/15 dark:bg-white/15']">
@@ -871,7 +899,7 @@
     </section>
   </div>
 
-  <!-- Числа -->
+  <!-- Numbers -->
   <section v-if="stats.pages" class="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
     <a v-for="t in typeOrder" :key="t" :href="'#/c/'+t" class="card card-hover p-4">
       <span :class="['grid size-9 place-items-center rounded-xl', TYPES[t].soft]"><ic :name="TYPES[t].icon" class="size-4"></ic></span>
@@ -922,7 +950,7 @@
 </div>
 </script>
 
-<!-- ============================ СТРАНИЦА ============================ -->
+<!-- ============================ PAGE ============================ -->
 <script type="text/x-template" id="tpl-page">
 <div v-if="error" class="mx-auto max-w-2xl px-6 py-24 text-center">
   <span class="mx-auto grid size-16 place-items-center rounded-3xl bg-clay-100 text-clay-500 dark:bg-clay-500/15"><ic name="ghost" class="size-7"></ic></span>
@@ -969,7 +997,7 @@
       </span>
       <span v-if="page.updated" class="chip text-muted dark:text-night-muted"><ic name="clock" class="size-3"></ic>{{ relDate(page.updated) }}</span>
       <a v-for="t in page.tags" :key="t" :href="'#/tag/'+encodeURIComponent(t)" class="chip border border-line text-ink/70 hover:border-sage-200 dark:border-night-line dark:text-night-ink/70">#{{ t }}</a>
-      <!-- ръчните списъци: страницата влиза или излиза; нов списък започва с нея -->
+      <!-- the manual lists: the page enters or leaves; a new list starts with it -->
       <span v-if="canAsk" class="relative">
         <button type="button" :class="['chip border transition', inLists ? 'border-teal-400 bg-teal-50 text-teal-700 dark:bg-teal-500/15 dark:text-teal-300' : 'border-dashed border-line text-muted hover:border-sage-300 hover:text-ink dark:border-night-line dark:text-night-muted']"
                 :aria-expanded="listMenu" :title="$t('Add the page to a list of yours')" @click="listMenu=!listMenu">
@@ -985,7 +1013,7 @@
       </span>
     </div>
 
-    <!-- Глава: навигация в книгата -->
+    <!-- Chapter: navigation in the book -->
     <div v-if="page.type==='chapter'" class="card mt-8 overflow-hidden">
       <div class="flex flex-wrap items-center gap-3 px-4 py-3">
         <span class="grid size-9 shrink-0 place-items-center rounded-xl bg-clay-100 font-serif font-semibold text-clay-500 dark:bg-clay-500/15 dark:text-clay-400">{{ page.chapter }}</span>
@@ -1002,7 +1030,7 @@
       </div>
     </div>
 
-    <!-- Карта на източника -->
+    <!-- A card of the source -->
     <div v-if="page.type==='source'" class="card mt-8 flex flex-col gap-5 p-5 sm:flex-row">
       <div :class="['grid h-28 w-20 shrink-0 place-items-center rounded-xl shadow-soft', FORMAT_BG[page.format] || 'bg-sage-600']">
         <ic :name="FORMAT_ICON[page.format] || 'file'" class="size-7 text-white/90"></ic>
@@ -1022,7 +1050,7 @@
       </div>
     </div>
 
-    <!-- Книга: главите (drill down) -->
+    <!-- Book: the chapters (drill down) -->
     <section v-if="page.chapters?.length" class="mt-10">
       <div class="flex items-end justify-between gap-3">
         <h2 class="font-sans text-xl font-semibold tracking-tight">{{ $t('Chapters') }}</h2>
@@ -1082,13 +1110,13 @@
       <button class="btn-ghost text-xs text-muted" @click="removeThis"><ic name="alert" class="size-4"></ic>{{ $t('Remove the source…') }}</button>
     </div>
 
-    <!-- Връзки (на мобилно) -->
+    <!-- Links (on mobile) -->
     <section v-if="page.backlinks.length" class="mt-14 border-t border-line pt-8 dark:border-night-line xl:hidden">
       <p class="eyebrow">{{ $t('Linking here · {0}', [page.backlinks.length]) }}</p>
       <div class="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2"><page-card v-for="b in page.backlinks" :key="b.slug" :p="b"></page-card></div>
     </section>
 
-    <!-- Предишна / следваща в колекцията (по реда в индекса) -->
+    <!-- Previous / next in the collection (by the order in the index) -->
     <nav v-if="page.seq" class="mt-12" :aria-label="$t('Previous and next page in the collection')">
       <p class="mb-2 text-xs text-muted dark:text-night-muted">{{ $t('{0} · {1} of {2} · in index order', [(TYPES[page.seq.type]||TYPES.other).label, page.seq.pos, page.seq.total]) }}</p>
       <div class="card grid grid-cols-2 overflow-hidden text-sm">
@@ -1105,7 +1133,7 @@
     <p class="mt-14 flex items-center gap-2 text-xs text-muted dark:text-night-muted"><ic name="file" class="size-3.5"></ic>{{ page.path }}</p>
   </article>
 
-  <!-- Помощник на страницата: пояснение и промяна, с Claude -->
+  <!-- The helper of the page: an explanation and a change, with Claude -->
   <div v-if="selBtn && !ai.open && !ro" class="fixed z-40 flex -translate-x-1/2 -translate-y-full gap-1 rounded-full border border-line bg-panel p-1 shadow-lift dark:border-night-line dark:bg-night-panel" :style="{left: selBtn.x+'px', top: selBtn.y+'px'}" role="toolbar" :aria-label="$t('Selected text')">
     <button type="button" class="btn-ghost !px-3 !py-1.5 text-sm" @mousedown.prevent @click="openAi('ask')"><ic name="help" class="size-4"></ic>{{ $t('Ask') }}</button>
     <button type="button" class="btn-ghost !px-3 !py-1.5 text-sm" @mousedown.prevent @click="openManual"><ic name="pen" class="size-4"></ic>{{ $t('Edit') }}</button>
@@ -1114,7 +1142,7 @@
     <button type="button" class="btn-primary !px-3 !py-1.5 text-sm" @mousedown.prevent @click="openAi('edit')" :title="$t('{ai} proposes a change, you confirm it')"><ic name="sparkle" class="size-4"></ic>{{ $t('With {ai}') }}</button>
   </div>
 
-  <!-- Ръчна редакция на избрания абзац -->
+  <!-- Manual editing of the selected paragraph -->
   <div v-if="man.open" class="fixed inset-0 z-[60] grid place-items-center bg-ink/40 p-4" role="dialog" aria-modal="true" :aria-label="$t('Manual edit')" @keydown.esc="man.open=false">
     <div class="flex max-h-[90vh] w-full max-w-2xl flex-col rounded-3xl border border-line bg-panel p-5 shadow-lift dark:border-night-line dark:bg-night-panel">
       <p class="text-sm font-semibold">{{ $t('Edit by hand') }}</p>
@@ -1129,7 +1157,7 @@
       </div>
     </div>
   </div>
-  <!-- Връзка: избраният текст става връзка към страница от библиотеката -->
+  <!-- Link: the selected text becomes a link to a page of the library -->
   <div v-if="lk.open" class="fixed inset-0 z-[60] grid place-items-center bg-ink/40 p-4" role="dialog" aria-modal="true" :aria-label="$t('Insert a link')" @keydown.esc="lk.open=false">
     <div class="flex max-h-[85vh] w-full max-w-lg flex-col rounded-3xl border border-line bg-panel p-5 shadow-lift dark:border-night-line dark:bg-night-panel">
       <p class="text-sm font-semibold">{{ $t('Insert a link') }}</p>
@@ -1186,7 +1214,7 @@
       </div>
       <div v-if="ai.error" class="rounded-2xl bg-clay-100 p-3 text-sm text-clay-500 dark:bg-clay-500/15"><p class="flex gap-2"><ic name="alert" class="mt-0.5 size-4 shrink-0"></ic>{{ ai.error }}</p></div>
 
-      <!-- отговор -->
+      <!-- answer -->
       <section v-if="ai.answer && !ai.busy">
         <p class="eyebrow">{{ $t('Reply') }}</p>
         <div class="reading !text-[15.5px] mt-2" v-html="aiHtml" @click="onClick"></div>
@@ -1199,7 +1227,7 @@
         <p v-if="!ai.proposal && !ai.applied" class="mt-2 text-xs text-muted dark:text-night-muted">{{ $t('“Improve” suggests fixes to the text, aliases, tags, links and the description in the index. Nothing is saved until you confirm it.') }}</p>
       </section>
 
-      <!-- предложение: било, става -->
+      <!-- suggestion: before, after -->
       <section v-if="ai.proposal && !ai.busy" class="rounded-2xl border border-line p-3 dark:border-night-line">
         <p class="eyebrow">{{ $t('Proposed change') }}</p>
         <p v-if="ai.proposal.summary" class="mt-2 text-sm">{{ ai.proposal.summary }}</p>
@@ -1235,7 +1263,7 @@
     <footer class="border-t border-line px-4 py-2 text-[11px] leading-snug text-muted dark:border-night-line dark:text-night-muted">{{ $t('{ai} reads the page and the original text of the source ({0}). Nothing changes without your confirmation; “Undo” reverts the last change.', [dataNote()]) }}</footer>
   </aside>
 
-  <!-- Дясна колона -->
+  <!-- The right column -->
   <aside v-if="!focus" class="hidden w-64 shrink-0 xl:block">
     <div class="sticky top-10 space-y-8">
       <div v-if="toc.length > 1">
@@ -1281,8 +1309,56 @@
 </div>
 </script>
 
-<!-- ============================ АРХИВ: НАЧАЛО (само за четене) ============================ -->
-<!-- ============================ РЕЗЕРВНИ КОПИЯ И СИНХРОНИЗАЦИЯ ============================ -->
+<!-- ============================ ARCHIVE: HOME (read-only) ============================ -->
+<!-- ============================ BACKUPS AND SYNCHRONISATION ============================ -->
+<!-- ============================ A NEW VERSION ============================ -->
+<script type="text/x-template" id="tpl-code-update">
+<div class="space-y-4 text-sm">
+  <p class="font-medium">{{ $t('Version {0} is available (you have {1}).', [info.remote, info.version]) }}</p>
+
+  <!-- Breaking changes are shown first, before the list of what is new -->
+  <div v-if="info.breaks" class="rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-amber-900 dark:border-amber-500/40 dark:bg-amber-500/10 dark:text-amber-200" role="alert">
+    <p class="flex items-center gap-2 font-semibold"><ic name="alert" class="size-4 shrink-0"></ic>{{ $t('This update may change how something works') }}</p>
+    <p v-if="!info.breaking.length" class="mt-1">{{ $t('It is a new major version. Such versions can change things on purpose. Read the notes and make a backup first.') }}</p>
+    <ul v-else class="mt-2 list-disc space-y-1 pl-5"><li v-for="b in info.breaking" :key="b.version + b.text">{{ b.text }} <span class="text-xs opacity-70">({{ b.version }})</span></li></ul>
+  </div>
+  <p v-else-if="info.notes.length" class="flex items-center gap-2 text-sage-700 dark:text-sage-200"><ic name="check" class="size-4 shrink-0"></ic>{{ $t('No breaking changes are listed for this update.') }}</p>
+  <p v-else class="text-muted dark:text-night-muted">{{ $t('No release notes were published for this version, so we cannot say whether it changes anything. Make a backup first if you are unsure.') }}</p>
+
+  <div v-for="n in info.notes" :key="n.version" class="space-y-2">
+    <h3 class="font-serif text-base font-semibold">{{ n.version }}<span v-if="n.date" class="ml-2 text-xs font-normal text-muted dark:text-night-muted">{{ n.date }}</span></h3>
+    <div v-for="g in n.groups.filter((x) => x.items.length)" :key="g.title">
+      <p class="eyebrow">{{ g.title }}</p>
+      <ul class="mt-1 list-disc space-y-1 pl-5"><li v-for="it in g.items" :key="it">{{ it }}</li></ul>
+    </div>
+  </div>
+  <p v-if="info.commit && !info.notes.length" class="text-muted dark:text-night-muted">{{ $t('Latest change on GitHub: {0}', [info.commit.message]) }}</p>
+
+  <p class="text-xs text-muted dark:text-night-muted">{{ $t('Your library, drafts and settings are not touched. The new version replaces only the program files.') }}</p>
+
+  <div v-if="restarting" class="flex items-center gap-3 rounded-xl bg-sage-50 px-4 py-3 text-sage-800 dark:bg-sage-900/40 dark:text-sage-200" role="status">
+    <ic name="spinner" class="size-4 shrink-0 animate-spin"></ic><span>{{ $t('Updated to {0}. The library is restarting; the page reloads by itself.', [result.to]) }}</span>
+  </div>
+  <div v-else-if="result" class="rounded-xl bg-sage-50 px-4 py-3 text-sage-800 dark:bg-sage-900/40 dark:text-sage-200" role="status">
+    <p>{{ $t('Updated to {0}.', [result.to]) }}</p>
+    <p v-if="!result.supervised" class="mt-1 font-medium">{{ $t('Close the library and open it again so that the new version loads.') }}</p>
+  </div>
+  <template v-else>
+    <p v-if="error" class="rounded-xl bg-clay-100/60 px-4 py-3 text-clay-500 dark:bg-clay-500/10" role="alert">{{ error }}</p>
+    <div v-if="files.length" class="rounded-xl border border-line px-4 py-3 dark:border-night-line">
+      <p class="font-medium">{{ $t('Program files that were changed here:') }}</p>
+      <ul class="mt-1 list-disc pl-5 text-xs"><li v-for="f in files" :key="f"><code>{{ f }}</code></li></ul>
+      <p class="mt-2 text-xs text-muted dark:text-night-muted">{{ $t('If you did not change them on purpose, replace them. A copy of each goes to outputs/update-backup/.') }}</p>
+    </div>
+    <div class="flex flex-wrap gap-2">
+      <button v-if="!files.length" class="btn-primary" :disabled="busy" @click="install(false)"><ic :name="busy ? 'spinner' : 'download'" :class="['size-4', busy && 'animate-spin']"></ic>{{ info.breaks ? $t('Install {0} anyway', [info.remote]) : $t('Install {0}', [info.remote]) }}</button>
+      <button v-else class="btn-primary" :disabled="busy" @click="install(true)"><ic :name="busy ? 'spinner' : 'download'" :class="['size-4', busy && 'animate-spin']"></ic>{{ $t('Replace these files and install {0}', [info.remote]) }}</button>
+      <button v-if="skippable" class="btn-ghost" :disabled="busy" @click="$emit('skip')">{{ $t('Skip this version') }}</button>
+    </div>
+  </template>
+</div>
+</script>
+
 <script type="text/x-template" id="tpl-sync-modal">
 <div class="fixed inset-0 z-[58] flex items-center justify-center bg-ink/30 p-4 backdrop-blur-sm" @keydown.esc="close" @mousedown.self="close">
   <div class="card flex max-h-[92vh] w-full max-w-3xl animate-rise flex-col !shadow-lift" role="dialog" aria-modal="true" aria-labelledby="sync-title">
@@ -1291,7 +1367,7 @@
       <h2 id="sync-title" class="mt-1 font-serif text-2xl font-semibold">{{ target ? target.name : $t('Choose a copy') }}</h2>
       <p v-if="target" class="mt-1 break-all text-xs text-muted dark:text-night-muted">{{ target.path }}</p>
 
-      <!-- избор -->
+      <!-- choice -->
       <template v-if="stage==='pick'">
         <p v-if="!targets.length" class="mt-4 text-sm text-muted dark:text-night-muted">{{ $t('There are no copies yet. Add one in Settings.') }}</p>
         <ul class="mt-4 space-y-2">
@@ -1305,14 +1381,14 @@
         </ul>
       </template>
 
-      <!-- чака -->
+      <!-- waiting -->
       <div v-else-if="stage==='loading' || stage==='running'" class="py-10 text-center">
         <span class="mx-auto grid size-14 place-items-center rounded-3xl bg-sage-50 text-sage-600 dark:bg-sage-900/40 dark:text-sage-200"><ic name="spinner" class="size-6 animate-spin"></ic></span>
         <p class="mt-4 text-sm">{{ stage==='loading' ? $t('Comparing with the folder…') : $t('Copying…') }}</p>
         <p v-if="progress && progress.total" class="mt-1 text-xs text-muted dark:text-night-muted">{{ progress.done }} / {{ progress.total }}</p>
       </div>
 
-      <!-- резултат от сравнението -->
+      <!-- the result of the comparison -->
       <template v-else-if="stage==='plan' && plan">
         <div v-if="plan.needsAnswer" class="mt-4 rounded-2xl border border-amber-300 bg-amber-50 p-4 text-sm dark:border-amber-500/40 dark:bg-amber-500/10">
           <p class="font-medium">{{ $t('There are changes by others in this folder') }}</p>
@@ -1344,7 +1420,7 @@
         <p v-if="plan.target.mode==='backup' && plan.mirror.length" class="mt-3 text-xs text-muted dark:text-night-muted">{{ $t('Files deleted here will be moved to _deleted in the copy: {0}.', [plan.mirror.length + plan.mirrorMore]) }}</p>
       </template>
 
-      <!-- преглед промяна по промяна -->
+      <!-- review change by change -->
       <template v-else-if="stage==='review'">
         <p class="mt-3 text-sm text-muted dark:text-night-muted">{{ $t('Choose what to take. What you leave stays as it is, and you are not asked about the same version again. Their deletions are ignored.') }}</p>
         <div class="mt-3 flex flex-wrap gap-2">
@@ -1386,7 +1462,7 @@
         </div>
       </template>
 
-      <!-- готово -->
+      <!-- done -->
       <template v-else-if="stage==='result' && result">
         <p v-if="result.ok" class="mt-4 text-sm font-medium text-sage-700 dark:text-sage-200">{{ $t('Done.') }}</p>
         <p v-else class="mt-4 text-sm text-clay-500">{{ result.error }}</p>
@@ -1410,7 +1486,7 @@
 <div>
   <section class="card mt-6 p-5">
     <h2 class="font-serif text-xl font-semibold">{{ $t('Backups and sync') }}</h2>
-    <p class="mt-1 text-sm text-muted dark:text-night-muted">{{ $t('Copy the whole working library to another folder: another disk, a shared server, Google Drive, Dropbox or pCloud. Nothing runs by itself; you press the button. The copy has no node_modules and can bring the library back on a new computer.') }}</p>
+    <p class="mt-1 text-sm text-muted dark:text-night-muted">{{ $t('Copy the whole working library to another folder: another disk, a shared server, Google Drive, Dropbox or another cloud service. Nothing runs by itself; you press the button. The copy has no node_modules and can bring the library back on a new computer.') }}</p>
     <p v-if="isolated" class="mt-3 rounded-2xl bg-amber-50 p-3 text-sm dark:bg-amber-500/10">{{ $t('Copies to other folders are not available in the isolated mode yet. Start the library with “npm run serve”.') }}</p>
     <ul v-if="targets.length" class="mt-4 divide-y divide-line dark:divide-night-line">
       <li v-for="t in targets" :key="t.id" class="py-3">
@@ -1510,7 +1586,7 @@ npm run restore -- /path/to/copy --apply</pre>
 </div>
 </script>
 
-<!-- ============================ КОЛЕКЦИЯ ============================ -->
+<!-- ============================ COLLECTION ============================ -->
 <script type="text/x-template" id="tpl-collection">
 <div class="mx-auto max-w-6xl px-5 py-8 sm:px-8 lg:py-12">
   <div class="flex flex-wrap items-end justify-between gap-4 animate-rise">
@@ -1542,7 +1618,7 @@ npm run restore -- /path/to/copy --apply</pre>
     </div>
   </div>
 
-  <!-- списък: страници, които вече ги няма (обединени или премахнати) -->
+  <!-- list: pages that are no longer there (merged or removed) -->
   <div v-if="missing.length" class="card mt-6 p-4 text-sm">
     <p class="font-medium">{{ $t('Missing from this list: {0} {1} (merged or removed).', [missing.length, plural(missing.length, $t('page'), $t('pages'))]) }}</p>
     <ul class="mt-2 flex flex-wrap gap-1.5">
@@ -1559,7 +1635,7 @@ npm run restore -- /path/to/copy --apply</pre>
     </button>
   </div>
 
-  <!-- възможни дубликати по изписване -->
+  <!-- possible duplicates by spelling -->
   <div v-if="!ro && (myPairs.length || myAuthors.length)" class="card mt-6 overflow-hidden !border-amber-300/60 dark:!border-amber-500/30">
     <button type="button" class="flex w-full items-center gap-3 px-4 py-3 text-left" :aria-expanded="dupOpen" @click="dupOpen=!dupOpen">
       <ic name="alert" class="size-4 shrink-0 text-amber-600 dark:text-amber-400"></ic>
@@ -1608,7 +1684,7 @@ npm run restore -- /path/to/copy --apply</pre>
     </div>
   </div>
 
-  <!-- обединяване на отделно качени източници в книга с глави -->
+  <!-- merging separately uploaded sources into a book with chapters -->
   <div v-if="!ro && type==='source' && !tag" class="card mt-6 overflow-hidden">
     <button type="button" class="flex w-full items-center gap-3 px-4 py-3 text-left" :aria-expanded="mergeOpen" @click="mergeOpen=!mergeOpen">
       <ic name="book" class="size-4 shrink-0 text-sage-600 dark:text-sage-300"></ic>
@@ -1646,7 +1722,7 @@ npm run restore -- /path/to/copy --apply</pre>
     </div>
   </div>
 
-  <!-- буква -->
+  <!-- letter -->
   <div v-if="letters.length > 1 && baseCount >= 8" class="mt-6 flex flex-wrap items-center gap-1" role="group" :aria-label="$t('Choose a letter')">
     <button type="button" :aria-pressed="!letter" @click="letter=''"
             :class="['chip border px-3 py-1 transition', !letter ? 'border-sage-500 bg-sage-50 text-sage-700 dark:bg-sage-900/40 dark:text-sage-200' : 'border-line text-ink/70 hover:border-sage-200 dark:border-night-line dark:text-night-ink/70']">{{ $t('All') }}</button>
@@ -1703,7 +1779,7 @@ npm run restore -- /path/to/copy --apply</pre>
 </div>
 </script>
 
-<!-- ============================ ПРЕВКЛЮЧВАТЕЛ СПИСЪК / КУТИЙКИ ============================ -->
+<!-- ============================ SWITCH LIST / BOXES ============================ -->
 <script type="text/x-template" id="tpl-viewtoggle">
 <div class="flex shrink-0 rounded-full border border-line p-0.5 dark:border-night-line" role="group" :aria-label="$t('View')">
   <button v-for="v in [{id:'cards',icon:'grid',label:$t('Cards')},{id:'list',icon:'list',label:$t('List')}]" :key="v.id" @click="$emit('update:modelValue', v.id)"
@@ -1714,7 +1790,7 @@ npm run restore -- /path/to/copy --apply</pre>
 </div>
 </script>
 
-<!-- ============================ УЧЕНЕ ПО ВЪПРОС (ПЪТЕКА) ============================ -->
+<!-- ============================ LEARN BY QUESTION (PATH) ============================ -->
 <script type="text/x-template" id="tpl-path">
 <div class="mx-auto max-w-[96rem] px-5 py-8 sm:px-8 lg:py-10">
   <div :class="[mobilePanel && 'hidden lg:block']">
@@ -1737,7 +1813,7 @@ npm run restore -- /path/to/copy --apply</pre>
     <scope-bar class="mx-auto mt-4 block" :q="input" :pages="pages"></scope-bar>
   </div>
 
-  <!-- празно състояние -->
+  <!-- empty state -->
   <div v-if="!q" :class="['mt-8', mobilePanel && 'hidden lg:block']">
     <div v-if="recent.length" class="mx-auto max-w-3xl">
       <p class="eyebrow">{{ $t('Recent paths') }}</p>
@@ -1815,9 +1891,9 @@ npm run restore -- /path/to/copy --apply</pre>
     <p class="mt-2 text-sm text-muted dark:text-night-muted">{{ res.note }}</p>
   </div>
 
-  <!-- пътеката + панелът -->
+  <!-- the path + the panel -->
   <div v-else-if="res" class="mt-6 grid gap-6 lg:grid-cols-[22rem_minmax(0,1fr)] xl:grid-cols-[24rem_minmax(0,1fr)]">
-    <!-- ляво: стъпките -->
+    <!-- left: the steps -->
     <aside :class="['min-w-0', mobilePanel && 'hidden lg:block']">
       <div class="lg:sticky lg:top-6 lg:max-h-[calc(100dvh-3rem)] lg:overflow-y-auto lg:pr-1 scrollbar-thin">
         <div class="card p-4">
@@ -1861,7 +1937,7 @@ npm run restore -- /path/to/copy --apply</pre>
       </div>
     </aside>
 
-    <!-- дясно: панелът за четене -->
+    <!-- right: the reading panel -->
     <section :class="['min-w-0', !mobilePanel && 'hidden lg:block']">
       <div class="card lg:sticky lg:top-6 flex max-h-none flex-col overflow-hidden lg:max-h-[calc(100dvh-3rem)]">
         <header class="flex flex-wrap items-center gap-2 border-b border-line px-4 py-3 dark:border-night-line">
@@ -1910,7 +1986,7 @@ npm run restore -- /path/to/copy --apply</pre>
 </div>
 </script>
 
-<!-- ============================ НАМЕРИ СТАТИИ В ИНТЕРНЕТ ============================ -->
+<!-- ============================ FIND ARTICLES ON THE INTERNET ============================ -->
 <script type="text/x-template" id="tpl-find">
 <div class="mx-auto max-w-3xl px-5 py-8 sm:px-8 lg:py-12">
   <p class="eyebrow">{{ $t('Add an article') }}</p>
@@ -1973,7 +2049,7 @@ npm run restore -- /path/to/copy --apply</pre>
 </div>
 </script>
 
-<!-- ============================ ОБХВАТ (области и теми) ============================ -->
+<!-- ============================ SCOPE (areas and topics) ============================ -->
 <script type="text/x-template" id="tpl-scope">
 <div v-if="areaList.length > 1 || shownTopics.length" class="max-w-3xl space-y-3 rounded-3xl border border-line p-4 dark:border-night-line">
   <div v-if="areaList.length > 1">
@@ -1995,7 +2071,7 @@ npm run restore -- /path/to/copy --apply</pre>
 </div>
 </script>
 
-<!-- ============================ ОБЛАСТИ ============================ -->
+<!-- ============================ AREAS ============================ -->
 <script type="text/x-template" id="tpl-setup">
 <div class="mx-auto max-w-3xl px-5 py-8 sm:px-8 lg:py-12">
   <p class="eyebrow">{{ $t('Setup') }}</p>
@@ -2053,6 +2129,7 @@ npm run restore -- /path/to/copy --apply</pre>
 <section class="card mt-6 p-5" id="model">
   <h2 class="font-serif text-xl font-semibold">{{ $t('Model') }}</h2>
   <p class="mt-1 text-sm text-muted dark:text-night-muted">{{ $t('Which model processes the library, answers and writes. Claude Code works as an agent with tools. The other models get the text in parts from the server, so a small local model or a free chat in the browser can work too.') }}</p>
+  <p v-if="$root.modelWarn && !$root.modelWarn.ok" class="mt-3 flex items-start gap-2 rounded-2xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-500/40 dark:bg-amber-500/10 dark:text-amber-200" role="alert"><ic name="alert" class="mt-0.5 size-4 shrink-0"></ic><span>{{ $t('The provider no longer lists: {0}. Press “Load the models” and choose another model for the level that uses it.', [$root.modelWarn.missing.map((x) => x.model).join(', ')]) }}</span></p>
   <p v-if="!s" class="mt-4 text-sm text-muted">{{ $t('Loading…') }}</p>
   <template v-else>
     <p class="mt-3 rounded-xl bg-sage-50 px-3 py-2 text-sm text-sage-800 dark:bg-sage-900/40 dark:text-sage-200">
@@ -2166,12 +2243,12 @@ npm run restore -- /path/to/copy --apply</pre>
 </section>
 </script>
 
-<!-- ============================ РЕЖИМ, ИМЕ НА САЙТА ============================ -->
+<!-- ============================ MODE, SITE NAME ============================ -->
 <script type="text/x-template" id="tpl-app-settings">
 <div>
   <p v-if="!info" class="mt-8 text-sm text-muted dark:text-night-muted">{{ $t('Loading…') }}</p>
 
-  <!-- Режим на работа -->
+  <!-- Working mode -->
   <template v-else-if="part==='mode'">
     <section class="card mt-6 p-5">
       <div class="flex flex-wrap items-center gap-3">
@@ -2224,7 +2301,7 @@ npm run restore -- /path/to/copy --apply</pre>
     </section>
   </template>
 
-  <!-- Име на локалния сайт -->
+  <!-- Name of the local site -->
   <template v-else>
     <section class="card mt-6 p-5">
       <h2 class="font-serif text-xl font-semibold">{{ $t('A name for your local site') }}</h2>
@@ -2273,7 +2350,7 @@ npm run restore -- /path/to/copy --apply</pre>
 </div>
 </script>
 
-<!-- ============================ ПРИВЕТСТВИЕ ============================ -->
+<!-- ============================ WELCOME ============================ -->
 <script type="text/x-template" id="tpl-welcome">
 <div class="mx-auto max-w-5xl px-5 py-8 sm:px-8 lg:py-12">
   <section class="card overflow-hidden p-6 sm:p-10">
@@ -2295,6 +2372,18 @@ npm run restore -- /path/to/copy --apply</pre>
       <p class="mt-1 text-sm text-muted dark:text-night-muted">{{ s.text }}</p>
       <p class="mt-3 text-xs font-medium text-sage-700 dark:text-sage-200">{{ $t('Where:') }} {{ s.where }}</p>
     </a>
+  </div>
+
+  <h2 class="mt-10 font-serif text-2xl font-semibold">{{ $t('How much do you want to see?') }}</h2>
+  <p class="mt-1 max-w-2xl text-sm text-muted dark:text-night-muted">{{ $t('Pick the one that sounds like you. You can change it at any time in the menu; nothing is lost, the menu just shows less or more.') }}</p>
+  <div class="mt-4 grid gap-3 sm:grid-cols-3">
+    <button v-for="l in USE_LEVELS" :key="l.id" type="button" :aria-pressed="useState.id===l.id" @click="setUseLevel(l.id)"
+            :class="['card card-hover block p-4 text-left', useState.id===l.id && 'ring-2 ring-sage-500']">
+      <span class="grid size-9 place-items-center rounded-xl bg-sage-50 text-sage-700 dark:bg-sage-900/40 dark:text-sage-200"><ic :name="l.icon" class="size-4"></ic></span>
+      <p class="mt-3 text-sm font-semibold">{{ l.name }}</p>
+      <p class="mt-0.5 text-xs font-medium text-sage-700 dark:text-sage-200">{{ l.tagline }}</p>
+      <p class="mt-1 text-xs text-muted dark:text-night-muted">{{ l.text }}</p>
+    </button>
   </div>
 
   <h2 class="mt-10 font-serif text-2xl font-semibold">{{ $t('Which AI will do the reading?') }}</h2>
@@ -2337,7 +2426,7 @@ npm run restore -- /path/to/copy --apply</pre>
 </div>
 </script>
 
-<!-- ============================ ОБИКОЛКА ============================ -->
+<!-- ============================ TOUR ============================ -->
 <script type="text/x-template" id="tpl-tour">
 <div class="fixed inset-0 z-[70]" role="dialog" aria-modal="true" :aria-label="$t('Tour')">
   <div v-if="hole" class="pointer-events-none fixed rounded-2xl ring-2 ring-sage-400 transition-all duration-200" :style="{ ...hole, boxShadow: '0 0 0 9999px rgba(20,18,15,.6)' }"></div>
@@ -2356,14 +2445,14 @@ npm run restore -- /path/to/copy --apply</pre>
 </div>
 </script>
 
-<!-- ============================ ДОКУМЕНТАЦИЯ ============================ -->
+<!-- ============================ DOCUMENTATION ============================ -->
 <script type="text/x-template" id="tpl-docs">
 <div class="mx-auto max-w-7xl px-5 py-8 sm:px-8 lg:py-10">
   <p class="eyebrow">{{ $t('Documentation') }}</p>
   <p v-if="error" class="mt-4 text-sm text-clay-500">{{ error }}</p>
   <p v-else-if="!index" class="mt-4 text-sm text-muted">{{ $t('Loading…') }}</p>
   <div v-else class="mt-3 lg:grid lg:grid-cols-[16rem_minmax(0,1fr)] lg:gap-10 xl:grid-cols-[16rem_minmax(0,1fr)_13rem]">
-    <!-- Съдържание -->
+    <!-- Contents -->
     <aside class="lg:sticky lg:top-6 lg:max-h-[calc(100dvh-3rem)] lg:self-start lg:overflow-y-auto lg:pr-2 scrollbar-thin">
       <input v-model="q" type="search" class="field" :placeholder="$t('Search the documentation')" :aria-label="$t('Search the documentation')">
       <div class="mt-3 flex rounded-full border border-line p-0.5 text-xs dark:border-night-line" role="group" :aria-label="$t('Who is reading')">
@@ -2385,7 +2474,7 @@ npm run restore -- /path/to/copy --apply</pre>
       </nav>
     </aside>
 
-    <!-- Страницата -->
+    <!-- The page -->
     <article class="mt-8 min-w-0 lg:mt-0">
       <p v-if="cur" class="text-xs text-muted dark:text-night-muted">{{ t(index.groups.find((g) => g.pages.some((p) => p.id===curId))?.title) }}</p>
       <div v-if="loading && !html" class="text-sm text-muted">{{ $t('Loading…') }}</div>
@@ -2396,7 +2485,7 @@ npm run restore -- /path/to/copy --apply</pre>
       </div>
     </article>
 
-    <!-- На тази страница -->
+    <!-- On this page -->
     <aside v-if="toc.length > 1" class="hidden xl:sticky xl:top-6 xl:block xl:self-start">
       <p class="eyebrow">{{ $t('On this page') }}</p>
       <ul class="mt-3 space-y-1.5 border-l border-line pl-3 text-sm dark:border-night-line">
@@ -2414,23 +2503,23 @@ npm run restore -- /path/to/copy --apply</pre>
   <p class="mt-2 max-w-2xl text-sm text-muted dark:text-night-muted">{{ $t('Nothing here leaves your computer until you press a button, and nothing is installed by itself. You see the result and decide.') }}</p>
 
   <div class="mt-6 lg:grid lg:grid-cols-[13rem_minmax(0,1fr)] lg:items-start lg:gap-10">
-    <!-- Подменю: на телефон е ред с превъртане, на голям екран колона вляво -->
+    <!-- Submenu: a scrolling row on a phone, a column on the left on a large screen -->
     <nav class="scrollbar-thin -mx-1 flex gap-1 overflow-x-auto px-1 pb-2 lg:sticky lg:top-6 lg:mx-0 lg:flex-col lg:overflow-visible lg:px-0 lg:pb-0" :aria-label="$t('Sections of the settings')">
-      <a v-for="s in SETTINGS_SECTIONS" :key="s.id" :href="'#/settings/'+s.id" :aria-current="section===s.id ? 'page' : null"
+      <a v-for="s in sections" :key="s.id" :href="'#/settings/'+s.id" :aria-current="section===s.id ? 'page' : null"
          :class="['nav-item shrink-0 !w-auto whitespace-nowrap lg:!w-full', section===s.id && 'active']"><ic :name="s.icon" class="size-4"></ic>{{ s.label }}</a>
       <a href="/product/" target="_blank" rel="noopener" class="nav-item shrink-0 !w-auto whitespace-nowrap lg:!w-full lg:mt-3"><ic name="external" class="size-4"></ic>{{ $t('About the product') }}</a>
     </nav>
 
     <div class="mt-2 min-w-0 max-w-3xl lg:mt-0 lg:[&>:first-child]:!mt-0">
-  <!-- Модел: доставчик, ключ, модели, име и надписи -->
+  <!-- Model: provider, key, models, name and labels -->
   <ai-settings v-if="section==='model' && !ro"></ai-settings>
 
-  <!-- Режим (обикновен или защитен) и име на сайта -->
+  <!-- Mode (normal or safe) and the site name -->
   <app-settings v-else-if="(section==='mode' || section==='address') && !ro" :part="section" :key="section"></app-settings>
 
   <p v-else-if="!info" class="mt-8 text-sm text-muted">{{ $t('Loading…') }}</p>
   <template v-else>
-    <!-- Архив за четене -->
+    <!-- Archive for reading -->
     <backup-settings v-if="section==='backup' && !ro"></backup-settings>
     <section v-if="section==='archive' && !ro" class="card mt-6 p-5">
       <h2 class="font-serif text-xl font-semibold">{{ $t('Archive for reading') }}</h2>
@@ -2455,12 +2544,16 @@ npm run restore -- /path/to/copy --apply</pre>
     </section>
 
     <template v-if="section==='updates'">
-    <!-- Версия -->
+    <!-- Version -->
     <section class="card mt-6 p-5">
       <h2 class="font-serif text-xl font-semibold">{{ $t('Version of the code') }}</h2>
       <p class="mt-1 text-sm text-muted dark:text-night-muted">{{ $t('Installed: {0}', [info.version]) }}<template v-if="info.repo"> · <a :href="info.url" target="_blank" rel="noopener" class="underline">{{ info.repo }}</a></template></p>
       <button class="btn-primary mt-4 !py-1.5 text-sm" :disabled="busy.code" @click="checkCode"><ic :name="busy.code ? 'spinner' : 'globe'" :class="['size-4', busy.code && 'animate-spin']"></ic>{{ $t('Check for a new version') }}</button>
       <p class="mt-1 text-xs text-muted dark:text-night-muted">{{ $t('Sends an ordinary request to GitHub. Your library is not sent.') }}</p>
+      <label class="mt-4 flex cursor-pointer items-start gap-2 text-sm">
+        <input type="checkbox" class="mt-0.5 accent-sage-600" :checked="autoUpdates" @change="setAutoUpdates($event.target.checked)">
+        <span>{{ $t('Check quietly when the program starts') }}<span class="block text-xs text-muted dark:text-night-muted">{{ $t('Two small requests: one to GitHub for the version number, one to the provider of your model for its list of models (free, no text of yours). Nothing is installed without your button.') }}</span></span>
+      </label>
 
       <div v-if="code" class="mt-4 text-sm">
         <p v-if="!code.ok" class="text-clay-500">{{ code.error }}</p>
@@ -2469,7 +2562,10 @@ npm run restore -- /path/to/copy --apply</pre>
           <p v-else-if="code.status==='ahead'" class="font-medium">{{ $t('Your version ({0}) is newer than the one on GitHub ({1}).', [code.version, code.remote]) }}</p>
           <p v-else class="font-medium text-clay-500">{{ $t('A new version is available: {0} (you have {1}).', [code.remote, code.version]) }}</p>
           <p v-if="code.commit" class="mt-1 text-muted dark:text-night-muted">{{ $t('Latest change on GitHub: {0}', [code.commit.message]) }} <span v-if="code.commit.date">({{ code.commit.date.slice(0, 10) }})</span></p>
-          <div v-if="code.status==='behind'" class="mt-3 space-y-2">
+          <code-update v-if="code.status==='behind'" :info="code" class="mt-4 block"></code-update>
+          <details v-if="code.status==='behind'" class="mt-3">
+            <summary class="cursor-pointer text-xs text-muted dark:text-night-muted">{{ $t('Update by hand instead') }}</summary>
+          <div class="mt-3 space-y-2">
             <p>{{ $t('If you installed with git, run this in the project folder. Your library, drafts and settings are not touched:') }}</p>
             <div class="flex items-center gap-2 rounded-xl bg-ink/[.05] px-3 py-2 dark:bg-white/5">
               <code class="min-w-0 flex-1 break-all text-xs">{{ updateCmd }}</code>
@@ -2477,18 +2573,19 @@ npm run restore -- /path/to/copy --apply</pre>
             </div>
             <p>{{ $t('If you downloaded a ZIP, download the new one and copy your folders raw, wiki, drafts and outputs and the file library.config.json into it.') }}</p>
           </div>
+          </details>
         </template>
       </div>
     </section>
 
-    <!-- Пакети -->
+    <!-- Packages -->
     <section class="card mt-5 p-5">
       <h2 class="font-serif text-xl font-semibold">{{ $t('Node.js packages') }}</h2>
       <p class="mt-1 text-sm text-muted dark:text-night-muted">{{ $t('The application is built on open-source packages, and they depend on further packages. They get new versions and security fixes on their own schedule, so check them from time to time.') }}</p>
       <button class="btn-primary mt-4 !py-1.5 text-sm" :disabled="busy.packages" @click="checkPackages"><ic :name="busy.packages ? 'spinner' : 'terminal'" :class="['size-4', busy.packages && 'animate-spin']"></ic>{{ $t('Check the packages') }}</button>
       <p class="mt-1 text-xs text-muted dark:text-night-muted">{{ $t('Runs npm outdated and npm audit. npm sends the list of packages to its registry, not your library.') }}</p>
 
-      <!-- Резултат от обновяването: рестарт, готово или грешка -->
+      <!-- The result of the update: restart, done or an error -->
       <div v-if="upd.restarting" class="mt-4 flex items-center gap-3 rounded-xl bg-sage-50 px-4 py-3 text-sm text-sage-800 dark:bg-sage-900/40 dark:text-sage-200" role="status">
         <ic name="spinner" class="size-4 shrink-0 animate-spin"></ic>
         <span>{{ $t('Updated: {0}. The library is restarting with the new versions; the page reloads by itself.', [upd.result.changed.map((c) => c.name + ' ' + c.to).join(', ') || $t('nested packages')]) }}</span>
@@ -2555,7 +2652,7 @@ npm run restore -- /path/to/copy --apply</pre>
 
     </template>
 
-    <!-- Данни: друг доставчик, локален модел или ръчен режим -->
+    <!-- Data: another provider, a local model or manual mode -->
     <template v-if="section==='data'">
     <section v-if="!AI.claude" class="card mt-5 p-5">
       <h2 class="font-serif text-xl font-semibold">{{ $t('Your data and {ai}') }}</h2>
@@ -2584,7 +2681,7 @@ npm run restore -- /path/to/copy --apply</pre>
     </section>
     </template>
 
-    <!-- Парола -->
+    <!-- Password -->
     <section v-if="section==='password'" class="card mt-6 p-5">
       <h2 class="font-serif text-xl font-semibold">{{ $t('Password for this interface') }}</h2>
       <p class="mt-1 text-sm text-muted dark:text-night-muted">{{ $t('Off by default. It stops other people and programs on this computer from opening the library through the browser. It does not encrypt the files.') }}</p>
@@ -2602,7 +2699,7 @@ npm run restore -- /path/to/copy --apply</pre>
       <p class="mt-2 text-xs text-muted dark:text-night-muted">{{ $t('If you forget it, stop the application and delete the file .library-auth.json in the project folder.') }}</p>
     </section>
 
-    <!-- Тестове -->
+    <!-- Tests -->
     <section v-if="section==='tests'" class="card mt-5 p-5">
       <h2 class="font-serif text-xl font-semibold">{{ $t('What works and what does not') }}</h2>
       <p class="mt-1 text-sm text-muted dark:text-night-muted">{{ $t('The tests run in a temporary copy with a simulated Claude. They do not touch your library and cost nothing.') }}</p>
@@ -2641,7 +2738,7 @@ npm run restore -- /path/to/copy --apply</pre>
 </div>
 </script>
 
-<!-- ============================ ДНЕВНИК ============================ -->
+<!-- ============================ LOG ============================ -->
 <script type="text/x-template" id="tpl-log">
 <div class="mx-auto max-w-4xl px-5 py-8 sm:px-8 lg:py-12">
   <p class="eyebrow">{{ $t('Library') }}</p>
@@ -2688,7 +2785,7 @@ npm run restore -- /path/to/copy --apply</pre>
 </div>
 </script>
 
-<!-- ============================ КОЛЕКЦИИ: ПОДРЕЖДАНЕ ============================ -->
+<!-- ============================ COLLECTIONS: ARRANGING ============================ -->
 <script type="text/x-template" id="tpl-collections">
 <div class="mx-auto max-w-4xl px-5 py-8 sm:px-8 lg:py-12">
   <p class="eyebrow">{{ $t('Library') }}</p>
@@ -2745,7 +2842,7 @@ npm run restore -- /path/to/copy --apply</pre>
 
   <p v-if="!data" class="mt-8 text-sm text-muted">{{ $t('Loading…') }}</p>
   <template v-else>
-    <!-- източници без област -->
+    <!-- sources without an area -->
     <section v-if="data.unassigned.length || prop" class="card mt-6 p-5">
       <p class="font-semibold">{{ data.unassigned.length }} {{ plural(data.unassigned.length, $t('source has no area'), $t('sources have no area')) }}</p>
       <p class="mt-1 text-sm text-muted dark:text-night-muted">{{ $t('{ai} can determine them from the title, authors, tags and emphasis, without reading the books. You see the suggestion and correct it before it is saved.') }}</p>
@@ -2791,7 +2888,7 @@ npm run restore -- /path/to/copy --apply</pre>
       </details>
     </section>
 
-    <!-- области -->
+    <!-- areas -->
     <p v-if="!data.areas.length" class="mt-8 text-sm text-muted dark:text-night-muted">{{ $t('There are no areas yet. They appear when sources get an area (automatically during processing or from the button above).') }}</p>
     <ul class="mt-6 space-y-3">
       <li v-for="a in data.areas" :key="a.name" class="card p-5">
@@ -2824,11 +2921,11 @@ npm run restore -- /path/to/copy --apply</pre>
 </div>
 </script>
 
-<!-- ============================ ПИСАНЕ С WIKI ============================ -->
+<!-- ============================ WRITE WITH THE WIKI ============================ -->
 <script type="text/x-template" id="tpl-write">
 <div class="mx-auto max-w-5xl px-5 py-8 sm:px-8 lg:py-10">
 
-  <!-- Нов текст + списък -->
+  <!-- A new text + the list -->
   <template v-if="!id">
     <p class="eyebrow">{{ $t('Write with the wiki') }}</p>
     <h1 class="mt-2 font-serif text-3xl font-semibold tracking-tight sm:text-4xl">{{ $t('What do you want to write?') }}</h1>
@@ -2915,12 +3012,12 @@ npm run restore -- /path/to/copy --apply</pre>
     </section>
   </template>
 
-  <!-- Редактор на записан текст -->
+  <!-- The editor of a saved text -->
   <template v-else>
     <a href="#/write" class="inline-flex items-center gap-1.5 text-sm text-muted hover:text-ink dark:text-night-muted dark:hover:text-night-ink"><ic name="arrowLeft" class="size-4"></ic>{{ $t('Write with the wiki') }}</a>
     <p v-if="loadError" class="mt-8 text-muted">{{ $t('This text was not found.') }}</p>
     <template v-else-if="doc">
-      <!-- Заглавието: щракване = смяна (сменя реда „# …“ в текста) -->
+      <!-- The title: a click = change (changes the line "# ..." in the text) -->
       <input v-if="titleEdit!==null" ref="titleInput" v-model="titleEdit" :aria-label="$t('Title')" @keydown.enter.prevent="saveTitle" @keydown.esc.prevent="titleEdit=null" @blur="saveTitle"
              class="mt-4 w-full rounded-2xl border border-sage-400 bg-panel px-3 py-1 font-serif text-3xl font-semibold leading-tight tracking-tight outline-none dark:bg-night-panel sm:text-4xl">
       <h1 v-else class="mt-4 cursor-text rounded-xl font-serif text-3xl font-semibold leading-tight tracking-tight outline-none transition hover:bg-ink/[.03] focus-visible:ring-2 focus-visible:ring-sage-400 dark:hover:bg-white/5 sm:text-4xl"
@@ -2947,7 +3044,7 @@ npm run restore -- /path/to/copy --apply</pre>
         <button class="btn-ghost !py-1.5 text-sm text-muted" @click="remove"><ic name="x" class="size-4"></ic>{{ $t('Delete') }}</button>
       </div>
 
-      <!-- Помощ от модела: вид, ниво, креативност, обхват и дописване -->
+      <!-- Help from the model: kind, level, creativity, scope and continuing -->
       <section class="card mt-4 max-w-3xl p-4">
         <button type="button" class="flex w-full items-center gap-2 text-left text-sm font-semibold" :aria-expanded="ed.open" @click="toggleHelp"><ic name="sparkle" class="size-4 text-sage-600"></ic>{{ $t('Help from {ai}') }}<span class="font-normal text-muted dark:text-night-muted">· {{ genreLabel(ed.genre) }} · {{ $t('creativity {0} of 5', [ed.creativity]) }}</span><span class="flex-1"></span><ic :name="ed.open ? 'x' : 'chevron'" :class="['size-4 text-muted', !ed.open && 'rotate-90']"></ic></button>
         <div v-if="ed.open" class="mt-4 space-y-4">
@@ -2996,7 +3093,7 @@ npm run restore -- /path/to/copy --apply</pre>
             <p v-if="cont.error" class="mt-3 flex gap-2 rounded-2xl bg-clay-100 px-3 py-2 text-sm text-clay-500 dark:bg-clay-500/15"><ic name="alert" class="mt-0.5 size-4 shrink-0"></ic>{{ cont.error }}</p>
           </div>
 
-          <!-- Преглед с wiki (скилът wiki-review) -->
+          <!-- Review with the wiki (the wiki-review skill) -->
           <div class="border-t border-line pt-4 dark:border-night-line">
             <label class="text-sm font-medium" for="rev-ins">{{ $t('Review with the wiki') }}</label>
             <p class="text-xs text-muted dark:text-night-muted">{{ $t('{ai} checks every citation against the page in the original, corrects the APA references, supports claims that have no source and makes the sentences read naturally. Nothing is invented: what only you know is marked [FILL IN: …].') }}</p>
@@ -3017,7 +3114,7 @@ npm run restore -- /path/to/copy --apply</pre>
         </div>
         <p v-if="cont.note" class="mt-3 flex flex-wrap items-center gap-2 rounded-2xl bg-sage-50 px-3 py-2 text-sm text-sage-700 dark:bg-sage-900/40 dark:text-sage-200"><ic name="check" class="size-4 shrink-0"></ic><span class="flex-1">{{ cont.note }}</span><button v-if="undoStack.length" type="button" class="underline" @click="undo">{{ $t('Undo the addition') }}</button></p>
         <p v-if="rev.note" class="mt-3 flex flex-wrap items-center gap-2 rounded-2xl bg-sage-50 px-3 py-2 text-sm text-sage-700 dark:bg-sage-900/40 dark:text-sage-200"><ic name="check" class="size-4 shrink-0"></ic><span class="flex-1">{{ rev.note }}</span><button v-if="undoStack.length" type="button" class="underline" @click="undo">{{ $t('Undo the review') }}</button></p>
-        <!-- Отчетът от прегледа: пази се и в drafts/.reviews/ -->
+        <!-- The report of the review: also kept in drafts/.reviews/ -->
         <div v-if="rev.report" class="mt-3 rounded-2xl border border-line p-4 dark:border-night-line">
           <div class="flex flex-wrap items-center gap-2">
             <button type="button" class="flex items-center gap-2 text-left text-sm font-semibold" :aria-expanded="rev.open" @click="rev.open=!rev.open"><ic name="file" class="size-4 text-sage-600"></ic>{{ $t('Review report') }}<ic name="chevron" :class="['size-4 text-muted', rev.open ? '-rotate-90' : 'rotate-90']"></ic></button>
@@ -3033,18 +3130,18 @@ npm run restore -- /path/to/copy --apply</pre>
       <textarea v-if="mode==='edit'" ref="raw" v-model="body" spellcheck="true" :aria-label="$t('The text in Markdown')" class="mt-3 min-h-[70vh] w-full resize-y rounded-3xl border border-line bg-panel p-5 font-mono text-[14px] leading-relaxed outline-none transition focus:border-sage-400 dark:border-night-line dark:bg-night-panel"></textarea>
       <p v-if="mode==='edit'" class="mt-2 text-xs text-muted dark:text-night-muted">{{ $t('Markdown. Ctrl+S saves. On every save the previous version is kept in drafts/.history/. The file can also be edited outside the library.') }}</p>
 
-      <!-- Преглед по абзаци: всеки абзац се сменя на ръка или с модела, след всеки може да се вмъкне нов -->
+      <!-- Review by paragraphs: every paragraph is changed by hand or with the model, a new one can be inserted after each -->
       <div v-else class="reading mt-6 max-w-3xl">
         <div v-for="s in [{ head: true, i: -1 }, ...shownBlocks]" :key="s.head ? 'head' : s.start + ':' + s.i"
              :class="['group relative rounded-2xl transition', !s.head && '-mx-3 px-3 py-1', s.heading && '!mt-10', s.fresh && 'bg-sage-50 ring-1 ring-sage-200 dark:bg-sage-900/30 dark:ring-sage-800']"
              @click="!s.head && (active = s.i)">
-          <!-- начало: нов абзац след заглавието -->
+          <!-- the beginning: a new paragraph after the title -->
           <template v-if="s.head">
             <button v-if="shownBlocks.length && !isOpen('ins', s)" type="button" class="inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 font-sans text-xs text-muted transition hover:bg-ink/5 hover:text-ink disabled:opacity-50 dark:text-night-muted dark:hover:bg-white/10 dark:hover:text-night-ink" :disabled="busyAny" @click="openBlock('ins', s)"><ic name="plus" class="size-3.5"></ic>{{ $t('Add a paragraph at the beginning') }}</button>
             <p v-if="!shownBlocks.length && !isOpen('ins', s)" class="font-sans text-sm text-muted dark:text-night-muted">{{ $t('The text is empty.') }} <button type="button" class="underline" @click="openBlock('ins', s)">{{ $t('Write the first paragraph') }}</button> {{ $t('or switch to “Editing”.') }}</p>
           </template>
 
-          <!-- абзацът: ръчна смяна -->
+          <!-- the paragraph: a manual change -->
           <div v-else-if="isOpen('edit', s)" class="font-sans text-sm" @click.stop>
             <textarea data-blk-focus v-model="blk.text" :rows="Math.min(18, Math.max(3, Math.ceil(blk.text.length / 75) + blk.text.split('\n').length))" :aria-label="$t('The paragraph in Markdown')" @keydown.ctrl.enter.prevent="applyEdit(s)" @keydown.esc.prevent="closeBlock"
                       class="w-full resize-y rounded-2xl border border-sage-400 bg-panel p-3 font-mono text-[14px] leading-relaxed outline-none dark:bg-night-panel"></textarea>
@@ -3065,7 +3162,7 @@ npm run restore -- /path/to/copy --apply</pre>
             </div>
           </template>
 
-          <!-- пренаписване с модела -->
+          <!-- rewriting with the model -->
           <div v-if="isOpen('ai', s)" class="mt-3 rounded-2xl border border-line bg-panel p-3 font-sans text-sm dark:border-night-line dark:bg-night-panel" @click.stop>
             <label class="text-xs text-muted dark:text-night-muted" :for="'blk-ai-' + s.i">{{ $t('How should {ai} change it? (optional; without guidance it makes the paragraph clearer and better connected)') }}</label>
             <textarea :id="'blk-ai-' + s.i" data-blk-focus v-model="blk.instruction" rows="2" maxlength="1000" :placeholder="$t('E.g. shorter, with an example, more vivid, closer to the sources')" @keydown.ctrl.enter.prevent="aiBlock('rewrite', s)"
@@ -3080,7 +3177,7 @@ npm run restore -- /path/to/copy --apply</pre>
             <p v-if="blk.error" class="mt-2 flex gap-2 rounded-2xl bg-clay-100 px-3 py-2 text-sm text-clay-500 dark:bg-clay-500/15"><ic name="alert" class="mt-0.5 size-4 shrink-0"></ic>{{ blk.error }}</p>
           </div>
 
-          <!-- нов абзац след този (или в началото): свой текст или от модела -->
+          <!-- a new paragraph after this one (or at the beginning): your own text or from the model -->
           <div v-if="isOpen('ins', s)" class="mt-3 rounded-2xl border border-line bg-panel p-3 font-sans text-sm dark:border-night-line dark:bg-night-panel" @click.stop>
             <div class="flex w-max rounded-full border border-line p-0.5 dark:border-night-line" role="group" :aria-label="$t('Who writes the paragraph')">
               <button type="button" :aria-pressed="blk.own" @click="blk.own=true" :class="['rounded-full px-3 py-1 text-sm transition', blk.own ? 'bg-sage-600 text-white shadow-soft' : 'text-muted hover:text-ink dark:hover:text-night-ink']">{{ $t('I write it') }}</button>
@@ -3120,7 +3217,7 @@ npm run restore -- /path/to/copy --apply</pre>
 </div>
 </script>
 
-<!-- ============================ КАРТА НА ВРЪЗКИТЕ ============================ -->
+<!-- ============================ LINK MAP ============================ -->
 <script type="text/x-template" id="tpl-graph">
 <div class="relative h-[calc(100dvh-57px)] lg:h-dvh">
   <canvas ref="canvas" class="absolute inset-0 size-full cursor-grab active:cursor-grabbing"></canvas>
@@ -3143,7 +3240,7 @@ npm run restore -- /path/to/copy --apply</pre>
 </div>
 </script>
 
-<!-- ============================ КАРТА НА СТРАНИЦА ============================ -->
+<!-- ============================ PAGE MAP ============================ -->
 <script type="text/x-template" id="tpl-card">
 <a :href="'#/p/'+p.slug" :class="['card card-hover group flex flex-col', big ? 'p-5' : 'p-4']">
   <div class="flex items-center gap-2">

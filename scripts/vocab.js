@@ -1,14 +1,14 @@
-// Текстове на езика на съдържанието: промптовете към Claude, заглавията и фразите, които скриптовете
-// записват в wiki-то (индекс, дневник, статии). Ключът е английският текст; преводът е в
-// content/<код>/prompts.json (нов език: копирай content/en/prompts.json и преведи стойностите).
-// Без превод се ползва английският ключ. Езикът на съдържанието е contentLang() (виж i18n.js).
+// Texts in the language of the content: the prompts to Claude, the headings and phrases that the scripts
+// write into the wiki (index, log, articles). The key is the English text; the translation is in
+// content/<code>/prompts.json (new language: copy content/en/prompts.json and translate the values).
+// Without a translation the English key is used. The content language is contentLang() (see i18n.js).
 import fs from 'node:fs';
 import path from 'node:path';
 import { ROOT } from './lib.js';
 import { contentLang } from './i18n.js';
 
 const CONTENT = path.join(ROOT, 'content');
-const cache = new Map(); // код → { mtime, messages }
+const cache = new Map(); // code -> { mtime, messages }
 
 function pack(code) {
   if (!/^[a-z]{2,3}(?:-[A-Za-z0-9]{2,8})?$/.test(code)) return {};
@@ -24,38 +24,38 @@ function pack(code) {
 }
 const fmt = (s, args) => (args && args.length ? s.replace(/\{(\d+)\}/g, (m, i) => (args[i] ?? m)) : s);
 
-/** Текст на езика на съдържанието по английски ключ; `{0}`, `{1}` се заместват от args. */
+/** Text in the content language by English key; `{0}`, `{1}` are replaced from args. */
 export function P(key, args) {
   const m = pack(contentLang());
   return fmt(m[key] ?? key, args);
 }
 
-/** Преводите на ключа на ВСИЧКИ езици (за регулярни изрази, които трябва да разпознават библиотека на всеки език). */
+/** The translations of a key in ALL languages (for regular expressions that must recognise a library in any language). */
 export function Pall(key) {
   const out = new Set([key]);
-  try { for (const d of fs.readdirSync(CONTENT)) { const v = pack(d)[key]; if (v) out.add(v); } } catch { /* няма content/ */ }
+  try { for (const d of fs.readdirSync(CONTENT)) { const v = pack(d)[key]; if (v) out.add(v); } } catch { /* there is no content/ */ }
   return [...out];
 }
 const esc = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-/** Израз за регулярен израз, който хваща ключа на всеки език. */
+/** An expression for a regular expression that matches the key in every language. */
 export const anyP = (key) => `(?:${Pall(key).map(esc).join('|')})`;
 
-// Имената на разделите и частите на страниците (ключове: английски текстове)
+// The names of the sections and parts of the pages (keys: English texts)
 const NAMES = {
   notes: 'My notes', chapters: 'Chapters', contradictions: 'Contradictions', answer: 'Answer', question: 'Question',
   relies: 'What it relies on', sources: 'Sources', related: 'Related', chapterAbbr: 'Ch.', leftForHuman: '(Left for the human.)',
   bookNote: 'Note',
 };
 export const V = () => Object.fromEntries(Object.entries(NAMES).map(([k, en]) => [k, P(en)]));
-/** Регулярен израз за името на раздела на всеки език: any('notes'). */
+/** A regular expression for the name of a section in every language: any('notes'). */
 export const any = (k) => anyP(NAMES[k]);
 
-/** Съкращенията на страница и раздел във всички езици, за регулярни изрази: `(?:p\.|pp\.|с\.|…)`. */
+/** The abbreviations of page and section in all languages, for regular expressions: `(?:p\.|pp\.|с\.|…)`. */
 export const pageUnits = () => `(?:${[...new Set([...Pall('p.'), ...Pall('pp.'), ...Pall('sect.'), 'с.', 'стр.', 'разд.'])].map(esc).join('|')})`;
 
 /**
- * Обект или масив, който се смята наново при всеки достъп: за константи с преводим текст, за да следват
- * езика, сменен докато сървърът работи.
+ * An object or array that is computed again on every access: for constants with translatable text, so that they follow
+ * the language changed while the server is running.
  */
 export const lazy = (fn) => new Proxy({}, {
   get: (_, k) => Reflect.get(Object(fn()), k),

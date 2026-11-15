@@ -1,6 +1,6 @@
-// Кука (PreToolUse) за Claude Code: дневникът wiki/log.md се допълва с Edit, а не се презаписва с Write.
-// Презаписването с Write е изтривало целия дневник (11 ноември 2026: 377 записа станаха 1).
-// Изход 2 спира инструмента. Пуска се от agent.js чрез --settings и от .claude/settings.json.
+// Hook (PreToolUse) for Claude Code: the log wiki/log.md is appended with Edit, not overwritten with Write.
+// Overwriting with Write has deleted the whole log (11 November 2026: 377 entries became 1).
+// Exit 2 stops the tool. It is run by agent.js through --settings and from .claude/settings.json.
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -9,7 +9,7 @@ const LOG = 'wiki/log.md';
 
 const refuse = (why) => { process.stderr.write(`Blocked by the library: ${why}\n`); process.exit(2); };
 
-/** Причина за отказ или null. Сравнява по текста на пътя (без значение на главните букви в Windows). */
+/** A reason to refuse or null. Compares by the text of the path (letter case does not matter on Windows). */
 export function reasonToBlock(input, root = ROOT) {
   if (input?.tool_name !== 'Write') return null;
   const target = input?.tool_input?.file_path;

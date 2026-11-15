@@ -54,6 +54,8 @@
       "id": "help",
       "title": { "bg": "Помощ", "en": "Help" },
       "pages": [
+        { "id": "levels", "track": "user", "title": { "bg": "Ниво на ползване: колко да виждам", "en": "Level of use: how much to see" } },
+        { "id": "updates", "track": "both", "title": { "bg": "Нови версии и спрян модел", "en": "New versions and a retired model" } },
         { "id": "troubleshooting", "track": "both", "title": { "bg": "Когато нещо не работи", "en": "When something does not work" } },
         { "id": "glossary", "track": "both", "title": { "bg": "Речник", "en": "Glossary" } }
       ]
