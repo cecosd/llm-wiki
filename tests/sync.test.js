@@ -1,5 +1,5 @@
-// Резервни копия и синхронизация: цели, чужди промени в обща папка, сливане по абзаци, възстановяване.
-// "Иван" е втора папка, в която тестът пише директно. Нищо не излиза извън временните папки.
+// Backups and synchronisation: targets, foreign changes in a shared folder, merging by paragraphs, restoring.
+// "Ivan" is a second folder in which the test writes directly. Nothing goes outside the temporary folders.
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -81,14 +81,14 @@ test(T('library', 'A shared folder tells about changes by others and does not ov
   put(path.join(them, 'raw/articles/ivan-paper.txt'), 'Ivan paper text.\n');
   put(path.join(them, 'wiki/log.md'), get(path.join(box.root, 'wiki/log.md')) + '\n## 2026-11-12 ingest: Ivan paper\n- New: [[ivan-idea]]\n');
   put(path.join(them, 'wiki/concepts/entropy.md'), ENT('# Entropy\n\nFirst paragraph.\n\nSecond paragraph, by Ivan.\n\nThird paragraph.\n\nFourth by Ivan.\n'));
-  fs.rmSync(path.join(them, 'wiki/sources/sample-2020-note.md')); // Иван е изтрил: не ни интересува
+  fs.rmSync(path.join(them, 'wiki/sources/sample-2020-note.md')); // Ivan deleted it: we do not care
   const p = await plan(t);
   assert.ok(p.needsAnswer);
   assert.deepEqual(p.incoming.map((x) => x.rel).sort(), ['raw/articles/ivan-paper.txt', 'wiki/concepts/entropy.md', 'wiki/concepts/ivan-idea.md', 'wiki/log.md']);
   assert.ok(!p.incoming.some((x) => x.rel.includes('sample-2020')), 'their deletion is not offered');
   const mine = path.join(box.root, 'wiki/concepts/entropy.md');
   const base = get(mine);
-  // push-only: чуждото остава
+  // push-only: the foreign stays
   const r = await run(t, { strategy: 'push' });
   assert.ok(r.ok);
   assert.ok(get(path.join(them, 'wiki/concepts/entropy.md')).includes('by Ivan'), 'their change is still there');
@@ -99,14 +99,14 @@ test(T('library', 'A shared folder tells about changes by others and does not ov
 test(T('library', 'Reviewing a shared folder takes chosen files and merges a conflict by paragraph', 'Прегледът на обща папка взема избрани файлове и слива конфликт по абзаци'), async () => {
   const t = (await api(srv.port, 'GET', '/api/sync')).json.targets.find((x) => x.name === 'shared');
   const them = P('shared');
-  // и двамата сме променили entropy.md: ние втория абзац, Иван втория и добавил четвърти
+  // both of us changed entropy.md: we the second paragraph, Ivan the second and added a fourth
   box.write('wiki/concepts/entropy.md', ENT('# Entropy\n\nFirst paragraph.\n\nSecond paragraph, by me.\n\nThird paragraph.\n'));
   let p = await plan(t);
   const c = p.conflicts.find((x) => x.rel === 'wiki/concepts/entropy.md');
   assert.ok(c && c.text, JSON.stringify(p.counts));
   const d = (await api(srv.port, 'POST', `/api/sync/${t.id}/diff`, { rel: c.rel })).json;
   assert.ok(d.segments.filter((s) => s.mine).length >= 2, 'two separate differences');
-  const sec = d.segments.filter((s) => s.mine); // 0: втори абзац (и двамата), 1: четвърти (само той)
+  const sec = d.segments.filter((s) => s.mine); // 0: the second paragraph (both), 1: the fourth (only him)
   const choices = sec.map((_, i) => (i === 0 ? 'm' : 't'));
   const r = await run(t, { strategy: 'review', decisions: {
     'wiki/concepts/ivan-idea.md': 'theirs', 'raw/articles/ivan-paper.txt': 'theirs', 'wiki/log.md': 'theirs', [c.rel]: { choices },
@@ -135,10 +135,10 @@ test(T('library', 'A change that is declined is not asked again, and overwrite k
   p = await plan(t);
   assert.equal(p.incoming.length, 0);
   assert.equal(p.declined.length, 1);
-  put(path.join(them, 'wiki/concepts/second-idea.md'), ENT('# Second\n\nv2\n')); // нова версия: пита пак
+  put(path.join(them, 'wiki/concepts/second-idea.md'), ENT('# Second\n\nv2\n')); // a new version: it asks again
   p = await plan(t);
   assert.equal(p.incoming.length, 1);
-  // и ние сме го променили, после презаписваме
+  // and we changed it too, then we overwrite
   box.write('wiki/concepts/entropy.md', ENT('# Entropy\n\nOnly mine now.\n'));
   put(path.join(them, 'wiki/concepts/entropy.md'), ENT('# Entropy\n\nIvan again.\n'));
   const r = await run(t, { strategy: 'overwrite' });

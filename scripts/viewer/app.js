@@ -1,8 +1,8 @@
-/* Библиотека: интерфейс (Vue 3, без build стъпка). */
-const { createApp, defineComponent, h } = Vue;
-const I18N = window.I18N; // език и преводи: виж /locale.js и i18n.js
+/* Library: the interface (Vue 3, no build step). */
+const { createApp, defineComponent, h, reactive } = Vue;
+const I18N = window.I18N; // language and translations: see /locale.js and i18n.js
 
-// ---------- Речници ----------
+// ---------- Dictionaries ----------
 const TYPES = {
   chapter:    { label: $t('Chapter'),     plural: $t('Chapters'),     icon: 'bookmark', hex: '#dba27c', soft: 'bg-clay-100/70 text-clay-500 dark:bg-clay-500/10 dark:text-clay-400', desc: $t('The chapters of books: the step between the book and the text itself.') },
   source:     { label: $t('Source'),  plural: $t('Sources'), icon: 'book',    hex: '#c2703d', soft: 'bg-clay-100 text-clay-500 dark:bg-clay-500/15 dark:text-clay-400', desc: $t('Books, articles and tables that {ai} has read and summarized.') },
@@ -14,20 +14,20 @@ const TYPES = {
   other:      { label: $t('Page'),  plural: $t('Other'),     icon: 'file',    hex: '#9d958a', soft: 'bg-ink/5 text-muted dark:bg-white/10', desc: '' },
 };
 const typeOrder = ['source', 'concept', 'entity', 'topic', 'comparison', 'question'];
-// Редът на видовете в менюто, докато човекът не го смени (непознатите видове отиват след тях по азбучен ред)
+// The order of the kinds in the menu until the person changes it (unknown kinds go after them in alphabetical order)
 const NAV_ORDER = ['source', 'chapter', 'concept', 'entity', 'topic', 'comparison', 'question'];
-/** Описанието на вида. Вид, който го няма в TYPES (нов вид в wiki/), се показва със собственото си име. */
+/** The description of a kind. A kind that is not in TYPES (a new kind in wiki/) is shown under its own name. */
 const typeInfo = (t) => {
   if (TYPES[t]) return TYPES[t];
   const name = t ? String(t)[0].toUpperCase() + String(t).slice(1) : TYPES.other.label;
   return { ...TYPES.other, label: name, plural: name };
 };
-// Колекциите на човека (outputs/collections.json): умни (по филтър) и ръчни списъци
+// The person's collections (outputs/collections.json): smart (by filter) and manual lists
 const COL_STYLE = {
   smart: { icon: 'filter', soft: 'bg-amber-50 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300' },
   list: { icon: 'bookmark', soft: 'bg-teal-50 text-teal-700 dark:bg-teal-500/15 dark:text-teal-300' },
 };
-/** Дали страницата влиза в умна колекция: И между полетата, ИЛИ между стойностите в едно поле. */
+/** Whether the page falls into a smart collection: AND between the fields, OR between the values in one field. */
 function matchFilter(p, f = {}) {
   if (!p || p.special) return false;
   const any = (a) => Array.isArray(a) && a.length > 0;
@@ -48,7 +48,7 @@ function matchFilter(p, f = {}) {
   }
   return true;
 }
-/** Филтърът с думи, за подзаглавието на умна колекция */
+/** The filter in words, for the subtitle of a smart collection */
 function filterSummary(f = {}) {
   const bits = [];
   const join = (a) => a.join(', ');
@@ -65,7 +65,7 @@ function filterSummary(f = {}) {
   if (f.q) bits.push($t('title contains “{0}”', [f.q]));
   return bits.length ? bits.join(' · ') : $t('all pages');
 }
-// Видовете записи в дневника (wiki/log.md)
+// The kinds of entries in the log (wiki/log.md)
 const LOG_KINDS = {
   ingest: { label: $t('processing'), dot: 'bg-clay-400' },
   upgrade: { label: $t('upgrade'), dot: 'bg-amber-400' },
@@ -87,11 +87,11 @@ const CONF = {
   medium: { label: $t('medium'), cls: 'bg-amber-50 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300', dot: 'bg-amber-400', hint: $t('One good source or several with small differences.') },
   low:    { label: $t('low'),  cls: 'bg-clay-100 text-clay-500 dark:bg-clay-500/15 dark:text-clay-400', dot: 'bg-clay-400', hint: $t('There are almost no sources, there are contradictions or the page is incomplete. A good candidate for more reading.') },
 };
-// Избраният модел (providers.js през /locale.js): името за „{ai}“, начинът на работа и моделите на трите нива.
-// При Claude нивата са Haiku, Sonnet и Opus; при друг доставчик са моделите, избрани в „Настройки → Модел“.
+// The chosen model (providers.js through /locale.js): the name for "{ai}", the way of working and the models of the three levels.
+// With Claude the levels are Haiku, Sonnet and Opus; with another provider they are the models chosen in "Settings -> Model".
 const AI = window.AI || { name: 'Claude', engine: 'agent', tools: true, claude: true, subscription: true, tierNames: {}, labels: {} };
 const TN = { light: AI.tierNames?.light || $t('Light'), medium: AI.tierNames?.medium || $t('Medium'), strong: AI.tierNames?.strong || $t('Powerful') };
-/** Къде отиват данните при действие с модела (за кратките бележки в интерфейса) */
+/** Where the data goes in an action with the model (for the short notes in the interface) */
 const dataNote = () => (AI.engine === 'manual' ? $t('you paste it into the chat yourself')
   : AI.local ? $t('it stays on this computer')
   : AI.subscription ? $t('sent to Anthropic through your subscription')
@@ -108,7 +108,7 @@ const MODEL_OPTS = [
 ];
 const FOLDERS = { books: $t('book'), papers: $t('paper'), articles: $t('text'), web: $t('web'), data: $t('table'), notes: $t('note'), images: $t('picture'), other: $t('other') };
 
-// ---------- Помощни ----------
+// ---------- Helpers ----------
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 function relDate(d) {
   if (!d) return '';
@@ -134,8 +134,8 @@ function fileIcon(name) {
   if (['md', 'txt'].includes(e)) return 'pen';
   return 'file';
 }
-// crypto.randomUUID и navigator.clipboard работят само в „сигурен контекст“ (https или localhost).
-// На http://my.wiki браузърът не го счита за такъв, затова са нужни резервни варианти.
+// crypto.randomUUID and navigator.clipboard work only in a "secure context" (https or localhost).
+// On http://my.wiki the browser does not consider it one, so fallbacks are needed.
 const uid = () => (globalThis.crypto?.randomUUID ? crypto.randomUUID() : Date.now().toString(36) + Math.random().toString(36).slice(2));
 async function copyText(text) {
   try { if (navigator.clipboard && window.isSecureContext) { await navigator.clipboard.writeText(text); return true; } } catch {}
@@ -148,14 +148,30 @@ async function copyText(text) {
 const api = (url, opts = {}) => fetch(url, { ...opts, headers: { 'x-library': '1', ...(opts.headers || {}) } });
 const store = { get: (k, d) => { try { return localStorage.getItem(k) ?? d; } catch { return d; } }, set: (k, v) => { try { localStorage.setItem(k, v); } catch {} } };
 
-// Четецът: на живо – всички източници и глави; в архива – само текстовете, които са записани в него (LIB_STATIC.readerOf)
+// How much of the program to show. The names are a joke on purpose: nobody should feel silly for starting at the bottom.
+// The level only hides menu items and settings sections; every address still works if you type it.
+const USE_LEVELS = [
+  { id: 'bookworm', icon: 'book', name: $t('Bookworm'), tagline: $t('I just want to read and ask questions'),
+    text: $t('Reading, searching, learning by question and writing. Everything technical stays out of sight.') },
+  { id: 'librarian', icon: 'list', name: $t('Librarian'), tagline: $t('I add books and look after the shelves'),
+    text: $t('Adds the tools for new sources, areas, the log, the setup check, privacy and archives.') },
+  { id: 'keeper', icon: 'key', name: $t('Keeper of the Scrolls'), tagline: $t('Show me every switch'),
+    text: $t('Everything: safe mode, the site address, the tests and all the other settings.') },
+];
+const USE_ORDER = USE_LEVELS.map((l) => l.id);
+const useState = reactive({ id: (() => { const v = store.get('use:level', 'librarian'); return USE_ORDER.includes(v) ? v : 'librarian'; })() });
+/** True when the chosen level is the given one or a higher one */
+const atLeast = (id) => USE_ORDER.indexOf(useState.id) >= USE_ORDER.indexOf(id);
+const setUseLevel = (id) => { if (USE_ORDER.includes(id)) { useState.id = id; store.set('use:level', id); } };
+
+// The reader: live - all sources and chapters; in the archive - only the texts that are saved in it (LIB_STATIC.readerOf)
 const readerOk = (type, slug) => ['source', 'chapter'].includes(type) && (!window.LIB_STATIC || Object.prototype.hasOwnProperty.call(window.LIB_STATIC.readerOf || {}, slug));
 
-// Общи помощници, достъпни във всички шаблони
-// ro: архивът за четене (виж archive.js). Там няма записи, Claude и пътища към raw/.
-const shared = { MODEL_OPTS, MODES, TYPES, typeOrder, typeInfo, COL_STYLE, filterSummary, logLabel, logColor, KINDS, FORMATS, FORMAT_ICON, FORMAT_BG, STATUS, CONF, relDate, size, plural, fileIcon, ro: !!window.LIB_STATIC, AI, TN, dataNote };
+// Common helpers, available in all templates
+// ro: the archive for reading (see archive.js). There are no writes, no Claude and no paths to raw/ there.
+const shared = { USE_LEVELS, useState, atLeast, setUseLevel, MODEL_OPTS, MODES, TYPES, typeOrder, typeInfo, COL_STYLE, filterSummary, logLabel, logColor, KINDS, FORMATS, FORMAT_ICON, FORMAT_BG, STATUS, CONF, relDate, size, plural, fileIcon, ro: !!window.LIB_STATIC, AI, TN, dataNote };
 
-// ---------- Иконки (линейни, 24×24) ----------
+// ---------- Icons (line, 24x24) ----------
 const ICONS = {
   gear: 'M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.9 2.9l-.1-.1a1.7 1.7 0 0 0-2.9 1.2V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-2.9-1.2l-.1.1a2 2 0 1 1-2.9-2.9l.1-.1a1.7 1.7 0 0 0-1.2-2.9H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.2-2.9l-.1-.1a2 2 0 1 1 2.9-2.9l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 2.9 1.2l.1-.1a2 2 0 1 1 2.9 2.9l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z',
   library:'M4 5v14M8 5v14M12 6l4 13M17 5l3 1-1 13',
@@ -205,6 +221,7 @@ const ICONS = {
   terminal: 'M4 5h16v14H4zM8 10l3 2-3 2M13 15h3',
   grid: 'M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z',
   route: 'M6 20a2 2 0 1 0 0-4 2 2 0 0 0 0 4zM18 8a2 2 0 1 0 0-4 2 2 0 0 0 0 4zM8 18h7a3.5 3.5 0 0 0 0-7H9a3.5 3.5 0 0 1 0-7h7',
+  download: 'M12 3v12m0 0l-4-4m4 4l4-4M4 17v3h16v-3',
   alert: 'M12 9v4M12 17h.01M10.3 3.9L2 18a2 2 0 0 0 1.7 3h16.6a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z',
   focus: 'M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5',
   filter: 'M4 5h16l-6 7.5V18l-4 2v-7.5z',
@@ -225,12 +242,12 @@ const Ic = defineComponent({
     [h('path', { d: ICONS[props.name] || ICONS.file })]),
 });
 
-// ---------- Markdown с [[wikilinks]] ----------
-// Номерата на страници („с. 53“) стават връзки към четеца: след [[източник]] сочат към него,
-// а самостоятелните сочат към източника на текущата страница (ако има такъв).
+// ---------- Markdown with [[wikilinks]] ----------
+// The page numbers ("p. 53") become links to the reader: after [[source]] they point to it,
+// and the standalone ones point to the source of the current page (if there is one).
 const PAGE_RE = '(' + (I18N.pageUnits || 'с\\.|стр\\.|разд\\.|pp?\\.|sect\\.') + ')\\s*(\\d+)(?:\\s*[-–]\\s*\\d+)?';
 function renderMarkdown(content, known, titles, opts = {}) {
-  let body = content.replace(/^\s*#\s+.*\n/, ''); // заглавието се показва отгоре
+  let body = content.replace(/^\s*#\s+.*\n/, ''); // the title is shown at the top
   if (opts.stripSection) body = body.replace(new RegExp(`^##\\s+${opts.stripSection}\\s*\\n[\\s\\S]*?(?=^##\\s|(?![\\s\\S]))`, 'm'), '');
   const wl = (target, alias) => {
     const slug = target.trim().split('/').pop();
@@ -239,22 +256,22 @@ function renderMarkdown(content, known, titles, opts = {}) {
     return { slug, html: `<a class="wl${ok ? '' : ' missing'}" data-slug="${esc(slug)}" href="#/p/${encodeURIComponent(slug)}"${ok ? '' : ` title="${esc($t('This page does not exist yet'))}"`}>${esc(label)}</a>` };
   };
   const pg = (src, num, text) => `<a class="pg" data-src="${esc(src)}" data-page="${num}" title="${esc($t('Open in the reader'))}">${esc(text)}</a>`;
-  // 1) [[източник]], с. N
+  // 1) [[source]], p. N
   body = body.replace(new RegExp(`\\[\\[([^\\]|#]+)(?:#[^\\]|]*)?(?:\\|([^\\]]*))?\\]\\](,\\s*)${PAGE_RE}`, 'g'), (m, t, a, sep, unit, num) => {
     const w = wl(t, a);
     const readable = opts.readable ? opts.readable(w.slug) : known.has(w.slug);
     return w.html + sep + (readable ? pg(w.slug, num, m.slice(m.indexOf(sep) + sep.length)) : m.slice(m.indexOf(sep) + sep.length));
   });
-  // 2) останалите [[връзки]]
+  // 2) the other [[links]]
   body = body.replace(/\[\[([^\]|#]+)(?:#[^\]|]*)?(?:\|([^\]]*))?\]\]/g, (_, t, a) => wl(t, a).html);
-  // 3) самостоятелно „с. N“ на страница с източник
+  // 3) a standalone "p. N" on a page with a source
   if (opts.readerSrc) body = body.replace(new RegExp(`(?<![>\\w])${PAGE_RE}`, 'g'), (m, unit, num) => pg(opts.readerSrc, num, m));
   return sanitizeHtml(marked.parse(body, { gfm: true }));
 }
 
-// ---------- Пречистване на HTML ----------
-// Текстът идва от документи и от Claude, затова не му се вярва: остават само безопасни елементи, атрибути и адреси.
-// Разбира се от инертен документ (нищо в него не се изпълнява и не се зарежда). Втората защита е Content-Security-Policy.
+// ---------- Sanitising HTML ----------
+// The text comes from documents and from Claude, so it is not trusted: only safe elements, attributes and addresses stay.
+// It is parsed in an inert document (nothing in it runs or loads). The second protection is the Content-Security-Policy.
 const SAFE_TAGS = new Set('A ABBR B BLOCKQUOTE BR CAPTION CITE CODE DD DEL DETAILS DFN DIV DL DT EM FIGCAPTION FIGURE H1 H2 H3 H4 H5 H6 HR I IMG INPUT INS KBD LI MARK OL P PRE Q S SAMP SMALL SPAN STRONG SUB SUMMARY SUP TABLE TBODY TD TFOOT TH THEAD TR U UL VAR'.split(' '));
 const DROP_WITH_CONTENT = new Set('SCRIPT STYLE IFRAME FRAME FRAMESET OBJECT EMBED APPLET NOSCRIPT NOEMBED NOFRAMES TEMPLATE SVG MATH TITLE TEXTAREA XMP PLAINTEXT LISTING LINK META BASE FORM SELECT BUTTON AUDIO VIDEO SOURCE TRACK CANVAS MARQUEE'.split(' '));
 const SAFE_ATTRS = {
@@ -262,14 +279,14 @@ const SAFE_ATTRS = {
   TD: ['align', 'colspan', 'rowspan'], TH: ['align', 'colspan', 'rowspan', 'scope'], OL: ['start'], DETAILS: ['open'],
   INPUT: ['type', 'checked', 'disabled'], ABBR: ['title'], DFN: ['title'],
 };
-const SAFE_CLASS = /^(wl|pg|missing|language-[\w-]+)$/; // чужд клас може да покрие екрана с подвеждащ елемент
+const SAFE_CLASS = /^(wl|pg|missing|language-[\w-]+)$/; // a foreign class could cover the screen with a misleading element
 
 function safeUrl(value, isImage) {
-  // Браузърът пренебрегва контролни и невидими знаци в адреса, затова и проверката не бива да ги вижда.
+  // The browser ignores control and invisible characters in the address, so the check must not see them either.
   const v = [...String(value)].filter((c) => { const n = c.codePointAt(0); return n > 32 && !(n >= 127 && n <= 160) && !(n >= 8203 && n <= 8207) && n !== 8232 && n !== 8233 && n !== 65279; }).join('');
   const scheme = v.match(/^([a-z][a-z0-9+.-]*):/i)?.[1]?.toLowerCase();
-  // Картинка от чужд адрес се зарежда сама, без щракване, и може да изнесе данни в адреса си. В приложението CSP я
-  // спира, но архивът за четене се отваря от диска без CSP, затова тук остават само вградени и локални картинки.
+  // A picture from a foreign address loads by itself, without a click, and can carry data out in its address. In the application the CSP
+  // stops it, but the archive for reading opens from disk without a CSP, so only embedded and local pictures stay here.
   if (!scheme) return !v.startsWith('\\') && !(isImage && v.startsWith('//'));
   if (isImage) return /^data:image\/(png|jpe?g|gif|webp);/i.test(v);
   return scheme === 'https' || scheme === 'http' || scheme === 'mailto';
@@ -277,8 +294,8 @@ function safeUrl(value, isImage) {
 
 function cleanNode(parent) {
   for (const node of [...parent.childNodes]) {
-    if (node.nodeType === 3) continue; // текст
-    if (node.nodeType !== 1) { node.remove(); continue; } // коментари и всичко останало
+    if (node.nodeType === 3) continue; // text
+    if (node.nodeType !== 1) { node.remove(); continue; } // comments and everything else
     const tag = node.tagName.toUpperCase();
     if (node.namespaceURI !== 'http://www.w3.org/1999/xhtml' || DROP_WITH_CONTENT.has(tag)) { node.remove(); continue; }
     cleanNode(node);
@@ -292,7 +309,7 @@ function cleanNode(parent) {
         if (keep) node.setAttribute('class', keep); else node.removeAttribute('class');
       }
     }
-    if (tag === 'INPUT') { // остават само отметките от Markdown списъци
+    if (tag === 'INPUT') { // only the checkboxes of Markdown lists stay
       if (String(node.getAttribute('type')).toLowerCase() !== 'checkbox') { node.remove(); continue; }
       node.setAttribute('disabled', '');
     }
@@ -305,7 +322,7 @@ function sanitizeHtml(html) {
   return doc.body.innerHTML;
 }
 
-// ---------- Компоненти ----------
+// ---------- Components ----------
 const ViewToggle = defineComponent({
   template: '#tpl-viewtoggle',
   props: { modelValue: String },
@@ -340,7 +357,7 @@ const HomeView = defineComponent({
       ];
     },
     lastJob() { return this.agent?.history?.[0] || null; },
-    // изборът на модели: явният, иначе този от режима
+    // the choice of models: the explicit one, otherwise the one from the mode
     writerNow() { const st = this.agent?.settings || {}; return st.writer || ({ economy: 'sonnet', balanced: 'sonnet', best: 'opus' }[st.mode] || 'sonnet'); },
     readerNow() { const st = this.agent?.settings || {}; return st.reader || (st.mode === 'economy' ? 'haiku' : this.writerNow); },
     jobsOf() { const a = this.agent; return (k) => !!a && (a.current?.kind === k || a.queue?.some((q) => q.kind === k)); },
@@ -390,14 +407,14 @@ const HomeView = defineComponent({
       this.$emit('refresh');
     },
     async setSetting(k, v) { await this.post('/api/agent/settings', { [k]: v }); },
-    // файл, който не искаш: мести се в raw/.trash/ (не се губи безвъзвратно)
+    // a file you do not want: it is moved to raw/.trash/ (not lost for good)
     async discard(body, name) {
       if (!confirm($t('Remove “{0}”?\n\nThe file is moved to raw/.trash/ and is not processed. You can bring it back from there by hand.', [name]))) return;
       const r = await this.post('/api/raw/discard', body);
       this.$emit('toast', r.ok ? { text: $t('The file has been removed.') } : { text: r.error || $t('I could not'), icon: 'alert' });
       this.$emit('refresh');
     },
-    // готов режим сменя и двата избора на модел
+    // a ready mode changes both model choices
     async pickMode(id) { await this.post('/api/agent/settings', { mode: id, reader: '', writer: '' }); },
     clock: (iso) => new Date(iso).toLocaleTimeString(I18N.lang, { hour: '2-digit', minute: '2-digit' }),
     async upgradeAll() {
@@ -469,7 +486,7 @@ const PageView = defineComponent({
   }),
   computed: {
     T() { return typeInfo(this.page?.type); },
-    // ръчните списъци и дали страницата е в тях (бутонът „Списък“)
+    // the manual lists and whether the page is in them (the "List" button)
     myLists() { return (this.$root.collections?.items || []).filter((c) => c.kind === 'list').map((c) => ({ ...c, has: c.slugs.includes(this.page?.slug) })); },
     inLists() { return this.myLists.filter((c) => c.has).length; },
     html() {
@@ -483,9 +500,9 @@ const PageView = defineComponent({
     },
     firstPage() { return Number(String(this.page?.pages || '').split(/[-–]/)[0]) || undefined; },
     canAsk() { return !!this.page && !['index', 'log', 'overview'].includes(this.page.slug) && !this.ro; },
-    // Режимът фокус важи за всички страници от колекциите (и в архива)
+    // Focus mode applies to all pages of the collections (in the archive too)
     canFocus() { return !!this.page && !['index', 'log', 'overview'].includes(this.page.slug); },
-    // страниците, към които може да се сочи от избрания текст: без служебните и без текущата
+    // the pages that can be linked to from the selected text: without the service ones and without the current one
     linkCandidates() {
       const q = this.lk.q.trim().toLowerCase();
       return this.pages
@@ -501,7 +518,7 @@ const PageView = defineComponent({
         readable: (slug) => readerOk(types.get(slug), slug),
       });
     },
-    // „Сочат насам“: главите се групират под книгата си
+    // "Pointing here": the chapters are grouped under their book
     bookGroups() {
       const g = new Map();
       for (const b of this.page?.backlinks || []) {
@@ -594,10 +611,10 @@ const PageView = defineComponent({
       if (r.ok) location.hash = '#/';
     },
     levelLabel(id) { return LEVELS.find((l) => l.id === id)?.label || id; },
-    // --- Ръчни списъци: страницата влиза или излиза от списък; нов списък започва с нея ---
+    // --- Manual lists: the page enters or leaves a list; a new list starts with it ---
     toggleList(c) { this.$root.listChange(c.id, c.has ? { remove: this.page.slug } : { add: this.page.slug }, c.has ? $t('Removed from “{0}”', [c.name]) : $t('Added to “{0}”', [c.name])); },
     newListWithPage() { this.listMenu = false; this.$root.openColEditor({ kind: 'list', slugs: [this.page.slug] }); },
-    // --- Ръчно преименуване и редакция (без Claude; връзките между страниците не се променят) ---
+    // --- Manual renaming and editing (without Claude; the links between the pages do not change) ---
     startRename() {
       if (!this.canAsk) return;
       window.getSelection()?.removeAllRanges(); this.selBtn = null;
@@ -637,7 +654,7 @@ const PageView = defineComponent({
       } catch { this.man.error = $t('The server is not responding'); }
       this.man.busy = false;
     },
-    // Маха абзаца заедно с връзките в него; потвърждение с откъс и списък на връзките, „Върни“ отменя
+    // Removes the paragraph together with the links in it; a confirmation with the passage and the list of the links, "Undo" cancels it
     async deleteParagraph() {
       const text = this.selBtn?.text; this.selBtn = null;
       if (!text) return;
@@ -656,7 +673,7 @@ const PageView = defineComponent({
         else this.$emit('toast', { text: d.error || $t('I could not remove the paragraph'), icon: 'alert' });
       } catch { this.$emit('toast', { text: $t('The server is not responding'), icon: 'alert' }); }
     },
-    // Връзка: избраният текст става [[страница]] (или [[страница|текст]]); диалогът показва колекцията за избор
+    // Link: the selected text becomes [[page]] (or [[page|text]]); the dialog shows the collection to choose from
     openLink() {
       const text = this.selBtn?.text; this.selBtn = null;
       if (!text) return;
@@ -674,7 +691,7 @@ const PageView = defineComponent({
       } catch { this.lk.error = $t('The server is not responding'); }
       this.lk.busy = false;
     },
-    // --- Помощник на страницата ---
+    // --- The helper of the page ---
     readSelection() {
       const sel = window.getSelection(), root = this.$refs.body;
       if (!sel || sel.isCollapsed || !root || !this.canAsk) { this.selBtn = null; return; }
@@ -697,7 +714,7 @@ const PageView = defineComponent({
     setAiLevel(id) { this.ai.level = id; store.set('asklevel', id); },
     submitAi() { if (this.ai.question.trim().length < 3 || this.ai.busy) return; (this.ai.sel && this.ai.intent === 'edit') ? this.proposeAi('selection') : this.askAi(); },
     cancelAi() { const ac = this.aiAc; this.aiAc = null; clearInterval(this.aiTimer); ac?.abort(); this.ai.busy = false; },
-    // обща заявка към Claude с „Откажи“ и броене на секундите
+    // a common request to Claude with "Cancel" and counting of the seconds
     async aiCall(url, body) {
       this.cancelAi(); this.ai.busy = true; this.ai.error = ''; this.ai.waited = 0;
       const ac = new AbortController(); this.aiAc = ac;
@@ -716,9 +733,9 @@ const PageView = defineComponent({
     async askAi() {
       const q = this.ai.question.trim(); if (q.length < 3) return;
       if (!(await this.$root.confirmClaude({ kind: 'ask', slug: this.page.slug, question: q, selection: this.ai.sel, level: this.ai.level }))) return;
-      this.ai.question = ''; // въпросът е изпратен: полето е чисто за следващата заявка
+      this.ai.question = ''; // the question is sent: the field is clean for the next request
       const d = await this.aiCall('/api/ask', { slug: this.page.slug, question: q, selection: this.ai.sel, level: this.ai.level });
-      if (!d) { if (!this.ai.question) this.ai.question = q; return; } // неуспех или отказ: въпросът се връща в полето
+      if (!d) { if (!this.ai.question) this.ai.question = q; return; } // a failure or a refusal: the question returns to the field
       Object.assign(this.ai, { answer: d.answer, asked: q, proposal: null, saved: false, applied: null });
       this.$nextTick(() => this.$refs.aiBody?.scrollTo({ top: 9999, behavior: 'smooth' }));
     },
@@ -734,13 +751,13 @@ const PageView = defineComponent({
         ? { slug: this.page.slug, mode, selection: this.ai.sel, instruction: this.ai.question.trim(), level: this.ai.level }
         : { slug: this.page.slug, mode, question: this.ai.asked, answer: this.ai.answer, level: this.ai.level };
       if (!(await this.$root.confirmClaude({ kind: 'improve', ...body }))) return;
-      if (mode === 'selection') this.ai.question = ''; // инструкцията е изпратена
+      if (mode === 'selection') this.ai.question = ''; // the instruction is sent
       const d = await this.aiCall('/api/improve', body);
       if (!d) { if (mode === 'selection' && !this.ai.question) this.ai.question = body.instruction; return; }
       this.ai.proposal = d; this.ai.applied = null;
       this.$nextTick(() => this.$refs.aiBody?.scrollTo({ top: 9999, behavior: 'smooth' }));
     },
-    // отговорът става нов текст на страницата (или на избрания откъс): първо преглед „било, става“, после потвърждение
+    // the answer becomes the new text of the page (or of the selected passage): first a "before, after" review, then a confirmation
     async replaceAi() {
       this.ai.busy2 = true; this.ai.error = '';
       try {
@@ -788,7 +805,7 @@ const PageView = defineComponent({
   },
 });
 
-// Ключ за азбучен ред: личностите се подреждат по фамилия (последната дума), останалото по заглавие
+// A key for alphabetical order: persons are ordered by surname (the last word), the rest by title
 const surnameOf = (p) => {
   const t = String(p.title).replace(/\(.*?\)/g, ' ').trim();
   if (t.includes(',')) return t;
@@ -801,7 +818,7 @@ const letterOf = (p) => {
   const c = sortKey(p).replace(/^[^\p{L}\p{N}]+/u, '').charAt(0).toLocaleUpperCase('bg');
   return c && /[\p{L}]/u.test(c) ? c : '#';
 };
-// Азбуки: първо българската (кирилица), после английската (латиница), накрая останалото
+// The alphabets: first Bulgarian (Cyrillic), then English (Latin), finally the rest
 const scriptOf = (k) => (/\p{Script=Cyrillic}/u.test(k) ? 'bg' : /\p{Script=Latin}/u.test(k) ? 'en' : 'other');
 const SCRIPT_RANK = { bg: 0, en: 1, other: 2 };
 const SCRIPT_LABEL = { bg: $t('Bulgarian'), en: 'English', other: $t('Other') };
@@ -813,7 +830,7 @@ const titleCmp = (a, b) => {
 
 const CollectionView = defineComponent({
   template: '#tpl-collection',
-  // type: вид страници (#/c/source); tag: етикет (#/tag/x); cid: колекция на човека (#/col/<id>)
+  // type: kind of pages (#/c/source); tag: a tag (#/tag/x); cid: a collection of the person (#/col/<id>)
   props: { pages: Array, type: String, tag: String, cid: String },
   emits: ['toast'],
   data: () => ({
@@ -834,11 +851,11 @@ const CollectionView = defineComponent({
   },
   computed: {
     viewKey() { return this.cid ? 'col:' + this.cid : this.tag ? 'tag' : this.type; },
-    // Списъкът има и „ред в списъка“; той е по подразбиране и се пази отделно от реда на другите колекции
+    // The list also has "order in the list"; it is the default and is kept separately from the order of the other collections
     sortKey() { return this.isList ? 'sort:list' : 'sort'; },
     custom() { return this.cid ? (this.$root.collections?.items || []).find((c) => c.id === this.cid) || null : null; },
     isList() { return this.custom?.kind === 'list'; },
-    // подреждане и махане на ръка: само в списък, при „ред в списъка“ и без филтър
+    // ordering and removing by hand: only in a list, with "order in the list" and without a filter
     editable() { return this.isList && this.sort === 'manual' && !this.ro && !this.filter.trim() && !this.letter; },
     T() { return this.custom ? COL_STYLE[this.custom.kind] : typeInfo(this.type); },
     heading() { return this.custom ? this.custom.name : this.tag ? '#' + this.tag : this.T.plural; },
@@ -848,13 +865,13 @@ const CollectionView = defineComponent({
     },
     formats() { return [...new Set(this.pages.filter((p) => p.type === 'source' && p.format).map((p) => p.format))]; },
     surnameSort() { return this.type === 'entity' && !this.tag && !this.cid; },
-    // страниците от списъка, които вече ги няма (обединени или премахнати)
+    // the pages of the list that are no longer there (merged or removed)
     missing() {
       if (!this.isList) return [];
       const known = new Set(this.pages.map((p) => p.slug));
       return this.custom.slugs.filter((s) => !known.has(s));
     },
-    // страниците на колекцията преди буквата (от тях се броят буквите)
+    // the pages of the collection before the letter (the letters are counted from them)
     base() {
       const q = this.filter.trim().toLowerCase();
       let l;
@@ -886,7 +903,7 @@ const CollectionView = defineComponent({
       }[this.sort] || titleCmp;
       return [...l].sort(by);
     },
-    // при азбучен ред: заглавие за всяка буква, за да се чете по-лесно
+    // in alphabetical order: a heading for every letter, to make it easier to read
     groups() {
       if (this.sort !== 'title' || this.letter || this.baseCount < 8) return [{ k: '', items: this.list }];
       const g = [];
@@ -915,7 +932,7 @@ const CollectionView = defineComponent({
     dropFromList(slug) { this.$root.listChange(this.cid, { remove: slug }, $t('Removed from the list')); },
     async loadDupes() {
       if (this.ro || this.tag || this.cid || !['entity', 'concept', 'topic', 'source'].includes(this.type)) { this.dupes = { pairs: [], authors: [] }; return; }
-      try { this.dupes = await (await fetch('/api/dupes')).json(); } catch { /* не е критично */ }
+      try { this.dupes = await (await fetch('/api/dupes')).json(); } catch { /* not critical */ }
     },
     pk(p) { return p.a.slug + '|' + p.b.slug; },
     keepOf(p) { return this.dupKeep[this.pk(p)] || (p.a.backlinks >= p.b.backlinks ? p.a.slug : p.b.slug); },
@@ -975,10 +992,10 @@ const CollectionView = defineComponent({
   beforeUnmount() { clearTimeout(this.dupTimer); },
 });
 
-// ---------- Пътека за учене ----------
-// Въпросът става подредена пътека. Страниците се четат в панел до пътеката, така че
-// следването на връзки не те изважда от нея: винаги се виждат „къде съм“ и „накъде вървя“.
-// В ръчен режим нивата не сменят модела, а само колко материал влиза в заявката за копиране
+// ---------- A learning path ----------
+// The question becomes an ordered path. The pages are read in a panel next to the path, so that
+// following links does not take you out of it: "where am I" and "where am I going" are always visible.
+// In manual mode the levels do not change the model, only how much material goes into the request for copying
 const MANUAL_HINTS = {
   light: $t('A short request with little material: the quickest to copy.'),
   medium: $t('A request with the main pages of the library.'),
@@ -990,7 +1007,7 @@ const LEVELS = [
   { id: 'medium', label: $t('Medium'), hint: AI.engine === 'manual' ? MANUAL_HINTS.medium : $t('{ai} with the medium model ({0}): reads the main pages and arranges from the general to the specific.', [TN.medium]) },
   { id: 'strong', label: $t('Powerful'), hint: AI.engine === 'manual' ? MANUAL_HINTS.strong : $t('{ai} with the most powerful model ({0}): reads the most, follows citations to chapters and marks contradictions. The slowest and the most expensive for your limit.', [TN.strong]) },
 ];
-// ---------- Обхват: области и теми, общи за „Учене по въпрос“ и „Писане с wiki“ ----------
+// ---------- Scope: areas and topics, common for "Learn by question" and "Write with the wiki" ----------
 const scope = Vue.reactive((() => { let a = []; try { a = JSON.parse(store.get('scope:areas', '[]')); } catch {} return { areas: Array.isArray(a) ? a.map(String) : [], focus: [] }; })());
 const scopeKey = () => scope.areas.slice().sort().join(',') + '~' + scope.focus.slice().sort().join(',');
 const scopeQuery = () => (scope.areas.length ? '&a=' + encodeURIComponent(scope.areas.join(',')) : '') + (scope.focus.length ? '&f=' + encodeURIComponent(scope.focus.join(',')) : '');
@@ -1006,8 +1023,8 @@ const ScopeBar = defineComponent({
       return [...m.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], 'bg')).map(([name, n]) => ({ name, n }));
     },
     names() { return new Set(this.areaList.map((a) => a.name)); },
-    // Предложените теми плюс избраните, които не са сред предложенията (напр. от отворена запазена пътека).
-    // Избраната тема не изчезва тихо: стои с отметка и се маха с щракване.
+    // The suggested topics plus the chosen ones that are not among the suggestions (for example from an opened saved path).
+    // A chosen topic does not disappear silently: it stays with a tick and is removed with a click.
     shownTopics() {
       const have = new Set(this.topics.map((t) => t.slug)), bySlug = new Map((this.pages || []).map((p) => [p.slug, p]));
       const extra = this.scope.focus.filter((s) => !have.has(s)).map((s) => ({ slug: s, title: bySlug.get(s)?.title || s, area: bySlug.get(s)?.area || null }));
@@ -1017,7 +1034,7 @@ const ScopeBar = defineComponent({
   watch: {
     q() { clearTimeout(this.t); this.t = setTimeout(() => this.fetchTopics(), 450); },
     'scope.areas'() { this.fetchTopics(); },
-    areaList() { // област, която вече я няма (преименувана или обединена), излиза от избора
+    areaList() { // an area that is no longer there (renamed or merged) leaves the choice
       const keep = this.scope.areas.filter((a) => this.names.has(a));
       if (keep.length !== this.scope.areas.length) { this.scope.areas = keep; store.set('scope:areas', JSON.stringify(keep)); }
     },
@@ -1040,8 +1057,8 @@ const ScopeBar = defineComponent({
         this.topics = r.ok ? await r.json() : [];
       } catch { this.topics = []; }
       this.loading = false;
-      // Избраните теми НЕ се махат, защото не са сред предложенията за текущия текст: така се губеше
-      // обхватът на запазена пътека и тя „изчезваше“. Махат се само теми, чиито страници вече ги няма.
+      // The chosen topics are NOT removed because they are not among the suggestions for the current text: this is how the scope
+      // of a saved path was lost and it "disappeared". Only topics whose pages are no longer there are removed.
       if (this.pages?.length) {
         const known = new Set(this.pages.map((p) => p.slug));
         const keep = this.scope.focus.filter((s) => known.has(s));
@@ -1161,16 +1178,16 @@ const PathView = defineComponent({
       } catch { this.$emit('toast', { text: $t('The server is not responding'), icon: 'alert' }); }
     },
     href(q, level) { return '#/path/' + encodeURIComponent(q) + (level && level !== 'local' ? '?m=' + level : ''); },
-    // Нивото се помни. Ако вече има въпрос, пътеката се отваря на новото ниво; Claude не се пуска сам, освен при generate
+    // The level is remembered. If there is already a question, the path opens at the new level; Claude is not started by itself, except with generate
     setLevel(id, generate = false) {
       this.picked = id; store.set('pathlevel', id);
       this.wantGen = generate;
       if (this.q) location.hash = this.href(this.q, id);
     },
     key() { const sk = scopeKey(); return 'path:' + (this.level === 'local' ? '' : this.level + ':') + (this.q || '').trim().toLowerCase() + (sk === '~' ? '' : '|' + sk); },
-    // отваряне на запазена пътека: връща и обхвата, с който е съставена
+    // opening a saved path: it also returns the scope with which it was composed
     applyScope(r) { scope.areas = [...(r.areas || [])]; scope.focus = [...(r.focus || [])]; store.set('scope:areas', JSON.stringify(scope.areas)); },
-    // обхватът на запазена пътека с думи: области и теми (с заглавията им)
+    // the scope of a saved path in words: areas and topics (with their titles)
     scopeLabel(r) { return [...(r.areas || []), ...(r.focus || []).map((s) => this.titles.get(s) || s)].join(' · '); },
     loadRecent() { try { return JSON.parse(store.get('paths', '[]')); } catch { return []; } },
     pushRecent(q) {
@@ -1184,7 +1201,7 @@ const PathView = defineComponent({
     submit() {
       const v = this.input.trim();
       if (!v) return;
-      this.wantGen = this.level !== 'local'; // изрично натискане на бутона = съгласие да се харчи от лимита
+      this.wantGen = this.level !== 'local'; // pressing the button explicitly = consent to use the limit
       const target = this.href(v, this.level);
       if (v === this.q && location.hash === target) this.run(); else location.hash = target;
     },
@@ -1193,7 +1210,7 @@ const PathView = defineComponent({
       const gen = this.wantGen; this.wantGen = false;
       if (!this.q || !this.q.trim()) { this.done = new Set(); this.current = null; this.loading = false; return; }
       this.loading = true;
-      // всяко пускане има номер: отговор на по-старо пускане (друг въпрос, ниво или обхват) не пише върху по-новото
+      // every run has a number: an answer to an older run (another question, level or scope) does not write over the newer one
       const q = this.q, level = this.level, seq = this.runSeq = (this.runSeq || 0) + 1;
       const stale = () => seq !== this.runSeq;
       let res = null;
@@ -1208,12 +1225,12 @@ const PathView = defineComponent({
           else { this.loading = false; this.others = saved?.others || []; this.pending = true; return; }
         }
       } catch { res = { steps: [], stages: [], note: $t('The server is not responding') }; }
-      if (stale()) return; // междувременно е сменен въпросът, нивото или обхватът
+      if (stale()) return; // meanwhile the question, the level or the scope has changed
       this.res = res;
       this.loading = false;
       this.afterResult();
     },
-    // Съставяне от Claude: само при изрично действие. Затварянето на страницата или „Откажи“ спира Claude.
+    // Composing by Claude: only on an explicit action. Closing the page or "Cancel" stops Claude.
     async generate(fresh = false) {
       if (!(await this.$root.confirmClaude({ kind: 'path', q: this.q.trim(), level: this.level, ...scopeBody() }))) return;
       this.cancel(); this.error = ''; this.pending = false; this.loading = true; this.res = null; this.waited = 0;
@@ -1226,7 +1243,7 @@ const PathView = defineComponent({
         if (!r.ok) throw new Error(d.error || $t('The server is not responding'));
         result = d;
       } catch (e) { err = e.name === 'AbortError' ? '' : (e.message || $t('Error')); if (e.name === 'AbortError') result = false; }
-      if (this.ac !== ac) return; // има по-нова заявка
+      if (this.ac !== ac) return; // there is a newer request
       clearInterval(this.timer); this.ac = null; this.loading = false;
       if (result === false) { this.pending = true; return; }
       if (err) { this.error = err; return; }
@@ -1258,7 +1275,7 @@ const PathView = defineComponent({
       this.panelLoading = false;
       this.$nextTick(() => this.$refs.panelBody?.scrollTo({ top: 0 }));
     },
-    // връзка вътре в панела: отваря се в панела, пътеката остава
+    // a link inside the panel: it opens in the panel, the path stays
     onPanelClick(e) {
       const pg = e.target.closest('a.pg');
       if (pg) { e.preventDefault(); this.$root.openReader(pg.dataset.src, Number(pg.dataset.page)); return; }
@@ -1284,14 +1301,14 @@ const PathView = defineComponent({
 
 
 
-// ---------- Писане с wiki ----------
+// ---------- Write with the wiki ----------
 const WRITE_HINTS = {
   local: $t('Arranges the text from the library’s pages into an article structure. Without {ai}, does not use your limit, but it is a draft to edit, not a connected text.'),
   light: AI.engine === 'manual' ? MANUAL_HINTS.light : $t('{ai} with the light model ({0}): quick and economical; a simpler text.', [TN.light]),
   medium: AI.engine === 'manual' ? MANUAL_HINTS.medium : $t('{ai} with the medium model ({0}): reads the main pages and writes a connected text.', [TN.medium]),
   strong: AI.engine === 'manual' ? MANUAL_HINTS.strong : $t('{ai} with the most powerful model ({0}): reads the most, checks claims against the original and describes contradictions. The slowest and the most expensive for your limit.', [TN.strong]),
 };
-// ---------- Добави статия по DOI или адрес ----------
+// ---------- Add an article by DOI or address ----------
 const LANGS = [
   { id: 'bg', label: $t('Library language only'), hint: $t('Pages in the library language. Original terms are only in parentheses.') },
   { id: 'both', label: $t('Library language + original terms'), hint: $t('Pages in the library language, but the title and terms of the original are kept in the index and search finds them. A good choice when the translation is poor.') },
@@ -1326,8 +1343,8 @@ const SetupView = defineComponent({
   },
 });
 
-// ---------- Настройки → Модел ----------
-// Основните бутони и прозорци, чиито надписи човекът най-често иска да смени (търсенето намира всички останали)
+// ---------- Settings -> Model ----------
+// The main buttons and windows whose labels the person most often wants to change (the search finds all the others)
 const MAIN_LABELS = ['Process with {ai}', 'Ask {ai}', 'Ask {ai} about this page', 'With {ai}', 'Compose with {ai}', 'Write with {ai}', 'Continue with {ai}',
   'Determine with {ai}', 'Send to {ai}', 'Before sending to {ai}', '{ai} is working', 'Question to {ai}', 'Writing with {ai}', '{ai} level', 'Quick, without {ai}'];
 const AiSettings = defineComponent({
@@ -1352,8 +1369,8 @@ const AiSettings = defineComponent({
       return all.filter((k) => k.toLowerCase().includes(q) || this.preview(k, true).toLowerCase().includes(q)).slice(0, 60);
     },
     changedLabels() { return Object.values(this.form?.labels || {}).filter(Boolean).length; },
-    /** „Какво се случва и защо“ за избрания профил: стъпките на настройката и причината за всяка */
-    /** Нивата, в чиито полета е избран модел за реч, звук, изображения или проверки (той не пише текст) */
+    /** "What happens and why" for the chosen profile: the steps of the setup and the reason for each */
+    /** The levels whose fields have a model for speech, sound, images or checks chosen (it does not write text) */
     badModels() {
       let re = null; try { re = this.s?.notText ? new RegExp(this.s.notText, 'i') : null; } catch {}
       return re && this.form ? this.tiers.filter((t) => re.test(this.form.models[t] || '')) : [];
@@ -1386,7 +1403,7 @@ const AiSettings = defineComponent({
   methods: {
     engineText: (e) => (e === 'agent' ? $t('agent with tools') : e === 'manual' ? $t('copy and paste') : $t('without tools')),
     tierLabel(t) { return { light: $t('Light model (reads chapters)'), medium: $t('Medium model (writes the pages)'), strong: $t('Powerful model (synthesis)') }[t]; },
-    /** Текстът на ключа на езика на интерфейса, с името от формата вместо {ai} */
+    /** The text of the key of the interface language, with the name from the form instead of {ai} */
     preview(k, raw) {
       const name = this.form?.name || this.preset?.name || 'AI';
       const t = (!raw && this.form?.labels?.[k]) || (window.__I18N?.messages?.[k] ?? k);
@@ -1395,7 +1412,7 @@ const AiSettings = defineComponent({
     async load() {
       try { this.s = await (await fetch('/api/ai')).json(); } catch { this.s = null; return; }
       if (!this.sel) this.sel = this.s.current.provider;
-      // Адрес като #/settings/model?pick=ollama (от началния екран) отваря направо този профил
+      // An address like #/settings/model?pick=ollama (from the start screen) opens this profile directly
       const want = new URLSearchParams(location.hash.split('?')[1] || '').get('pick');
       if (want && this.s.presets.some((p) => p.id === want)) this.sel = want;
       this.fill();
@@ -1417,7 +1434,7 @@ const AiSettings = defineComponent({
       const r = await api('/api/ai', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
       return r.json();
     },
-    /** reload: след запис страницата се зарежда наново, за да се сменят имената и надписите навсякъде */
+    /** reload: after saving the page loads again, so that the names and labels change everywhere */
     async save(quiet, activate = true) {
       this.busy = true; this.msg = ''; this.bad = false;
       try {
@@ -1436,7 +1453,7 @@ const AiSettings = defineComponent({
       if (r.ok) { this.s = r; this.msg = $t('The key was removed.'); this.bad = false; }
     },
     async loadModels() {
-      if (!(await this.save(true, false))) return; // адресът и ключът трябват на сървъра, но моделът в употреба не се сменя
+      if (!(await this.save(true, false))) return; // the address and the key are needed by the server, but the model in use does not change
       this.loadingModels = true; this.modelsMsg = '';
       try {
         const d = await (await api('/api/ai/models', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ provider: this.sel }) })).json();
@@ -1464,26 +1481,57 @@ const AiSettings = defineComponent({
   },
 });
 
-// Разделите на настройките (подменюто вляво, адрес #/settings/<раздел>)
+// The sections of the settings (the submenu on the left, address #/settings/<section>)
+// A new version of the program: what changed, whether it may break something, and the install button.
+const CodeUpdate = defineComponent({
+  template: '#tpl-code-update',
+  props: { info: { type: Object, required: true }, skippable: Boolean },
+  emits: ['skip', 'done'],
+  data: () => ({ ...shared, busy: false, error: '', files: [], result: null, restarting: false }),
+  methods: {
+    async install(force) {
+      this.busy = true; this.error = ''; this.files = [];
+      let d;
+      try { d = await (await api('/api/updates/code/install', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ force: force === true }) })).json(); }
+      catch { d = { ok: false, message: $t('The server is not responding.') }; }
+      this.busy = false;
+      if (!d.ok) { this.error = d.message || $t('The update did not work.'); this.files = d.files || []; return; }
+      this.result = d;
+      if (d.restart) { this.restarting = true; await waitForServer(); location.reload(); return; }
+      this.$emit('done', d);
+    },
+  },
+});
+
 const SETTINGS_SECTIONS = [
-  { id: 'model', icon: 'sparkle', label: $t('Model') },
-  { id: 'mode', icon: 'lock', label: $t('Mode and safety') },
-  { id: 'address', icon: 'globe', label: $t('Site address') },
-  { id: 'updates', icon: 'refresh', label: $t('Updates') },
-  { id: 'data', icon: 'shield', label: $t('Data and privacy') },
-  { id: 'password', icon: 'key', label: $t('Password') },
-  { id: 'backup', icon: 'cloud', label: $t('Backups') },
-  { id: 'archive', icon: 'box', label: $t('Archive for reading') },
-  { id: 'tests', icon: 'check', label: $t('Tests') },
+  { id: 'model', icon: 'sparkle', min: 'bookworm', label: $t('Model') },
+  { id: 'mode', icon: 'lock', min: 'keeper', label: $t('Mode and safety') },
+  { id: 'address', icon: 'globe', min: 'keeper', label: $t('Site address') },
+  { id: 'updates', icon: 'refresh', min: 'bookworm', label: $t('Updates') },
+  { id: 'data', icon: 'shield', min: 'librarian', label: $t('Data and privacy') },
+  { id: 'password', icon: 'key', min: 'librarian', label: $t('Password') },
+  { id: 'backup', icon: 'cloud', min: 'bookworm', label: $t('Backups') },
+  { id: 'archive', icon: 'box', min: 'librarian', label: $t('Archive for reading') },
+  { id: 'tests', icon: 'check', min: 'keeper', label: $t('Tests') },
 ];
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 
-// ---------- Приложение: режим (обикновен или защитен), име на сайта (hosts), спиране ----------
-// Сървърът не може да пипа hosts или да се рестартира сам: иска го от стартера (scripts/app.js) през scripts/app-control.js.
+// ---------- The application: mode (normal or safe), site name (hosts), stopping ----------
+// The server cannot touch hosts or restart itself: it asks the launcher (scripts/app.js) through scripts/app-control.js.
 const HOST_RE = /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?){0,3}$/;
 const SAFE_SUFFIXES = ['localhost', 'test', 'local', 'lan', 'internal', 'home.arpa', 'wiki', 'library'];
 const postJson = (url, body) => api(url, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body || {}) }).then((r) => r.json());
-/** Чака сървърът да тръгне отново: при всяко пускане /api/app/presence връща друг `boot`. */
+/** Waits for the server to start again: on every start /api/app/presence returns a different `boot`. */
+/** After the server exits to restart (an update): wait until it answers again. With a password it answers 401, which is enough. */
+async function waitForServer() {
+  const pause = (ms) => new Promise((r) => setTimeout(r, ms));
+  await pause(2500);
+  for (let i = 0; i < 180; i++) {
+    try { const r = await fetch('/api/settings', { cache: 'no-store' }); if (r.status < 500) return; } catch { /* not up yet */ }
+    await pause(1000);
+  }
+}
+
 async function waitForRestart(oldBoot) {
   await wait(1200);
   for (let i = 0; i < 90; i++) {
@@ -1507,7 +1555,7 @@ const AppSettings = defineComponent({
       const safe = SAFE_SUFFIXES.some((s) => n === s || n.endsWith('.' + s));
       return { ok: true, name: n, real: !safe && n.includes('.'), bare: !n.includes('.') };
     },
-    /** Какво пази и какво не пази режимът, който работи сега (или избраният за сравнение) */
+    /** What the mode that works now (or the one chosen for comparison) protects and what it does not */
     protects() {
       const w = this.shown || this.iso;
       if (w === 'bubblewrap') return [
@@ -1592,7 +1640,7 @@ const AppSettings = defineComponent({
   },
 });
 
-// ---------- Начален екран: как работи библиотеката, къде е какво, какво да настроя ----------
+// ---------- The start screen: how the library works, where things are, what to set up ----------
 const WelcomeView = defineComponent({
   template: '#tpl-welcome',
   props: { agent: { type: Object, default: null } },
@@ -1624,17 +1672,17 @@ const WelcomeView = defineComponent({
   },
 });
 
-// ---------- Обиколка: осветява истинските бутони един по един ----------
-// route: стъпката отваря този екран и чака елемента; накрая обиколката се връща там, откъдето е тръгнала.
-// group: групата в менюто, която трябва да е отворена, за да се види елементът.
+// ---------- The tour: lights up the real buttons one by one ----------
+// route: the step opens this screen and waits for the element; at the end the tour returns to where it started.
+// group: the group in the menu that must be open for the element to be seen.
 const TOUR_STEPS = () => [
   { sel: 'home', title: $t('Home'), text: $t('Add your files here. They are sorted by type and wait to be processed.') },
   { sel: 'search', title: $t('Search'), text: $t('Finds pages by title, alias and text. The shortcut is Ctrl K (⌘ K on a Mac).') },
   { sel: 'work', group: 'work', title: $t('Learn and write'), text: $t('Ask a question to get a reading path, write a text from your sources, or add an article by DOI or address.') },
-  // Писане с wiki: на самия екран, защото там са важните избори (не в архива за четене, където екранът го няма)
+  // Write with the wiki: on the screen itself, because the important choices are there (not in the archive for reading, where the screen is absent)
   ...(window.LIB_STATIC ? [] : [
     { sel: 'write-kind', route: '#/write', title: $t('Write with the wiki'), text: $t('Choose the kind of text: a scientific article, an essay, popular science, a literature review or fiction. Then write the topic or the question.') },
-    { sel: 'write-who', route: '#/write', title: $t('Who writes, and how freely'), text: $t('The quick draft arranges an article without {ai}. Light, Medium and Powerful let {ai} write; then you also choose the length and the creativity, from 1 (strict) to 5 (bold). Creativity changes the style and the interpretation: the facts and the citations always come only from your sources.') },
+    { sel: 'write-who', route: '#/write', title: $t('Who writes, and how freely'), text: $t('The quick draft arranges a text of any kind without {ai}. Light, Medium and Powerful let {ai} write; then you also choose the length and the creativity, from 1 (strict) to 5 (bold). Creativity changes the style and the interpretation: the facts and the citations always come only from your sources.') },
     { sel: 'write-blank', route: '#/write', title: $t('Your own text'), text: $t('“Blank document” opens an empty text that you write yourself. In the editor, click the title to change it; in “Preview”, point at a paragraph to change it, rewrite it with {ai} or add a new one after it. The card “Help from {ai}” shows which areas and topics are used, and you can change them.') },
   ]),
   { sel: 'lib', title: $t('Library'), text: $t('The index of everything, the log of what the AI changed, the link map and the areas of knowledge.') },
@@ -1651,7 +1699,7 @@ const TourOverlay = defineComponent({
     card() {
       const r = this.rect; const w = Math.min(340, innerWidth - 32);
       if (!r || innerWidth < 1024) return { width: w + 'px', left: (innerWidth - w) / 2 + 'px', bottom: '16px' };
-      // вдясно от елемента, ако има място (менюто); иначе под него или над него (елементите на страницата)
+      // to the right of the element if there is room (the menu); otherwise below or above it (the elements of the page)
       if (r.right + 16 + w <= innerWidth - 16) return { width: w + 'px', left: r.right + 16 + 'px', top: Math.max(16, Math.min(r.top - 8, innerHeight - 260)) + 'px' };
       const left = Math.max(16, Math.min(r.left, innerWidth - w - 16)) + 'px';
       return r.bottom + 280 <= innerHeight ? { width: w + 'px', left, top: r.bottom + 14 + 'px' } : { width: w + 'px', left, bottom: Math.max(16, innerHeight - r.top + 14) + 'px' };
@@ -1664,7 +1712,7 @@ const TourOverlay = defineComponent({
   mounted() { this.place(); addEventListener('resize', this.place); addEventListener('keydown', this.key); },
   unmounted() {
     removeEventListener('resize', this.place); removeEventListener('keydown', this.key); clearTimeout(this.findT);
-    if (this.back != null) location.hash = this.back; // обиколката е отваряла друг екран: връщане там, откъдето е тръгнала
+    if (this.back != null) location.hash = this.back; // the tour opened another screen: back to where it started
   },
   methods: {
     place() {
@@ -1673,7 +1721,7 @@ const TourOverlay = defineComponent({
       if (s.group && this.$root.navOpen && !this.$root.navOpen(s.group)) this.$root.navToggle(s.group);
       clearTimeout(this.findT);
       const t0 = Date.now();
-      // Екранът може още да се зарежда: елементът се чака до 3 секунди, после картата стои в средата
+      // The screen may still be loading: the element is awaited for up to 3 seconds, then the card stays in the middle
       const find = () => {
         if (this.step !== s) return;
         const el = document.querySelector(`[data-tour="${s.sel}"]`);
@@ -1690,7 +1738,7 @@ const TourOverlay = defineComponent({
   },
 });
 
-// ---------- Документация: страници в scripts/viewer/help/<език>/<id>.md, списък в help/index.json ----------
+// ---------- Documentation: pages in scripts/viewer/help/<language>/<id>.md, the list in help/index.json ----------
 const DocsView = defineComponent({
   template: '#tpl-docs',
   props: { id: { type: String, default: '' } },
@@ -1762,15 +1810,17 @@ const SettingsView = defineComponent({
   template: '#tpl-settings',
   props: { section: { type: String, default: 'model' } },
   emits: ['copy'],
-  data: () => ({ ...shared, SETTINGS_SECTIONS, info: null, code: null, packages: null, tests: null, testError: '', archive: { busy: false, result: null, error: '', list: [] }, busy: { code: false, packages: false, tests: false, auth: false }, pw: { current: '', next: '', message: '', bad: false }, upd: { busy: '', result: null, error: '', restarting: false } }),
+  data: () => ({ ...shared, SETTINGS_SECTIONS, autoUpdates: store.get('updates:auto', '1') === '1', info: null, code: null, packages: null, tests: null, testError: '', archive: { busy: false, result: null, error: '', list: [] }, busy: { code: false, packages: false, tests: false, auth: false }, pw: { current: '', next: '', message: '', bad: false }, upd: { busy: '', result: null, error: '', restarting: false } }),
   computed: {
     current() { return SETTINGS_SECTIONS.find((s) => s.id === this.section) || SETTINGS_SECTIONS[0]; },
-    // пакетите с безопасна нова версия (в рамките на package.json) и тези, които имат само основна нова версия
+    // the sections of the chosen level; the open one always stays in the list
+    sections() { return SETTINGS_SECTIONS.filter((s) => atLeast(s.min) || s.id === this.section); },
+    // the packages with a safe new version (within package.json) and those that have only a major new version
     safeUpdates() { return (this.packages?.outdated?.items || []).filter((p) => p.wanted && p.current && p.wanted !== p.current); },
     majorOnly() { return (this.packages?.outdated?.items || []).filter((p) => p.major && (!p.wanted || p.wanted === p.current)); },
     updateCmd() {
       const pack = this.info?.contentLang && this.info.contentLang !== 'en' ? ` && npm run content -- ${this.info.contentLang}` : '';
-      // Инсталираните копия на езиковия пакет се връщат преди git pull, иначе git отказва заради локалната разлика.
+      // The installed copies of the language pack are put back before git pull, otherwise git refuses because of the local difference.
       return `git restore CLAUDE.md .claude wiki/_templates scripts/starter && git pull && npm install${pack}`;
     },
     testGroups() {
@@ -1783,7 +1833,7 @@ const SettingsView = defineComponent({
     },
   },
   created() { this.load(); this.loadArchives(); },
-  // на телефон подменюто е ред с превъртане: избраният раздел трябва да се вижда
+  // on a phone the submenu is a scrolling row: the chosen section must be visible
   mounted() { this.showSection(); },
   watch: { section() { this.showSection(); } },
   methods: {
@@ -1801,7 +1851,7 @@ const SettingsView = defineComponent({
       catch { return { ok: false, error: $t('The server is not responding.') }; }
       finally { this.busy[key] = false; }
     },
-    // Архивът за четене: ZIP файл в outputs/archive/, после бутон за свалянето му
+    // The archive for reading: a ZIP file in outputs/archive/, then a button to download it
     async makeArchive() {
       this.archive = { ...this.archive, busy: true, result: null, error: '' };
       try {
@@ -1810,19 +1860,20 @@ const SettingsView = defineComponent({
       } catch { this.archive.error = $t('The server is not responding.'); }
       finally { this.archive.busy = false; this.loadArchives(); }
     },
-    // Направените архиви: списък с изтриване на избрани
+    // The archives made: a list with deletion of the chosen ones
     async loadArchives() { try { this.archive.list = await (await fetch('/api/archives')).json(); } catch { this.archive.list = []; } },
     async removeArchive(a) {
       if (!window.confirm($t('Delete the archive {0}? The file cannot be restored.', [a.name]))) return;
-      try { await api('/api/archive/' + encodeURIComponent(a.name), { method: 'DELETE' }); } catch { /* списъкът се презарежда отдолу */ }
+      try { await api('/api/archive/' + encodeURIComponent(a.name), { method: 'DELETE' }); } catch { /* the list is reloaded below */ }
       this.loadArchives();
     },
     async checkCode() { this.code = await this.post('code', '/api/updates/code'); },
+    setAutoUpdates(on) { this.autoUpdates = on; store.set('updates:auto', on ? '1' : '0'); },
     async checkPackages() {
       const d = await this.post('packages', '/api/updates/packages');
       this.packages = d.outdated ? d : { outdated: { ok: false, error: d.error }, audit: { ok: false, error: d.error } };
     },
-    // Обновяване до безопасните версии (npm update). names: един пакет; без него всички.
+    // Updating to the safe versions (npm update). names: one package; without it all.
     async applyUpdate(name) {
       const list = name ? [name] : this.safeUpdates.map((p) => p.name);
       if (!list.length) return;
@@ -1844,14 +1895,8 @@ const SettingsView = defineComponent({
       this.upd = { busy: '', result: d, error: '', restarting: false };
       this.checkPackages();
     },
-    // сървърът излиза и стартерът го пуска отново: чакаме, докато пак отговори (с парола отговаря с 401, и това стига)
-    async waitForRestart() {
-      await wait(2500);
-      for (let i = 0; i < 180; i++) {
-        try { const r = await fetch('/api/settings', { cache: 'no-store' }); if (r.status < 500) return; } catch { /* още не е тръгнал */ }
-        await wait(1000);
-      }
-    },
+    // the server exits and the launcher starts it again: we wait until it answers again (with a password it answers 401, and that is enough)
+    waitForRestart() { return waitForServer(); },
     async savePassword(remove) {
       this.busy.auth = true;
       try {
@@ -1901,7 +1946,7 @@ const FindView = defineComponent({
       } catch { this.error = $t('The server is not responding.'); }
       this.loading = false;
     },
-    // обработката тръгва с избраните режим и език само за този файл, след преглед на токените и цената
+    // the processing starts with the chosen mode and language only for this file, after a review of the tokens and the cost
     async process(a) {
       if (a.busy) return; a.busy = true;
       const opts = { mode: a.mode, lang: a.lang };
@@ -1918,7 +1963,7 @@ const FindView = defineComponent({
   },
 });
 
-// Видове текст и креативност (същите стойности като GENRES и CREATIVITY_DEFAULT в scripts/write.js)
+// Kinds of text and creativity (the same values as GENRES and CREATIVITY_DEFAULT in scripts/write.js)
 const GENRE_LIST = [
   { id: 'article', label: $t('Scientific article'), hint: $t('Abstract, keywords, introduction, theoretical framework, analysis, discussion, conclusion and a bibliography in APA 7.'), ph: $t('The topic or question, e.g. What caused the First World War and what do historians say about it') },
   { id: 'essay', label: $t('Essay'), hint: $t('A personal, reasoned text: one line of thought, counterarguments and a clear position. Citations in APA 7 and a bibliography.'), ph: $t('The question of the essay, e.g. Can a war be just?') },
@@ -1938,7 +1983,7 @@ const genreOk = (g) => (GENRE_LIST.some((x) => x.id === g) ? g : 'article');
 const creativityFor = (g) => { const n = Number(store.get('writecreat:' + g, '')); return n >= 1 && n <= 5 ? n : CREATIVITY_DEFAULT[g] || 2; };
 const reEsc = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 const wordCount = (s) => (String(s).match(/[\p{L}\p{N}]+/gu) || []).length;
-// Колко различни произведения цитира текстът (автор + година в скоби): само за оценката на цената на прегледа
+// How many different works the text cites (author + year in parentheses): only for the cost estimate of the review
 const citedWorksOf = (md) => {
   const seen = new Set();
   for (const m of String(md).matchAll(/\(([^()\n]*?\d{4}[^()\n]*?)\)/g)) {
@@ -1948,9 +1993,9 @@ const citedWorksOf = (md) => {
 };
 
 /**
- * Текстът на черновата на блокове: абзаци, заглавия и списъци, разделени с празен ред (код в ``` остава цял).
- * Всеки блок пази началото и края си в Markdown-а, за да се сменя точно той. Първият ред „# …“ е заглавието.
- * Блоковете от библиографията (bibRe) нататък са с bib: true: тях ги попълва сървърът.
+ * The text of the draft in blocks: paragraphs, headings and lists, separated by an empty line (code in ``` stays whole).
+ * Every block keeps its beginning and end in the Markdown, so that exactly it can be changed. The first line "# ..." is the title.
+ * The blocks from the bibliography (bibRe) on have bib: true: the server fills them in.
  */
 function splitBlocks(md, bibRe) {
   const out = []; let pos = 0, cur = null, fence = false;
@@ -1961,7 +2006,7 @@ function splitBlocks(md, bibRe) {
     if (cur) cur.end = end; else cur = { start, end };
   }
   if (cur) out.push(cur);
-  // заглавието: само първият ред на първия блок, ако е „# …“; остатъкът от блока е отделен абзац
+  // the title: only the first line of the first block, if it is "# ..."; the rest of the block is a separate paragraph
   if (out[0] && /^#\s/.test(md.slice(out[0].start, out[0].end))) {
     const first = out[0], nl = md.indexOf('\n', first.start);
     if (nl >= 0 && nl < first.end) { out.splice(1, 0, { start: nl + 1, end: first.end }); first.end = nl; }
@@ -1985,15 +2030,15 @@ const WriteView = defineComponent({
     return {
       ...shared, LEVELS, hints: WRITE_HINTS, GENRE_LIST, CREATIVITY, scope,
       genre, creativity: creativityFor(genre),
-      topic: '', level: genre !== 'article' && lvl === 'local' ? 'medium' : lvl, length: store.get('writelength', 'medium'), voice: store.get('writevoice', ''),
+      topic: '', level: lvl, length: store.get('writelength', 'medium'), voice: store.get('writevoice', ''),
       loading: false, waited: 0, error: '', drafts: [], filter: '', blankBusy: false,
       doc: null, body: '', saved: '', savedMeta: '', mode: 'preview', saving: false, loadError: false, warnings: [], bibHeads: [],
-      // помощта от модела в редактора: вид, креативност и ниво важат за дописването и за абзаците
+      // the help of the model in the editor: kind, creativity and level apply to continuing and to paragraphs
       ed: { genre: 'article', creativity: 2, level: store.get('writeedlevel', lvl === 'local' ? 'medium' : lvl), open: store.get('write:aiopen', '1') !== '0' },
       undoStack: [], flash: null, hover: -1, active: -1, titleEdit: null,
       blk: { open: '', text: '', instruction: '', words: 150, own: true, busy: false, waited: 0, error: '' },
       cont: { instruction: '', words: 600, busy: false, waited: 0, error: '', note: '' },
-      // Преглед с wiki (скилът wiki-review): fix = поправен текст + отчет, report = само отчет
+      // Review with the wiki (the wiki-review skill): fix = a fixed text + a report, report = only a report
       rev: { instruction: '', mode: store.get('write:revmode', 'fix') === 'report' ? 'report' : 'fix', busy: false, waited: 0, error: '', note: '', report: '', reportPath: '', open: true },
     };
   },
@@ -2007,7 +2052,7 @@ const WriteView = defineComponent({
     dirty() { return !!this.doc && (this.body !== this.saved || this.metaKey !== this.savedMeta); },
     busyAny() { return this.blk.busy || this.cont.busy || this.rev.busy; },
     reviewHtml() { return this.rev.report ? renderMarkdown(this.rev.report, new Set(), new Map(), {}) : ''; },
-    // Статията е на езика на библиотеката (contentLang), а не на езика на интерфейса: при разминаване се казва предварително
+    // The article is in the language of the library (contentLang), not in the language of the interface: with a mismatch it says so in advance
     langNote() {
       if (!I18N.contentLang || I18N.contentLang === I18N.lang) return '';
       const name = (code) => I18N.locales.find((l) => l.code === code)?.name || code;
@@ -2025,7 +2070,7 @@ const WriteView = defineComponent({
     },
     shownBlocks() { return this.blocks.filter((b) => !b.title).map((b) => ({ ...b, html: renderMarkdown(b.text, new Set(), new Map(), {}) })); },
     titleBlock() { return this.blocks.find((b) => b.title) || null; },
-    // Предложените теми следват това, по което се работи в момента
+    // The suggested topics follow what is being worked on at the moment
     scopeQ() { return (this.blk.instruction || this.cont.instruction || this.rev.instruction || this.docTitle).slice(0, 300); },
     citedPages() {
       const by = new Map((this.pages || []).map((p) => [p.slug, p]));
@@ -2037,7 +2082,6 @@ const WriteView = defineComponent({
     filter() { clearTimeout(this.ft); this.ft = setTimeout(() => this.loadList(), 250); },
     genre(g) {
       store.set('writegenre', g); this.creativity = creativityFor(g);
-      if (g !== 'article' && this.level === 'local') this.level = 'medium'; // бързата чернова прави само научна статия
     },
   },
   mounted() {
@@ -2048,7 +2092,7 @@ const WriteView = defineComponent({
   beforeUnmount() {
     window.removeEventListener('keydown', this.onKey); window.removeEventListener('beforeunload', this.onLeave);
     this.cancel(); this.cancelCont(); this.cancelBlock(); this.cancelRev(); clearTimeout(this.ft); clearTimeout(this.flashT);
-    if (this.dirty) this.save(true); // не губим написаното при излизане от страницата
+    if (this.dirty) this.save(true); // we do not lose what was written when leaving the page
   },
   methods: {
     levelLabel(id) { return LEVELS.find((l) => l.id === id)?.label || id; },
@@ -2081,7 +2125,7 @@ const WriteView = defineComponent({
       this.timer = setInterval(() => { this.waited++; }, 1000);
       let out = null, err = '';
       const voice = ai ? this.voice : '';
-      if (ai) { this.topic = ''; this.voice = ''; this.saveVoice(); } // изпратено: заглавието и примерният текст се затриват
+      if (ai) { this.topic = ''; this.voice = ''; this.saveVoice(); } // sent: the title and the example text are cleared
       try {
         const r = await api('/api/write', { method: 'POST', headers: { 'content-type': 'application/json' }, signal: ac.signal,
           body: JSON.stringify({ topic, genre: this.genre, creativity: this.creativity, level: this.level, length: this.length, voice, ...scopeBody() }) });
@@ -2091,7 +2135,7 @@ const WriteView = defineComponent({
       } catch (e) { err = e.name === 'AbortError' ? '' : (e.message || $t('Error')); }
       if (this.ac !== ac) return;
       clearInterval(this.timer); this.ac = null; this.loading = false;
-      if (err) { // неуспешно: връщаме написаното, за да не се губи
+      if (err) { // failed: we return what was written, so that it is not lost
         this.error = err;
         if (!this.topic) this.topic = topic;
         if (!this.voice && voice) { this.voice = voice; this.saveVoice(); }
@@ -2102,7 +2146,7 @@ const WriteView = defineComponent({
       this.$emit('toast', { text: $t('Saved to {0}', [out.path]) });
       location.hash = '#/write/' + out.id;
     },
-    // Празен документ: човекът пише сам; текстът в полето за тема става заглавие
+    // A blank document: the person writes alone; the text in the topic field becomes the title
     async createBlank() {
       if (this.blankBusy) return;
       this.blankBusy = true; this.error = '';
@@ -2117,7 +2161,7 @@ const WriteView = defineComponent({
       this.blankBusy = false;
     },
 
-    // ---------- Редактор ----------
+    // ---------- Editor ----------
     pushUndo(prev = this.body) { this.undoStack.push(prev); if (this.undoStack.length > 30) this.undoStack.shift(); },
     undo() { if (!this.undoStack.length || this.busyAny) return; this.body = this.undoStack.pop(); this.flash = null; this.cont.note = ''; this.rev.note = ''; this.closeBlock(); },
     markFresh(start, end) { this.flash = { start, end }; clearTimeout(this.flashT); this.flashT = setTimeout(() => { this.flash = null; }, 8000); },
@@ -2140,14 +2184,14 @@ const WriteView = defineComponent({
     },
     closeBlock() { if (!this.blk.busy) { this.blk.open = ''; this.blk.error = ''; } },
     isOpen(kind, b) { return this.blk.open === `${kind}:${b ? b.i : -1}`; },
-    // Ръчна смяна на абзац; празен текст = махане
+    // Manual change of a paragraph; an empty text = removal
     applyEdit(b) {
       const t = this.blk.text.replace(/\s+$/, '');
       if (!t.trim()) return this.removeBlock(b);
       if (t !== b.text) { this.pushUndo(); this.body = this.body.slice(0, b.start) + t + this.body.slice(b.end); this.markFresh(b.start, b.start + t.length); }
       this.blk.open = '';
     },
-    // Нов абзац след блока b (без b: в началото, след заглавието, ако има)
+    // A new paragraph after block b (without b: at the beginning, after the title if there is one)
     insertAt(b) { return b ? b.end : (this.titleBlock ? this.titleBlock.end : 0); },
     insertOwn(b) {
       const t = this.blk.text.trim(); if (!t) return;
@@ -2165,7 +2209,7 @@ const WriteView = defineComponent({
       this.$emit('toast', { text: $t('The paragraph was removed. “Undo” brings it back.') });
     },
     cancelBlock() { const ac = this.blkAc; this.blkAc = null; clearInterval(this.blkTimer); ac?.abort(); this.blk.busy = false; },
-    // Абзац с модела: rewrite = пренаписване на b, insert = нов абзац след b. Резултатът влиза в текста без запис.
+    // A paragraph with the model: rewrite = rewriting b, insert = a new paragraph after b. The result goes into the text without saving.
     async aiBlock(action, b) {
       const k = this.blk; if (this.busyAny || !this.doc) return;
       const at = action === 'rewrite' ? b : null;
@@ -2196,7 +2240,7 @@ const WriteView = defineComponent({
       k.open = ''; k.instruction = '';
       this.$emit('toast', { text: action === 'rewrite' ? $t('The paragraph was rewritten. Review it and press “Save”.') : $t('About {0} words were added. Review them and press “Save”.', [out.added]) });
     },
-    // Дописване с модела: новият текст влиза в редактора (в научна статия преди Заключение), записът е твой
+    // Continuing with the model: the new text goes into the editor (in a scientific article before the Conclusion), the saving is yours
     async continueDoc() {
       const c = this.cont; if (this.busyAny || !this.doc) return;
       const topic = c.instruction.trim() || this.docTitle;
@@ -2225,8 +2269,8 @@ const WriteView = defineComponent({
     },
     cancelCont() { const ac = this.contAc; this.contAc = null; clearInterval(this.contTimer); ac?.abort(); this.cont.busy = false; },
     setRevMode(m) { this.rev.mode = m; store.set('write:revmode', m); },
-    // Преглед с wiki: моделът проверява цитатите в оригиналите, поправя APA, опората и изказа по скила wiki-review.
-    // При „Поправи текста“ поправеният текст влиза в редактора без запис; отчетът се вижда под панела.
+    // Review with the wiki: the model checks the citations in the originals, fixes APA, grounding and wording by the wiki-review skill.
+    // With "Fix the text" the fixed text goes into the editor without saving; the report is seen under the panel.
     async reviewDoc() {
       const v = this.rev; if (this.busyAny || !this.doc) return;
       const words = wordCount(this.body);
@@ -2268,16 +2312,16 @@ const WriteView = defineComponent({
         const d = await r.json();
         const blank = store.get('writeblank:' + this.id, '') === '1';
         if (blank) store.set('writeblank:' + this.id, '');
-        const body = blank ? d.body.replace(/\s*$/, '\n\n') : d.body; // празният документ се отваря с курсор на нов ред
+        const body = blank ? d.body.replace(/\s*$/, '\n\n') : d.body; // the blank document opens with the cursor on a new line
         this.doc = d; this.body = body; this.saved = body; this.bibHeads = d.bibHeads || [];
         this.ed.genre = genreOk(d.genre); this.ed.creativity = d.creativity || CREATIVITY_DEFAULT[this.ed.genre];
-        // Обхватът, с който е писан текстът, става текущ: вижда се и може да се смени
+        // The scope with which the text was written becomes the current one: it is visible and can be changed
         if (d.scope && (d.scope.areas?.length || d.scope.focus?.length)) {
           scope.areas = [...(d.scope.areas || [])]; scope.focus = [...(d.scope.focus || [])]; store.set('scope:areas', JSON.stringify(scope.areas));
         }
         this.savedMeta = this.metaKey;
         document.title = $t('{0} · Library', [d.title]);
-        // нов празен документ: веднага място за писане (помощта е свита, без да се променя запомненото)
+        // a new blank document: a place to write at once (the help is collapsed, without changing what is remembered)
         if (blank) { this.mode = 'edit'; this.ed.open = false; this.$nextTick(() => { const t = this.$refs.raw; if (t) { t.focus(); t.setSelectionRange(t.value.length, t.value.length); } }); }
       } catch { this.loadError = true; }
     },
@@ -2301,7 +2345,7 @@ const WriteView = defineComponent({
     },
     async remove() {
       if (!confirm($t('Delete “{0}”? The file is moved to drafts/.trash/ and can be brought back from there.', [this.docTitle]))) return;
-      this.saved = this.body; this.savedMeta = this.metaKey; // без автоматичен запис при излизане
+      this.saved = this.body; this.savedMeta = this.metaKey; // without automatic saving when leaving
       const r = await (await api('/api/drafts/' + encodeURIComponent(this.doc.id), { method: 'DELETE' })).json();
       this.$emit('toast', r.ok ? { text: $t('Moved to drafts/.trash/') } : { text: r.error || $t('I could not'), icon: 'alert' });
       if (r.ok) location.hash = '#/write';
@@ -2406,7 +2450,7 @@ const GraphView = defineComponent({
       };
       this.raf = requestAnimationFrame(step);
     },
-    // Мащабира и центрира, така че всички точки да се виждат (докато потребителят не пипне картата)
+    // Scales and centres, so that all the points are visible (until the user touches the map)
     fit() {
       if (!this.nodes.length || !this.w) return;
       let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
@@ -2452,9 +2496,9 @@ const GraphView = defineComponent({
   },
 });
 
-// ---------- Приложение ----------
-// Начало на архива (само за четене): броячи, последни промени и етикети. Заменя началната страница с Claude.
-// ---------- Дневник: wiki/log.md, най-новите записи отгоре, по дни, с филтър по вид и търсене ----------
+// ---------- Application ----------
+// The start of the archive (read-only): counters, latest changes and tags. Replaces the start page with Claude.
+// ---------- Log: wiki/log.md, the newest entries on top, by days, with a filter by kind and search ----------
 const LOG_PAGE = 60;
 const LogView = defineComponent({
   template: '#tpl-log',
@@ -2462,7 +2506,7 @@ const LogView = defineComponent({
   data: () => ({ ...shared, entries: null, error: '', kind: '', q: '', limit: LOG_PAGE, open: {} }),
   created() { this.load(); },
   watch: {
-    version() { this.load(); }, // нов запис от обработка или ръчна промяна: списъкът се обновява сам
+    version() { this.load(); }, // a new entry from processing or a manual change: the list refreshes itself
     kind() { this.limit = LOG_PAGE; },
     q() { this.limit = LOG_PAGE; },
   },
@@ -2476,7 +2520,7 @@ const LogView = defineComponent({
       const q = this.q.trim().toLowerCase();
       return (this.entries || []).filter((e) => (!this.kind || e.kind === this.kind) && (!q || (e.title + '\n' + e.body).toLowerCase().includes(q)));
     },
-    // по дни: „днес“, „вчера“, после датата
+    // by days: "today", "yesterday", then the date
     groups() {
       const g = [];
       for (const e of this.filtered.slice(0, this.limit)) {
@@ -2509,7 +2553,7 @@ const LogView = defineComponent({
   },
 });
 
-// ---------- Колекции: видовете в менюто, умните колекции и ръчните списъци ----------
+// ---------- Collections: the kinds in the menu, the smart collections and the manual lists ----------
 const CollectionsView = defineComponent({
   template: '#tpl-collections',
   props: { pages: Array },
@@ -2534,7 +2578,7 @@ const CollectionsView = defineComponent({
       this.$root.saveMenu({ order });
     },
     resetTypes() { this.$root.saveMenu({ order: [], hidden: [] }); },
-    // колекциите се местят само сред своя вид (умни или списъци)
+    // the collections move only among their own kind (smart or lists)
     moveCol(c, dir) {
       const same = this.col.items.filter((x) => x.kind === c.kind), i = same.indexOf(c), j = i + dir;
       if (j < 0 || j >= same.length) return;
@@ -2570,11 +2614,11 @@ function parseRoute() {
   if (parts[0] === 'docs') return { name: 'docs', id: parts[1] || '' };
   if (parts[0] === 'settings') return { name: 'settings', section: SETTINGS_SECTIONS.some((s) => s.id === parts[1]) ? parts[1] : 'model' };
   if (parts[0] === 'path') return { name: 'path', q: parts.slice(1).join('/'), mode: new URLSearchParams(hashQuery).get('m') || 'local' };
-  return { name: 'page', slug: parts[0] }; // стари връзки #/slug
+  return { name: 'page', slug: parts[0] }; // old links #/slug
 }
 
 
-// ---------- Резервни копии и синхронизация (scripts/sync.js) ----------
+// ---------- Backups and synchronisation (scripts/sync.js) ----------
 const ago = (iso) => {
   if (!iso) return '';
   const m = Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 60000));
@@ -2585,7 +2629,7 @@ const ago = (iso) => {
 };
 const SYNC_MODES = () => ({
   backup: { label: $t('Backup'), hint: $t('A copy for disaster recovery. Always writes yours to the folder; older versions and files you deleted go to _deleted.') },
-  sync: { label: $t('Shared folder'), hint: $t('A folder you share with other people (for example in pCloud). Only the sources, the pages and the drafts go there; your settings, history and code stay yours. If they changed something, you are asked what to take and what to overwrite.') },
+  sync: { label: $t('Shared folder'), hint: $t('A folder you share with other people (for example in a cloud service). Only the sources, the pages and the drafts go there; your settings, history and code stay yours. If they changed something, you are asked what to take and what to overwrite.') },
   pull: { label: $t('Take from a copy'), hint: $t('Only takes what a colleague added. Nothing is written in their folder.') },
 });
 const jpost = async (url, body) => { try { return await (await api(url, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body || {}) })).json(); } catch { return { ok: false, error: $t('The server is not responding.') }; } };
@@ -2618,11 +2662,11 @@ const SyncModal = defineComponent({
       })[c] || [c, ''];
     },
     pushCats() { return Object.entries(this.plan?.pushSummary || {}).map(([c, g]) => ({ c, ...g, label: this.catInfo(c)[0], hint: this.catInfo(c)[1] })); },
-    async load() { // сървърът казва истината; при грешка се показва грешка, а не „няма копия“
+    async load() { // the server tells the truth; on an error an error is shown, not "no copies"
       try { this.targets = (await (await api('/api/sync')).json()).targets || []; this.$root.syncInfo = this.targets; }
       catch { this.targets = this.$root.syncInfo || []; this.error = $t('The server is not responding.'); }
     },
-    poll() { this.stopPoll(); this.timer = setInterval(async () => { try { this.progress = (await (await api('/api/sync')).json()).progress; } catch { /* следващият опит */ } }, 400); },
+    poll() { this.stopPoll(); this.timer = setInterval(async () => { try { this.progress = (await (await api('/api/sync')).json()).progress; } catch { /* the next attempt */ } }, 400); },
     stopPoll() { if (this.timer) clearInterval(this.timer); this.timer = null; this.progress = null; },
     async start(id) {
       this.tid = id; this.stage = 'loading'; this.error = ''; this.plan = null; this.poll();
@@ -2708,13 +2752,14 @@ const app = createApp({
   data: () => ({
     ...shared, I18N, route: parseRoute(), pages: [], stats: {}, version: 0, live: false, setupLeft: 0, tour: false, appInfo: null, stopped: false,
     drawer: false, palette: false, pq: '', hits: [], pi: 0, toasts: [], agent: null, reader: null, cost: null,
-    manual: [], manualHidden: false, manualShow: false, manualText: '', manualBusy: false, manualError: '', // ръчен режим (копиране в чат)
-    syncReq: null, syncInfo: [], // резервни копия: отвореният прозорец и целите (за бутона в менюто)
-    focus: store.get('focus', '0') === '1', // режим фокус: само текстът на страницата (запомня се на този компютър)
-    navHidden: store.get('nav:hidden', '0') === '1', // страничното меню скрито (запомня се на този компютър)
+    manual: [], manualHidden: false, manualShow: false, manualText: '', manualBusy: false, manualError: '', // manual mode (copying into a chat)
+    updInfo: null, updOpen: false, modelWarn: null, modelWarnHidden: false, // quiet checks at start: a new version, a retired model
+    syncReq: null, syncInfo: [], // backups: the open window and the targets (for the button in the menu)
+    focus: store.get('focus', '0') === '1', // focus mode: only the text of the page (remembered on this computer)
+    navHidden: store.get('nav:hidden', '0') === '1', // the side menu hidden (remembered on this computer)
     theme: store.get('theme', 'system'), isMac: /Mac|iPhone|iPad/.test(navigator.platform),
-    collections: { menu: { order: [], hidden: [] }, items: [] }, colEdit: null, // колекциите на човека и прозорецът за тях
-    navClosed: (() => { try { return JSON.parse(store.get('nav:closed', '{}')) || {}; } catch { return {}; } })(), // свитите групи в менюто
+    collections: { menu: { order: [], hidden: [] }, items: [] }, colEdit: null, // the person's collections and the window for them
+    navClosed: (() => { try { return JSON.parse(store.get('nav:closed', '{}')) || {}; } catch { return {}; } })(), // the collapsed groups in the menu
   }),
   computed: {
     syncStale() { if (!this.syncInfo.length) return false; const t = this.syncInfo.map((x) => x.last?.at).filter(Boolean).sort().pop(); return !t || Date.now() - new Date(t).getTime() > 7 * 86400000; },
@@ -2725,7 +2770,7 @@ const app = createApp({
     },
     focusOn() { return this.focus && this.route.name === 'page' && !['index', 'log', 'overview'].includes(this.route.slug); },
     countBy() { return this.pages.reduce((a, p) => (p.special ? a : ((a[p.type] = (a[p.type] || 0) + 1), a)), {}); },
-    // Видовете, които ги има в wiki/: първо в реда, избран от човека, после по подразбиране, после новите по азбучен ред
+    // The kinds that exist in wiki/: first in the order chosen by the person, then the default one, then the new ones in alphabetical order
     allTypes() {
       const rank = (t) => { const i = this.collections.menu.order.indexOf(t); if (i >= 0) return i; const j = NAV_ORDER.indexOf(t); return 1000 + (j >= 0 ? j : 100); };
       return Object.entries(this.countBy).filter(([t]) => !!t)
@@ -2734,7 +2779,7 @@ const app = createApp({
     navTypes() { return this.allTypes.filter((x) => !this.collections.menu.hidden.includes(x.t)); },
     smartCols() { return this.collections.items.filter((c) => c.kind === 'smart'); },
     listCols() { return this.collections.items.filter((c) => c.kind === 'list'); },
-    // за прозореца на умна колекция: какво може да се избере и колко страници ще влязат
+    // for the window of a smart collection: what can be chosen and how many pages will come in
     tagOptions() {
       const n = new Map();
       for (const p of this.pages) if (!p.special) for (const t of p.tags || []) n.set(t, (n.get(t) || 0) + 1);
@@ -2749,20 +2794,20 @@ const app = createApp({
     },
   },
   methods: {
-    async loadSync() { if (window.LIB_STATIC) return; try { this.syncInfo = (await (await api('/api/sync')).json()).targets || []; } catch { /* бутонът остава както е */ } },
+    async loadSync() { if (window.LIB_STATIC) return; try { this.syncInfo = (await (await api('/api/sync')).json()).targets || []; } catch { /* the button stays as it is */ } },
     openSync(id) { this.syncReq = { id: id || '' }; },
     closeSync() { this.syncReq = null; this.loadSync(); },
     syncButton() { this.drawer = false; if (this.syncInfo.length) this.openSync(); else location.hash = '#/settings/backup'; },
     setNav(show) { this.navHidden = !show; store.set('nav:hidden', show ? '0' : '1'); },
     setFocus(v) { this.focus = !!v; store.set('focus', v ? '1' : '0'); },
-    // В архива екраните, които пишат или викат Claude, не работят: връщаме към началото
+    // In the archive the screens that write or call Claude do not work: we return to the start
     guardArchive() { if (window.LIB_STATIC && ['path', 'write', 'find', 'areas', 'setup', 'settings', 'collections', 'welcome', 'docs'].includes(this.route.name)) location.hash = '#/'; },
-    // ---------- Менюто: свиване на групите ----------
+    // ---------- The menu: collapsing the groups ----------
     navOpen(g) { return !this.navClosed[g]; },
     navToggle(g) { this.navClosed = { ...this.navClosed, [g]: !this.navClosed[g] }; store.set('nav:closed', JSON.stringify(this.navClosed)); },
-    // ---------- Колекции на човека ----------
+    // ---------- The person's collections ----------
     async loadCollections() {
-      try { const d = await (await fetch('/api/collections')).json(); if (d && Array.isArray(d.items)) this.collections = d; } catch { /* менюто остава с видовете */ }
+      try { const d = await (await fetch('/api/collections')).json(); if (d && Array.isArray(d.items)) this.collections = d; } catch { /* the menu stays with the kinds */ }
     },
     colCount(c) {
       if (c.kind === 'smart') return this.pages.filter((p) => matchFilter(p, c.filter)).length;
@@ -2777,7 +2822,7 @@ const app = createApp({
         return r;
       } catch { this.toast({ text: $t('The server is not responding'), icon: 'alert' }); return { ok: false }; }
     },
-    // Прозорецът за нова или съществуваща колекция: spec е колекцията или { kind, slugs }
+    // The window for a new or an existing collection: spec is the collection or { kind, slugs }
     openColEditor(spec = {}) {
       const kind = spec.kind === 'list' ? 'list' : 'smart';
       const f = spec.filter || {};
@@ -2800,7 +2845,7 @@ const app = createApp({
       if (!r.ok) return;
       this.colEdit = null;
       this.toast({ text: e.id ? $t('Saved') : $t('Collection created: “{0}”', [r.item.name]) });
-      if (!e.id && !e.slugs.length) location.hash = '#/col/' + r.item.id; // нова празна или умна колекция: отваря се веднага
+      if (!e.id && !e.slugs.length) location.hash = '#/col/' + r.item.id; // a new blank or smart collection: it opens at once
     },
     async deleteCollection(c) {
       if (!confirm($t('Delete the collection “{0}”? The pages themselves are not touched.', [c.name]))) return;
@@ -2821,12 +2866,12 @@ const app = createApp({
       this.toasts.push(t);
       setTimeout(() => (this.toasts = this.toasts.filter((x) => x.id !== t.id)), 3500);
     },
-    // Смяната на езика от менюто: ако обработката работи, сървърът отказва; селекторът се връща и се показва причината
+    // Changing the language from the menu: if processing is running, the server refuses; the selector returns and the reason is shown
     async changeLang(e) {
       const r = await I18N.setLang(e.target.value);
       if (!r.ok) { e.target.value = I18N.lang; this.toast({ text: r.error, icon: 'alert' }); }
     },
-    // Оценка на токени и цена преди всяко действие с Claude. Връща true, ако човекът потвърди.
+    // An estimate of tokens and cost before every action with Claude. Returns true if the person confirms.
     async confirmClaude(spec) {
       if (this.agent?.settings && this.agent.settings.confirmCost === false) return true;
       if (this.cost) this.costAnswer(false);
@@ -2855,9 +2900,9 @@ const app = createApp({
       this.theme = m; store.set('theme', m);
       const dark = m === 'dark' || (m === 'system' && matchMedia('(prefers-color-scheme: dark)').matches);
       document.documentElement.classList.toggle('dark', dark);
-      this.version++; // графът се прерисува с новите цветове
+      this.version++; // the graph is redrawn with the new colours
     },
-    // ---------- Четец ----------
+    // ---------- Reader ----------
     async openReader(src, page) {
       this.reader = { src, page, loading: true, data: null, error: null };
       await this.loadReader(src, page);
@@ -2876,16 +2921,30 @@ const app = createApp({
       const n = Math.min(r.last, Math.max(r.first, r.page + d));
       if (n !== r.page) this.loadReader(this.reader.src, n);
     },
-    // Само ако адресът в браузъра наистина е началната страница (this.route може да изостава след бърза навигация)
+    // Only if the address in the browser is really the start page (this.route may lag after fast navigation)
     onHome() { return parseRoute().name === 'home'; },
+    // Two quiet requests when the program starts: is there a new version, and does the chosen model still exist.
+    // Both can be turned off in Settings -> Updates (the choice is kept in this browser).
+    async quietChecks() {
+      if (store.get('updates:auto', '1') !== '1') return;
+      try {
+        const u = await (await fetch('/api/updates/quick')).json();
+        if (u.ok && u.status === 'behind' && store.get('updates:skip', '') !== u.remote) this.updInfo = u;
+      } catch { /* no network: stay silent */ }
+      try {
+        const h = await (await fetch('/api/ai/health')).json();
+        if (h && h.ok === false && h.missing?.length) this.modelWarn = h;
+      } catch { /* stay silent */ }
+    },
+    skipVersion() { store.set('updates:skip', this.updInfo?.remote || ''); this.updOpen = false; this.updInfo = null; },
     async loadAgent() {
       try { this.agent = await (await fetch('/api/agent')).json(); } catch {}
-      // Първо пускане: приветствието излиза веднага, без да чака проверките на екрана за инсталация
+      // First start: the welcome comes at once, without waiting for the checks of the setup screen
       if (this.agent?.settings && !this.agent.settings.welcomeDone && this.onHome()) location.hash = '#/welcome';
       if (AI.engine === 'manual') { try { this.setManual(await (await fetch('/api/manual')).json()); } catch {} }
       this.loadSetup();
     },
-    // ---------- Ръчен режим: заявки, които чакат отговор от чата ----------
+    // ---------- Manual mode: requests that wait for an answer from the chat ----------
     setManual(items) {
       const first = this.manual[0]?.id;
       this.manual = Array.isArray(items) ? items : [];
@@ -2905,12 +2964,12 @@ const app = createApp({
       if (!confirm($t('Stop this request? The task it belongs to stops too, and its half-finished changes are rolled back.'))) return;
       try { await api('/api/manual/' + encodeURIComponent(it.id) + '/cancel', { method: 'POST' }); } catch {}
     },
-    // Точка в менюто, ако нещо задължително липсва; при първо влизане отваря екрана за инсталация
+    // A dot in the menu if something required is missing; on the first sign-in it opens the setup screen
     async loadSetup() {
       try {
         const s = await (await fetch('/api/setup')).json();
         this.setupLeft = s.blocking;
-        // Първо пускане: приветствие, после (ако нещо липсва) екранът за инсталация
+        // First start: a welcome, then (if something is missing) the setup screen
         if (this.agent?.settings && !this.agent.settings.welcomeDone && this.onHome()) location.hash = '#/welcome';
         else if (s.blocking && !this.agent?.settings?.setupDone && this.onHome()) location.hash = '#/setup';
       } catch {}
@@ -2962,7 +3021,7 @@ const app = createApp({
       else if (e.key === '/' && !/INPUT|TEXTAREA|SELECT/.test(document.activeElement?.tagName)) { e.preventDefault(); this.openPalette(); }
       else if (e.key === '[' && !e.metaKey && !e.ctrlKey && !/INPUT|TEXTAREA|SELECT/.test(document.activeElement?.tagName) && !document.activeElement?.isContentEditable) { this.setNav(this.navHidden); }
       else if (e.key === 'Escape') {
-        if (this.focusOn && !this.reader && !this.palette && !this.drawer) this.setFocus(false); // Esc излиза от фокуса
+        if (this.focusOn && !this.reader && !this.palette && !this.drawer) this.setFocus(false); // Esc leaves the focus
         this.palette = false; this.drawer = false; this.reader = null;
       }
       else if (this.reader && !this.palette && (e.key === 'ArrowRight' || e.key === 'ArrowLeft')) { e.preventDefault(); this.readerGo(e.key === 'ArrowRight' ? 1 : -1); }
@@ -2970,7 +3029,7 @@ const app = createApp({
     matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => this.theme === 'system' && this.setTheme('system'));
     this.guardArchive();
     await Promise.all([this.refresh(), this.loadCollections(), window.LIB_STATIC ? null : this.loadAgent(), this.loadSync(), window.LIB_STATIC ? null : this.loadApp()]);
-    if (!window.LIB_STATIC) this.connect(); // архивът няма сървър и живи събития
+    if (!window.LIB_STATIC) { this.connect(); this.quietChecks(); } // the archive has no server and no live events
   },
 });
 
@@ -2995,6 +3054,7 @@ app.component('docs-view', DocsView);
 app.component('tour-overlay', TourOverlay);
 app.component('ai-settings', AiSettings);
 app.component('scope-bar', ScopeBar);
+app.component('code-update', CodeUpdate);
 app.component('view-toggle', ViewToggle);
 app.component('archive-home', ArchiveHome);
 app.component('log-view', LogView);

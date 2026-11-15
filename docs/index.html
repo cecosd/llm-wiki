@@ -45,7 +45,7 @@
 </style>
 <style>
   @layer theme, base, components, utilities;
-  /* Шрифтовете са локални (npm run docs ги копира във vendor/): CSP на сървъра позволява само font-src 'self'. */
+  /* The fonts are local (npm run docs copies them to vendor/): the CSP of the server allows only font-src 'self'. */
   @font-face { font-family: "Inter"; src: url(vendor/inter-latin.woff2) format("woff2-variations"); font-weight: 100 900; font-display: swap; unicode-range: U+0000-00FF, U+2000-206F, U+20AC, U+2122; }
   @font-face { font-family: "Inter"; src: url(vendor/inter-cyrillic.woff2) format("woff2-variations"); font-weight: 100 900; font-display: swap; unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116; }
   @font-face { font-family: "Literata"; src: url(vendor/literata-latin.woff2) format("woff2-variations"); font-weight: 200 900; font-display: swap; unicode-range: U+0000-00FF, U+2000-206F, U+20AC, U+2122; }
@@ -115,7 +115,7 @@
   .muted { color: var(--muted); }
   .faint { color: var(--faint); }
 
-  /* Навигация */
+  /* Navigation */
   .nav { position: fixed; inset: 0 0 auto 0; z-index: 50; transition: background .3s, border-color .3s, backdrop-filter .3s; border-bottom: 1px solid transparent; }
   .nav.scrolled { background: color-mix(in srgb, var(--bg) 82%, transparent); backdrop-filter: blur(14px) saturate(1.4); -webkit-backdrop-filter: blur(14px) saturate(1.4); border-color: var(--line); }
   .nav a.nl { font-size: .88rem; color: var(--muted); text-decoration: none; padding: .3rem .1rem; position: relative; }
@@ -125,7 +125,7 @@
   .iconbtn { width: 36px; height: 36px; display: grid; place-items: center; border-radius: 10px; border: 1px solid var(--line); background: var(--panel); cursor: pointer; color: var(--ink); }
   .iconbtn:hover { border-color: var(--sage); }
 
-  /* Начало */
+  /* Home */
   .hero { min-height: 100svh; position: relative; display: flex; align-items: center; overflow: hidden; padding: 110px 0 70px; }
   .hero canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
   .hero::after { content: ""; position: absolute; inset: auto 0 0 0; height: 180px; background: linear-gradient(transparent, var(--bg)); pointer-events: none; }
@@ -144,7 +144,7 @@
   .scroll-cue::after { content: ""; position: absolute; left: 50%; top: 7px; width: 4px; height: 8px; margin-left: -2px; border-radius: 4px; background: var(--sage); animation: cue 1.8s infinite; }
   @keyframes cue { 0% { opacity: 0; transform: translateY(0); } 30% { opacity: 1; } 100% { opacity: 0; transform: translateY(12px); } }
 
-  /* Поява при превъртане */
+  /* Appearing on scroll */
   .reveal { opacity: 0; transform: translateY(26px); transition: opacity .8s cubic-bezier(.2,.7,.2,1), transform .8s cubic-bezier(.2,.7,.2,1); }
   .reveal[data-in] { opacity: 1; transform: none; }
   .pt { display: grid; grid-template-columns: 270px minmax(0,1fr); }
@@ -210,7 +210,7 @@
   }
   .reveal.d1 { transition-delay: .08s; } .reveal.d2 { transition-delay: .16s; } .reveal.d3 { transition-delay: .24s; } .reveal.d4 { transition-delay: .32s; }
 
-  /* Преди и след */
+  /* Before and after */
   .seg { display: inline-flex; padding: 4px; border-radius: 999px; background: var(--panel2); border: 1px solid var(--line); }
   .seg button { border: 0; background: none; color: var(--muted); font: inherit; font-size: .88rem; font-weight: 600; padding: .45rem 1rem; border-radius: 999px; cursor: pointer; transition: background .25s, color .25s; }
   .seg button.on { background: var(--sage2); color: #fff; }
@@ -220,7 +220,7 @@
   .chaos svg { position: absolute; inset: 0; width: 100%; height: 100%; }
   .chaos svg path { transition: stroke-dashoffset 1.2s ease .5s, opacity .6s; }
 
-  /* Как работи */
+  /* How it works */
   .pipe { display: grid; grid-template-columns: repeat(5, minmax(0,1fr)); gap: 14px; position: relative; }
   @media (max-width: 900px) { .pipe { grid-template-columns: 1fr; } }
   .pipe-step { position: relative; padding: 18px; border-radius: 18px; border: 1px solid var(--line); background: var(--panel); cursor: pointer; transition: transform .25s, border-color .25s, background .25s; text-align: left; font: inherit; color: inherit; }
@@ -230,7 +230,7 @@
   .flowline { height: 2px; background: repeating-linear-gradient(90deg, var(--sage) 0 8px, transparent 8px 16px); background-size: 32px 2px; animation: flow 1s linear infinite; opacity: .6; }
   @keyframes flow { to { background-position: 32px 0; } }
 
-  /* Демо: обработка */
+  /* Demo: processing */
   .filecard { display: flex; gap: .75rem; align-items: center; padding: .7rem .8rem; border-radius: 14px; border: 1px solid var(--line); background: var(--panel2); cursor: grab; transition: transform .2s, border-color .2s, opacity .3s; user-select: none; width: 100%; text-align: left; font: inherit; color: inherit; }
   .filecard:hover { border-color: var(--sage); transform: translateX(3px); }
   .filecard.done { opacity: .45; cursor: default; transform: none; }
@@ -264,7 +264,7 @@
   .bump { animation: bump .5s ease; }
   @keyframes bump { 40% { transform: scale(1.35); color: var(--gold); } }
 
-  /* Граф */
+  /* Graph */
   .graph-wrap { position: relative; border-radius: 22px; overflow: hidden; border: 1px solid var(--line); background: radial-gradient(ellipse at 50% 40%, color-mix(in srgb, var(--sage) 8%, var(--panel)) 0%, var(--panel) 70%); }
   .gnode { touch-action: none; }
   .graph-wrap svg { display: block; width: 100%; user-select: none; }
@@ -279,7 +279,7 @@
   @keyframes ring { from { transform: scale(.6); opacity: 1; } to { transform: scale(2.6); opacity: 0; } }
   .gpreview { position: absolute; right: 14px; bottom: 14px; width: min(340px, calc(100% - 28px)); animation: slidein .3s ease both; }
 
-  /* Библиотека */
+  /* Library */
   .lib { display: grid; grid-template-columns: 230px minmax(0,1fr) 250px; min-height: 640px; }
   .lib.focus { grid-template-columns: minmax(0,1fr); }
   @media (max-width: 1080px) { .lib { grid-template-columns: 210px minmax(0,1fr); } .lib .aside-r { grid-column: 1 / -1; border-left: 0 !important; border-top: 1px solid var(--line); } }
@@ -314,7 +314,7 @@
   .yaml { white-space: pre-wrap; word-break: break-word; font-family: "JetBrains Mono", monospace; font-size: .78rem; line-height: 1.65; }
   .yaml .k { color: var(--sage); } .yaml .s { color: var(--clay); } .yaml .c { color: var(--faint); }
 
-  /* Четец */
+  /* Reader */
   .drawer { position: fixed; z-index: 90; top: 0; right: 0; bottom: 0; width: min(520px, 100%); background: var(--panel); border-left: 1px solid var(--line); box-shadow: -30px 0 80px -30px rgba(0,0,0,.6); display: flex; flex-direction: column; animation: drawer .35s cubic-bezier(.2,.8,.2,1); }
   @keyframes drawer { from { transform: translateX(100%); } }
   .paper { background: #fbf8f1; color: #2a2620; border-radius: 6px; box-shadow: 0 10px 40px -10px rgba(0,0,0,.5); font-family: "Literata", serif; padding: 34px 32px; position: relative; font-size: .95rem; line-height: 1.7; }
@@ -323,7 +323,7 @@
   .paper.scan { background: #efe9dc; filter: contrast(1.02); }
   .paper.scan::before { content: ""; position: absolute; inset: 0; background: repeating-linear-gradient(0deg, rgba(0,0,0,.018) 0 2px, transparent 2px 4px); pointer-events: none; border-radius: 6px; }
 
-  /* Търсене */
+  /* Search */
   .palette { position: fixed; inset: 0; z-index: 95; background: rgba(5,6,5,.55); backdrop-filter: blur(5px); display: flex; justify-content: center; align-items: flex-start; padding: 12vh 16px 16px; animation: fade .15s; }
   .palette .box { width: min(640px, 100%); animation: pop .25s cubic-bezier(.2,.9,.3,1.2); overflow: hidden; }
   .palette input { width: 100%; background: transparent; border: 0; outline: 0; font: inherit; font-size: 1.08rem; color: var(--ink); padding: 1rem 1.1rem; }
@@ -331,7 +331,7 @@
   .res.on { background: var(--panel2); border-left-color: var(--sage); }
   mark { background: color-mix(in srgb, var(--gold) 40%, transparent); color: inherit; border-radius: 3px; padding: 0 1px; }
 
-  /* Учене и писане */
+  /* Learn and write */
   .qchip { border: 1px solid var(--line); background: var(--panel2); border-radius: 999px; padding: .45rem .9rem; font: inherit; font-size: .86rem; color: var(--ink); cursor: pointer; text-align: left; transition: border-color .2s, transform .2s; }
   .qchip:hover { border-color: var(--sage); transform: translateY(-2px); }
   .inp { width: 100%; background: var(--panel2); border: 1px solid var(--line); border-radius: 14px; padding: .85rem 1rem; font: inherit; color: var(--ink); outline: 0; transition: border-color .2s, box-shadow .2s; }
@@ -348,7 +348,7 @@
   .doc .bib p { padding-left: 2em; text-indent: -2em; font-size: .9rem; }
   .doc .added { background: rgba(111,179,157,.18); border-radius: 6px; animation: fade .6s; }
   .doc .ct { color: #2f6f62; }
-  /* Демо 6: работа по абзаци (смяна на ръка, пренаписване, нов абзац, махане) */
+  /* Demo 6: paragraph work (a change by hand, rewriting, a new paragraph, removing) */
   .doc .para { position: relative; margin: 0 -.5rem; padding: 0 .5rem; border-radius: 6px; transition: background .2s; }
   .doc .para:hover { background: rgba(42,38,32,.045); }
   .doc .para.fresh { background: rgba(111,179,157,.2); }
@@ -366,7 +366,7 @@
   .doc .pbtn.pri { background: #2f6f62; border-color: #2f6f62; color: #fff; }
   .doc .pbtn:disabled { opacity: .5; cursor: default; }
 
-  /* Още възможности */
+  /* More features */
   .bento { display: grid; grid-template-columns: repeat(6, minmax(0,1fr)); gap: 16px; }
   .bento > * { grid-column: span 2; }
   .bento > .w3 { grid-column: span 3; } .bento > .w4 { grid-column: span 4; }
@@ -380,7 +380,7 @@
   .scanbox .line { position: absolute; left: 0; right: 0; height: 2px; background: var(--sage); box-shadow: 0 0 14px 3px var(--sage-glow); animation: scan 2.6s ease-in-out infinite; }
   @keyframes scan { 0%, 100% { top: 6%; } 50% { top: 92%; } }
 
-  /* Таблица за сравнение */
+  /* Comparison table */
   .cmp { width: 100%; border-collapse: separate; border-spacing: 0; font-size: .92rem; }
   .cmp th, .cmp td { padding: .9rem 1rem; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
   .cmp thead th { font-weight: 600; color: var(--muted); font-size: .84rem; }
@@ -388,12 +388,12 @@
   .cmp thead .us { border-radius: 14px 14px 0 0; color: var(--sage); }
   .yes { color: var(--sage); font-weight: 700; } .no { color: var(--faint); } .part { color: var(--gold); font-weight: 600; }
 
-  /* Поверителност */
+  /* Privacy */
   .zone { border: 1px solid var(--line); border-radius: 18px; padding: 18px; background: var(--panel); transition: border-color .3s, box-shadow .3s, transform .3s; }
   .zone.hit { border-color: var(--c); box-shadow: 0 0 0 4px color-mix(in srgb, var(--c) 18%, transparent), var(--shadow); transform: translateY(-3px); }
   .packet { position: absolute; width: 12px; height: 12px; border-radius: 99px; background: var(--c); box-shadow: 0 0 16px 4px color-mix(in srgb, var(--c) 50%, transparent); }
 
-  /* Обиколка */
+  /* Tour */
   .tour { position: fixed; z-index: 70; right: 16px; bottom: 16px; }
   .tour-btn { display: flex; align-items: center; gap: .6rem; padding: .5rem .9rem .5rem .55rem; border-radius: 999px; border: 1px solid var(--line); background: color-mix(in srgb, var(--panel) 90%, transparent); backdrop-filter: blur(10px); cursor: pointer; font: inherit; font-size: .85rem; font-weight: 600; color: var(--ink); box-shadow: var(--shadow); }
   .tour-panel { position: absolute; right: 0; bottom: calc(100% + 10px); width: min(330px, calc(100vw - 32px)); animation: pop .25s ease; }
@@ -1634,7 +1634,7 @@
       </nav>
 
       <div class="relative min-w-0 p-5 sm:p-8" :key="tab + L" style="animation:slidein .35s ease both">
-        <!-- Модел -->
+        <!-- Model -->
         <template v-if="tab === 'model'">
           <h3 class="setx-h">{{ S.model.h }}</h3>
           <p class="mt-2 muted text-sm" style="max-width:44rem">{{ S.model.p }}</p>
@@ -1698,7 +1698,7 @@
           <p class="mt-2 text-xs faint">{{ S.model.where }}</p>
         </template>
 
-        <!-- Парола -->
+        <!-- Password -->
         <template v-else-if="tab === 'pwd'">
           <h3 class="setx-h">{{ S.pwd.h }}</h3>
           <p class="mt-2 muted text-sm" style="max-width:40rem">{{ S.pwd.p }}</p>
@@ -1736,7 +1736,7 @@
           </div>
         </template>
 
-        <!-- Резервни копия и синхронизация -->
+        <!-- Backups and synchronisation -->
         <template v-else-if="tab === 'backup'">
           <h3 class="setx-h">{{ S.bk.h }}</h3>
           <p class="mt-2 muted text-sm" style="max-width:42rem">{{ S.bk.p }}</p>
@@ -1793,7 +1793,7 @@
           <p class="mt-5 text-xs muted">{{ S.bk.note }}</p>
         </template>
 
-        <!-- Архив -->
+        <!-- Archive -->
         <template v-else-if="tab === 'archive'">
           <h3 class="setx-h">{{ S.arc.h }}</h3>
           <p class="mt-2 muted text-sm" style="max-width:42rem">{{ S.arc.p }}</p>
@@ -1829,7 +1829,7 @@
           <p class="mt-5 callout text-sm" style="--c:var(--gold)">{{ S.arc.full }}</p>
         </template>
 
-        <!-- Инсталация -->
+        <!-- Setup -->
         <template v-else-if="tab === 'setup'">
           <h3 class="setx-h">{{ S.setup.h }}</h3>
           <p class="mt-2 muted text-sm" style="max-width:42rem">{{ S.setup.p }}</p>
@@ -1851,7 +1851,7 @@
           <p class="mt-4 text-xs faint">{{ S.setup.cli }}</p>
         </template>
 
-        <!-- Обновления -->
+        <!-- Updates -->
         <template v-else-if="tab === 'updates'">
           <h3 class="setx-h">{{ S.upd.verH }}</h3>
           <p class="mt-2 text-sm">{{ S.upd.installed(TESTS.version) }}</p>
@@ -1895,7 +1895,7 @@
           </div>
         </template>
 
-        <!-- Тестове -->
+        <!-- Tests -->
         <template v-else>
           <h3 class="setx-h">{{ S.tests.h }}</h3>
           <p class="mt-2 muted text-sm" style="max-width:42rem">{{ S.tests.p }}</p>

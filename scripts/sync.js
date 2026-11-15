@@ -1,11 +1,11 @@
-// Резервни копия и синхронизация с други папки (друг диск, споделена папка, Drive/Dropbox/pCloud, мрежов диск).
-// Цел е обикновена папка. Три вида:
-//   backup: копие за disaster recovery: винаги записва нашето в целта; старите версии и изтритите файлове отиват в _deleted/
-//   sync:   обща папка с други хора: ако в целта има чужди промени, пита (вземи / презапиши / остави)
-//   pull:   само вземане от копие на колега (сливане), нищо не се записва в чуждата папка
-// Сравнението е на три: нашето, това в целта и снимката на целта от последния път (outputs/.sync/<id>.json).
-// Изтриванията на другите не се вземат. Нашите изтривания не трият в целта (освен при backup, където отиват в _deleted/).
-// Само вградени модули на Node: тази логика се ползва и от стартера в бъдеще.
+// Backups and synchronisation with other folders (another disk, a shared folder, Drive/Dropbox/a cloud service, a network disk).
+// A target is an ordinary folder. Three kinds:
+//   backup: a copy for disaster recovery: always writes ours into the target; old versions and deleted files go to _deleted/
+//   sync:   a shared folder with other people: if there are foreign changes in the target, it asks (take / overwrite / leave)
+//   pull:   only taking from a colleague's copy (merging), nothing is written into the foreign folder
+// The comparison is three-way: ours, the one in the target, and the snapshot of the target from the last time (outputs/.sync/<id>.json).
+// Deletions by others are not taken. Our deletions do not delete in the target (except in backup, where they go to _deleted/).
+// Only built-in Node modules: this logic will be used by the launcher in the future too.
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -19,7 +19,7 @@ const STATE_DIR = path.join(ROOT, 'outputs', '.sync');
 export const DATA_ITEMS = ['raw', 'wiki', 'drafts', 'outputs', '.library-git'];
 export const CODE_ITEMS = ['scripts', 'content', 'locales', 'docs', 'tests', '.claude', 'package.json', 'package-lock.json', 'CLAUDE.md', 'README.md', 'README.bg.md', 'LICENSE', 'SECURITY.md', 'CONTRIBUTING.md', 'CODE_OF_CONDUCT.md', 'PROJECT-HISTORY.md', 'install.sh', 'install.ps1', 'install.cmd', '.gitignore', '.npmrc'];
 const MACHINE = ['library.config.json'];
-/** Лично за всеки човек: в обща папка не се качва, за да не се презаписва чуждото (настройки, колекции, история за „Върни“) */
+/** Personal for each person: it is not uploaded to a shared folder, so that nothing foreign is overwritten (settings, collections, the history for "Undo") */
 const PERSONAL = ['outputs', '.library-git'];
 const SECRETS = ['.library-secrets.json', '.library-auth.json'];
 const PULL = ['raw/', 'wiki/', 'drafts/'];
@@ -34,14 +34,14 @@ const TEXT = /\.(md|txt)$/i;
 const posix = (p) => p.split(path.sep).join('/');
 const stamp = () => new Date().toISOString().replace(/[:T]/g, '-').slice(0, 16);
 
-// ---------- Настройки (library.config.json, ключ "sync") ----------
+// ---------- Settings (library.config.json, key "sync") ----------
 function readConfig() { try { return JSON.parse(fs.readFileSync(CONFIG, 'utf8')); } catch { return {}; } }
 function writeConfig(c) { fs.writeFileSync(CONFIG, JSON.stringify(c, null, 2) + '\n'); }
 
 export function listTargets() { const t = readConfig().sync?.targets; return Array.isArray(t) ? t : []; }
 const findTarget = (idOrName) => listTargets().find((t) => t.id === idOrName || t.name === idOrName);
 
-/** Windows и UNC адреси от WSL: D:\Копия става /mnt/d/Копия. */
+/** Windows and UNC addresses from WSL: D:\Backups becomes /mnt/d/Backups. */
 export function normTargetPath(p) {
   let s = String(p || '').trim().replace(/^["']|["']$/g, '');
   if (!s) return '';
@@ -53,7 +53,7 @@ export function normTargetPath(p) {
   return path.resolve(s);
 }
 
-/** Проверка на папката за целта: не е в проекта, пише се в нея, има ли място. */
+/** Check of the folder for the target: it is not inside the project, it is writable, there is space. */
 export function checkTarget(input, { create = true } = {}) {
   const p = normTargetPath(input);
   if (!p) return { ok: false, error: $t('Write the full path of a folder. Network paths in WSL must be mounted first.') };
@@ -62,9 +62,9 @@ export function checkTarget(input, { create = true } = {}) {
   if (!r || (!r.startsWith('..') && !path.isAbsolute(r))) return { ok: false, error: $t('The folder cannot be inside the library.') };
   const back = path.relative(p, ROOT);
   if (!back.startsWith('..') && !path.isAbsolute(back)) return { ok: false, error: $t('The folder cannot contain the library.') };
-  // Виртуален диск (pCloud Drive и подобни) или немонтиран диск в WSL: /mnt/<буква> липсва или не се пише
+  // A virtual drive (a virtual cloud drive and the like) or an unmounted disk in WSL: /mnt/<letter> is missing or not writable
   const drive = p.match(/^\/mnt\/([a-z])(?:\/|$)/);
-  if (drive && !fs.existsSync(`/mnt/${drive[1]}`)) return { ok: false, error: $t('The drive {0}: is not mounted in WSL. A virtual drive (for example pCloud Drive) is not visible there. Use a normal folder, such as pCloud Sync or a folder on C: or E:.', [drive[1].toUpperCase()]) };
+  if (drive && !fs.existsSync(`/mnt/${drive[1]}`)) return { ok: false, error: $t('The drive {0}: is not mounted in WSL. A virtual cloud drive is not visible there. Use a normal folder, such as the sync folder of your cloud service or a folder on C: or E:.', [drive[1].toUpperCase()]) };
   try {
     if (!fs.existsSync(p)) { if (!create) return { ok: true, path: p, exists: false, empty: true }; fs.mkdirSync(p, { recursive: true }); }
     if (!fs.statSync(p).isDirectory()) return { ok: false, error: $t('This is a file, not a folder.') };
@@ -72,9 +72,9 @@ export function checkTarget(input, { create = true } = {}) {
     fs.writeFileSync(t, 'x'); fs.unlinkSync(t);
   } catch (e) {
     const wsl = drive && ['EACCES', 'EPERM', 'EROFS'].includes(e.code);
-    return { ok: false, error: wsl ? $t('WSL cannot write to this drive ({0}). Virtual drives such as pCloud Drive are not normal disks. Use a normal folder, such as pCloud Sync or a folder on C: or E:, and let the cloud program upload it.', [e.code]) : $t('The folder cannot be written: {0}', [e.code || e.message]) };
+    return { ok: false, error: wsl ? $t('WSL cannot write to this drive ({0}). Virtual cloud drives are not normal disks. Use a normal folder, such as the sync folder of your cloud service or a folder on C: or E:, and let the cloud program upload it.', [e.code]) : $t('The folder cannot be written: {0}', [e.code || e.message]) };
   }
-  let free = null; try { const s = fs.statfsSync(p); free = Number(s.bavail) * Number(s.bsize); } catch { /* не всяка файлова система казва */ }
+  let free = null; try { const s = fs.statfsSync(p); free = Number(s.bavail) * Number(s.bsize); } catch { /* not every file system says */ }
   const meta = readMeta(p);
   return { ok: true, path: p, exists: true, empty: fs.readdirSync(p).length === 0, free, meta };
 }
@@ -101,16 +101,16 @@ export function deleteTarget(id) {
   const targets = (cfg.sync?.targets || []).filter((t) => t.id !== id);
   if (targets.length === (cfg.sync?.targets || []).length) return false;
   writeConfig({ ...cfg, sync: { ...(cfg.sync || {}), targets } });
-  try { fs.rmSync(path.join(STATE_DIR, `${id}.json`), { force: true }); } catch { /* няма снимка */ }
+  try { fs.rmSync(path.join(STATE_DIR, `${id}.json`), { force: true }); } catch { /* there is no snapshot */ }
   return true;
 }
 
-// ---------- Снимка на целта и мета данни ----------
+// ---------- A snapshot of the target and metadata ----------
 function readBase(id) { try { return JSON.parse(fs.readFileSync(path.join(STATE_DIR, `${id}.json`), 'utf8')); } catch { return { files: {}, declined: {}, last: null }; } }
 function writeBase(id, b) { fs.mkdirSync(STATE_DIR, { recursive: true }); fs.writeFileSync(path.join(STATE_DIR, `${id}.json`), JSON.stringify(b)); }
 function readMeta(dir) { try { return JSON.parse(fs.readFileSync(path.join(dir, '.llm-wiki-sync.json'), 'utf8')); } catch { return null; } }
 
-// ---------- Сканиране и хешове ----------
+// ---------- Scanning and hashes ----------
 const cache = { loaded: false, map: {}, dirty: false };
 function loadCache() {
   if (cache.loaded) return;
@@ -119,7 +119,7 @@ function loadCache() {
 }
 function saveCache() {
   if (!cache.dirty) return;
-  try { fs.mkdirSync(STATE_DIR, { recursive: true }); fs.writeFileSync(path.join(STATE_DIR, 'hashes.json'), JSON.stringify(cache.map)); cache.dirty = false; } catch { /* кешът не е задължителен */ }
+  try { fs.mkdirSync(STATE_DIR, { recursive: true }); fs.writeFileSync(path.join(STATE_DIR, 'hashes.json'), JSON.stringify(cache.map)); cache.dirty = false; } catch { /* the cache is not mandatory */ }
 }
 function fileHash(abs, st) {
   loadCache();
@@ -159,7 +159,7 @@ export function scan(root, { code = false, personal = true } = {}) {
 const cat = (r) => (CODE_ITEMS.some((c) => r === c || r.startsWith(c + '/')) ? 'code' : r.startsWith('raw/.extracted/') ? 'extracted' : r.startsWith('raw/') ? 'raw' : r.startsWith('wiki/') ? 'wiki' : r.startsWith('drafts/') ? 'drafts' : r.startsWith('outputs/') ? 'outputs' : 'history');
 const pullable = (r) => PULL.some((p) => r.startsWith(p)) && !PUSH_ONLY_FILES.has(r) && r !== LOG && r !== MANIFEST;
 
-// ---------- Дневник и manifest: сливане без загуба ----------
+// ---------- Log and manifest: merging without loss ----------
 const blocks = (t) => String(t || '').split(/^(?=## )/m).map((b) => b.trimEnd()).filter(Boolean);
 function mergeLog(mine, theirs) {
   const have = new Set(blocks(mine));
@@ -167,10 +167,10 @@ function mergeLog(mine, theirs) {
   return { text: extra.length ? mine.trimEnd() + '\n\n' + extra.join('\n\n') + '\n' : mine, added: extra.length };
 }
 const readText = (f) => { try { return fs.readFileSync(f, 'utf8'); } catch { return ''; } };
-function mergeManifest(aFile, bFile, keys) { // добавя към aFile записите от bFile (само нови; keys ограничава)
+function mergeManifest(aFile, bFile, keys) { // adds to aFile the entries of bFile (only new ones; keys limits)
   let a = { files: {} }, b = { files: {} };
-  try { a = JSON.parse(readText(aFile)) || a; } catch { /* празен */ }
-  try { b = JSON.parse(readText(bFile)) || b; } catch { /* празен */ }
+  try { a = JSON.parse(readText(aFile)) || a; } catch { /* empty */ }
+  try { b = JSON.parse(readText(bFile)) || b; } catch { /* empty */ }
   a.files = a.files || {};
   let n = 0;
   for (const [k, v] of Object.entries(b.files || {})) if (!a.files[k] && (!keys || keys.has(k))) { a.files[k] = v; n++; }
@@ -178,11 +178,11 @@ function mergeManifest(aFile, bFile, keys) { // добавя към aFile зап
   return n;
 }
 
-// ---------- Разлика по абзаци ----------
+// ---------- A paragraph diff ----------
 const paras = (t) => String(t).replace(/\r\n/g, '\n').trimEnd().split(/\n[ \t]*\n/);
 const joinParas = (a) => a.join('\n\n') + '\n';
 
-/** Сегменти: { same: [абзаци] } или { mine: [...], theirs: [...] }. */
+/** Segments: { same: [paragraphs] } or { mine: [...], theirs: [...] }. */
 export function paraDiff(mine, theirs) {
   const a = paras(mine), b = paras(theirs);
   let s = 0; while (s < a.length && s < b.length && a[s] === b[s]) s++;
@@ -208,7 +208,7 @@ export function paraDiff(mine, theirs) {
   if (e) segs.push({ same: a.slice(a.length - e) });
   return segs;
 }
-/** choices: по един избор ('m' моето, 't' тяхното, 'b' и двете) за всяка разлика по ред. */
+/** choices: one choice ('m' mine, 't' theirs, 'b' both) for each difference in order. */
 export function applyChoices(segs, choices) {
   let k = 0; const out = [];
   for (const g of segs) {
@@ -220,13 +220,13 @@ export function applyChoices(segs, choices) {
   return joinParas(out);
 }
 
-// ---------- Файлови операции ----------
+// ---------- File operations ----------
 function copyAtomic(from, to) {
   fs.mkdirSync(path.dirname(to), { recursive: true });
   const tmp = `${to}.tmp-sync-${process.pid}`;
   fs.copyFileSync(from, tmp);
   const st = fs.statSync(from);
-  try { fs.utimesSync(tmp, st.atime, st.mtime); } catch { /* някои дискове не позволяват */ }
+  try { fs.utimesSync(tmp, st.atime, st.mtime); } catch { /* some disks do not allow it */ }
   fs.renameSync(tmp, to);
 }
 function writeAtomic(to, text) {
@@ -234,7 +234,7 @@ function writeAtomic(to, text) {
   const tmp = `${to}.tmp-sync-${process.pid}`;
   fs.writeFileSync(tmp, text); fs.renameSync(tmp, to);
 }
-function moveAway(root, r, bucket) { // старата версия отива в _deleted/<време>/
+function moveAway(root, r, bucket) { // the old version goes to _deleted/<time>/
   const from = path.join(root, r), to = path.join(root, '_deleted', bucket, r);
   if (!fs.existsSync(from)) return false;
   fs.mkdirSync(path.dirname(to), { recursive: true });
@@ -247,23 +247,23 @@ function pruneDeleted(root, keepDays) {
   const limit = Date.now() - keepDays * 86400000;
   for (const d of fs.readdirSync(dir)) {
     const f = path.join(dir, d);
-    try { if (fs.statSync(f).mtimeMs < limit) { fs.rmSync(f, { recursive: true, force: true }); n++; } } catch { /* продължава */ }
+    try { if (fs.statSync(f).mtimeMs < limit) { fs.rmSync(f, { recursive: true, force: true }); n++; } } catch { /* goes on */ }
   }
   return n;
 }
 
-// ---------- План ----------
+// ---------- Plan ----------
 const progress = { busy: false, target: '', phase: '', done: 0, total: 0, error: '' };
 export const syncStatus = () => ({ ...progress });
 let report = null, lastReport = 0;
-/** Сървърът пуска копирането в отделна нишка и получава напредъка оттук. */
+/** The server runs the copying in a separate thread and receives the progress from here. */
 export const onProgress = (fn) => { report = fn; };
 const tick = (force = false) => { if (report && (force || Date.now() - lastReport > 150)) { lastReport = Date.now(); report({ ...progress }); } };
 
-// Само резервното копие носи и личното (настройки, история, код). Общата папка е за raw, wiki и drafts.
+// Only the backup carries the personal files too (settings, history, code). The shared folder is for raw, wiki and drafts.
 function view(t) { return { code: !!t.code && t.mode === 'backup', personal: t.mode === 'backup' }; }
 
-/** Какво ще се случи със синхронизацията, без да се пипа нищо. */
+/** What will happen with the synchronisation, without touching anything. */
 export function plan(idOrTarget) {
   const t = typeof idOrTarget === 'string' ? findTarget(idOrTarget) : idOrTarget;
   if (!t) return { ok: false, error: $t('There is no such copy.') };
@@ -283,18 +283,18 @@ export function plan(idOrTarget) {
       continue;
     }
     const pull = pullable(r) && t.mode !== 'backup';
-    if (!R) { // нашето, няма го в целта
+    if (!R) { // ours, it is not in the target
       if (t.mode !== 'pull') { out.push.push(r); out.bytes += L.size; }
       continue;
     }
-    if (!L) { // има го само в целта
-      if (B && B === R.sha) { out.keptDeleted++; if (t.mode === 'backup') out.mirror.push(r); continue; } // ние сме го трили
+    if (!L) { // it is only in the target
+      if (B && B === R.sha) { out.keptDeleted++; if (t.mode === 'backup') out.mirror.push(r); continue; } // we deleted it
       if (!pull) { if (t.mode === 'backup' && B) out.mirror.push(r); continue; }
       if (base.declined[r] === R.sha) { out.declined.push(r); continue; }
       out.incoming.push({ rel: r, kind: 'new', cat: cat(r), size: R.size });
       continue;
     }
-    // различно съдържание
+    // different content
     if (!pull || t.mode === 'backup') { if (t.mode !== 'pull') { out.push.push(r); out.bytes += L.size; } continue; }
     const mineChanged = B !== L.sha, theirsChanged = B !== R.sha;
     if (!theirsChanged) { if (t.mode !== 'pull') { out.push.push(r); out.bytes += L.size; } }
@@ -304,7 +304,7 @@ export function plan(idOrTarget) {
     } else if (base.declined[r] === R.sha && t.mode === 'pull') out.declined.push(r);
     else out.conflicts.push({ rel: r, cat: cat(r), text: TEXT.test(r), mine: { size: L.size, mtime: L.mtimeMs }, theirs: { size: R.size, mtime: R.mtimeMs } });
   }
-  // Какво точно ще се изпрати: по видове, и списък (до 400 реда) за прозореца
+  // What exactly will be sent: by kinds, and a list (up to 400 lines) for the window
   out.pushSummary = {};
   out.pushInfo = out.push.map((r) => ({ rel: r, kind: remote.has(r) ? 'changed' : 'new', cat: cat(r), size: local.get(r)?.size || 0 }));
   for (const f of out.pushInfo) { const g = (out.pushSummary[f.cat] ||= { n: 0, bytes: 0, new: 0, changed: 0 }); g.n++; g.bytes += f.size; g[f.kind]++; }
@@ -316,7 +316,7 @@ export function plan(idOrTarget) {
   return out;
 }
 
-/** Разлика по абзаци за един файл, за прозореца за преглед. */
+/** A paragraph diff for one file, for the review window. */
 export function diffFile(id, r) {
   const t = findTarget(id);
   if (!t) return { ok: false, error: $t('There is no such copy.') };
@@ -330,10 +330,10 @@ export function diffFile(id, r) {
   return res;
 }
 
-// ---------- Изпълнение ----------
+// ---------- Execution ----------
 /**
- * strategy: 'push' (само нашето; чуждото се оставя), 'overwrite' (презаписва и чуждите промени в целта; старото отива в _deleted),
- *           'review' (decisions: { rel: 'theirs' | 'mine' | { choices: ['m','t','b',...] } }; без решение = пропуска)
+ * strategy: 'push' (only ours; the foreign is left), 'overwrite' (also overwrites foreign changes in the target; the old goes to _deleted),
+ *           'review' (decisions: { rel: 'theirs' | 'mine' | { choices: ['m','t','b',...] } }; without a decision = skips)
  */
 export function run(id, { strategy = 'push', decisions = {} } = {}) {
   const t = findTarget(id);
@@ -345,7 +345,7 @@ export function run(id, { strategy = 'push', decisions = {} } = {}) {
     const p = plan(t);
     if (!p.ok) return p;
     const root = p.target.path;
-    try { const age = Date.now() - fs.statSync(lock).mtimeMs; if (age < 600000) return { ok: false, error: $t('Someone else is copying to this folder right now. Try again in a few minutes.') }; } catch { /* няма заключване */ }
+    try { const age = Date.now() - fs.statSync(lock).mtimeMs; if (age < 600000) return { ok: false, error: $t('Someone else is copying to this folder right now. Try again in a few minutes.') }; } catch { /* there is no lock */ }
     fs.writeFileSync(lock, `${os.hostname()} ${new Date().toISOString()}\n`);
     const bucket = stamp(), mergedDir = path.join(ROOT, 'outputs', 'merged', `sync-${bucket}`);
     const base = readBase(t.id);
@@ -354,7 +354,7 @@ export function run(id, { strategy = 'push', decisions = {} } = {}) {
     const touched = new Set(); const pulledRaw = new Set();
     const lf = (r) => path.join(ROOT, r), rf = (r) => path.join(root, r);
 
-    // 1. Вземане (само при преглед)
+    // 1. Taking (only in review)
     const toPush = new Set(p.push);
     progress.phase = 'pull'; tick(true);
     if (strategy === 'review' && t.mode !== 'backup') {
@@ -364,7 +364,7 @@ export function run(id, { strategy = 'push', decisions = {} } = {}) {
         const r = it.rel, d = decisions[r];
         progress.done++; tick();
         const R = fs.existsSync(rf(r)) ? scan1(rf(r)) : null;
-        if (it.kind === 'log') { // записите се добавят, без да се губи нищо
+        if (it.kind === 'log') { // the entries are added without losing anything
           if (d !== 'mine' && d) { const m = mergeLog(readText(lf(r)), readText(rf(r))); if (m.added) { writeAtomic(lf(r), m.text); res.log += m.added; touched.add(r); } toPush.add(r); }
           else res.skipped++;
           continue;
@@ -372,8 +372,8 @@ export function run(id, { strategy = 'push', decisions = {} } = {}) {
         if (!d) { res.skipped++; continue; }
         if (d === 'theirs') { backupMine(r); copyAtomic(rf(r), lf(r)); res.pulled++; touched.add(r); if (cat(r) === 'raw') pulledRaw.add(r); }
         else if (d === 'mine') {
-          if (it.kind === 'changed' || it.kind === 'new') { base.declined[r] = R?.sha; res.skipped++; } // чуждата версия не се пита втори път
-          else toPush.add(r); // конфликт: остава нашето и презаписва тяхното (старото отива в _deleted)
+          if (it.kind === 'changed' || it.kind === 'new') { base.declined[r] = R?.sha; res.skipped++; } // the foreign version is not asked about a second time
+          else toPush.add(r); // conflict: ours stays and overwrites theirs (the old goes to _deleted)
         } else if (d?.choices && TEXT.test(r) && fs.existsSync(lf(r))) {
           backupMine(r);
           const text = applyChoices(paraDiff(readText(lf(r)), readText(rf(r))), d.choices);
@@ -386,14 +386,14 @@ export function run(id, { strategy = 'push', decisions = {} } = {}) {
     }
     if (t.mode === 'pull') toPush.clear();
 
-    // 2. Записване в целта
+    // 2. Writing into the target
     progress.phase = 'push'; progress.total = toPush.size; progress.done = 0; tick(true);
     for (const r of [...toPush].sort()) {
       progress.done++; tick();
       if (r === MANIFEST) continue;
       if (r === LOG) {
         const m = mergeLog(readText(rf(r)), readText(lf(r)));
-        if (fs.existsSync(rf(r))) moveCopy(root, r, bucket); // старият дневник се пази
+        if (fs.existsSync(rf(r))) moveCopy(root, r, bucket); // the old log is kept
         writeAtomic(rf(r), fs.existsSync(rf(r)) ? m.text.trimEnd() + '\n' : readText(lf(r)));
         res.pushed++; continue;
       }
@@ -402,15 +402,15 @@ export function run(id, { strategy = 'push', decisions = {} } = {}) {
         copyAtomic(lf(r), rf(r)); res.pushed++; res.bytes += fs.statSync(lf(r)).size;
       } catch (e) { res.warnings.push(`${r}: ${e.code || e.message}`); }
     }
-    if (t.mode !== 'pull') { // manifest: обединение; машинните файлове: еднопосочно и само в резервно копие
+    if (t.mode !== 'pull') { // manifest: a union; the machine files: one-way and only in a backup
       mergeManifest(rf(MANIFEST), lf(MANIFEST), null);
       const machine = t.mode === 'backup' ? [...MACHINE, ...(t.secrets ? SECRETS : [])] : [];
       for (const f of machine) if (fs.existsSync(lf(f))) { try { copyAtomic(lf(f), path.join(root, '_machine', f)); } catch (e) { res.warnings.push(`${f}: ${e.code || e.message}`); } }
-      if (t.mode === 'backup') for (const r of p.mirror) if (moveAway(root, r, bucket)) res.moved++; // изтритите при нас отиват в _deleted
+      if (t.mode === 'backup') for (const r of p.mirror) if (moveAway(root, r, bucket)) res.moved++; // what we deleted goes to _deleted
       pruneDeleted(root, t.keepDays || 30);
     }
 
-    // 3. Нова снимка: за какво сме съгласни с целта сега
+    // 3. A new snapshot: what we agree on with the target now
     progress.phase = 'finish';
     const after = scan(root, view(t)), mine = scan(ROOT, view(t));
     for (const [r, f] of after) { const m = mine.get(r); if (m && m.sha === f.sha) base.files[r] = f.sha; }
@@ -425,7 +425,7 @@ export function run(id, { strategy = 'push', decisions = {} } = {}) {
     progress.error = e.message;
     return { ok: false, error: $t('The copy stopped: {0}', [e.code || e.message]) };
   } finally {
-    try { fs.rmSync(lock, { force: true }); } catch { /* няма */ }
+    try { fs.rmSync(lock, { force: true }); } catch { /* none */ }
     progress.busy = false; progress.phase = ''; tick(true);
   }
 }
@@ -434,7 +434,7 @@ function moveCopy(root, r, bucket) {
   const to = path.join(root, '_deleted', bucket, r); fs.mkdirSync(path.dirname(to), { recursive: true }); fs.copyFileSync(path.join(root, r), to);
 }
 
-/** Сравнява нашето с целта: какво липсва и какво е различно. */
+/** Compares ours with the target: what is missing and what is different. */
 export function verify(id) {
   const t = findTarget(id);
   if (!t) return { ok: false, error: $t('There is no such copy.') };
@@ -446,7 +446,7 @@ export function verify(id) {
   return { ok: true, files: l.size, missing: missing.slice(0, 200), different: different.slice(0, 200), missingCount: missing.length, differentCount: different.length };
 }
 
-/** Информация за списъка в настройките. */
+/** Information for the list in the settings. */
 export function targetsView() {
   return listTargets().map((t) => {
     const b = readBase(t.id); const c = checkTarget(t.path, { create: false });
@@ -455,8 +455,8 @@ export function targetsView() {
 }
 export function forgetDeclined(id) { const b = readBase(id); b.declined = {}; writeBase(id, b); return true; }
 
-// ---------- Възстановяване (нова машина, изгорял диск) ----------
-/** Копира от папка с копие в проекта. Без apply само показва. Файл, който се различава, се пише само с force (нашият отива в outputs/merged/). */
+// ---------- Restoring (a new machine, a burnt disk) ----------
+/** Copies from a folder with a copy into the project. Without apply it only shows. A file that differs is written only with force (ours goes to outputs/merged/). */
 export function restore(srcInput, { apply = false, force = false } = {}) {
   const c = checkTarget(srcInput, { create: false });
   if (!c.ok) return c;
@@ -485,7 +485,7 @@ export function restore(srcInput, { apply = false, force = false } = {}) {
   return res;
 }
 
-// ---------- Командният ред ----------
+// ---------- The command line ----------
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const [cmd, arg, ...rest] = process.argv.slice(2);
   const flag = (n) => rest.includes(n) || arg === n;

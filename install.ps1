@@ -187,6 +187,20 @@ function Do-Install([string]$site, [bool]$shortcuts, [string]$nodeWant) {
     if ($code -ne 0) { throw ((T 'npm install failed (code {0}). See outputs\install.log.' 'npm install не успя (код {0}). Виж outputs\install.log.') -f $code) }
   }
 
+  # 2b. git: the Undo button and the "Install" button for new versions (optional: everything else works without it)
+  $hasGit = [bool](Get-Command git -ErrorAction SilentlyContinue)
+  if (-not $hasGit -and (Get-Command winget -ErrorAction SilentlyContinue)) {
+    Log (T 'Installing git (for updates and the Undo button). Windows may ask for permission...' 'Инсталирам git (за обновяване и бутона „Върни“). Windows може да поиска разрешение...')
+    [void](Run-Logged 'winget install --id Git.Git -e --silent --accept-package-agreements --accept-source-agreements')
+    Refresh-Path
+    $hasGit = [bool](Get-Command git -ErrorAction SilentlyContinue)
+  }
+  if ($hasGit) {
+    # Links this folder to the project repository so that Settings -> Updates can install new versions. Nothing is committed.
+    try { Log ((& $node "$Root\scripts\git-setup.js") -join ' ') } catch { $warn += (T 'git is installed, but linking this folder to the project did not work. Updates will try again later.' 'git е инсталиран, но свързването на папката с проекта не успя. Обновяването ще опита пак по-късно.') }
+  }
+  else { $warn += (T 'git is not installed. Everything works, but the Undo button and one-click updates need it: install it from git-scm.com and run this installer again.' 'git не е инсталиран. Всичко работи, но бутонът „Върни“ и обновяването с един бутон го искат: инсталирай го от git-scm.com и пусни инсталатора пак.') }
+
   # 3. Site name (optional)
   $host_ = ''
   if ($site) {

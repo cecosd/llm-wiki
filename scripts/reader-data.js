@@ -1,11 +1,11 @@
-// Четецът: текстът на книгите по страници (извлеченият текст в raw/.extracted). Ползва се от сървъра и от архива.
+// The reader: the text of the books by pages (the extracted text in raw/.extracted). Used by the server and by the archive.
 import fs from 'node:fs';
 import path from 'node:path';
 import { RAW } from './lib.js';
 
-const unitCache = new Map(); // файл → { mtime, units: Map(n → текст), unit, order }
+const unitCache = new Map(); // file -> { mtime, units: Map(n -> text), unit, order }
 
-/** Разделя извлечения текст по маркерите <!-- стр. N --> или <!-- раздел N -->. */
+/** Splits the extracted text by the markers <!-- стр. N --> or <!-- раздел N -->. */
 export function readUnits(file) {
   const mtime = fs.statSync(file).mtimeMs;
   const hit = unitCache.get(file);
@@ -25,7 +25,7 @@ export function readUnits(file) {
   return entry;
 }
 
-/** Файлът с извлечения текст на суров файл (raw/.extracted/<път>.md), или null, ако го няма */
+/** The file with the extracted text of a raw file (raw/.extracted/<path>.md), or null if there is none */
 export function extractedFile(rawFile) {
   const ex = path.join(RAW, '.extracted', path.relative(RAW, rawFile) + '.md');
   return fs.existsSync(ex) ? ex : null;

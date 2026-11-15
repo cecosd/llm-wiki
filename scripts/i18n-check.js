@@ -1,7 +1,7 @@
-// Проверка на преводите: npm run i18n:check
-//  - ключовете, ползвани в кода (функцията $t), трябва да са в locales/en.json;
-//  - всеки друг език се сравнява с en.json (липсващи и излишни ключове, различни {0} {1}).
-// Липсващ превод не е грешка: интерфейсът показва английския ключ. Код на изход 1 само ако en.json е непълен.
+// Checking the translations: npm run i18n:check
+//  - the keys used in the code (the $t function) must be in locales/en.json;
+//  - every other language is compared with en.json (missing and extra keys, different {0} {1}).
+// A missing translation is not an error: the interface shows the English key. Exit code 1 only if en.json is incomplete.
 import fs from 'node:fs';
 import path from 'node:path';
 import { ROOT } from './lib.js';

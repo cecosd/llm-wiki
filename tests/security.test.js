@@ -1,4 +1,4 @@
-// Сигурност: проверява се истинският сървър, пуснат във временно копие.
+// Security: the real server is checked, started in a temporary copy.
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -16,7 +16,7 @@ after(async () => { await srv?.stop(); box?.remove(); });
 test(T('security', 'The server listens only on this computer (127.0.0.1)', 'Сървърът слуша само на този компютър (127.0.0.1)'), async () => {
   const code = box.read('scripts/server.js');
   assert.match(code, /app\.listen\(PORT, '127\.0\.0\.1'/);
-  // Ако компютърът има и друг мрежов адрес, през него сървърът не бива да отговаря.
+  // If the computer has another network address too, the server must not answer through it.
   const external = Object.values(os.networkInterfaces()).flat().find((a) => a && a.family === 'IPv4' && !a.internal);
   if (!external) return;
   await assert.rejects(fetch(`http://${external.address}:${srv.port}/api/stats`, { signal: AbortSignal.timeout(3000) }));
@@ -69,7 +69,7 @@ test(T('security', '“Add an article” refuses addresses inside your network',
   for (const input of bad) {
     const r = await api(srv.port, 'POST', '/api/web/import', { input });
     assert.equal(r.json?.ok, false, input);
-    // Важно е защо е отказът: неуспешна връзка също дава ok:false, но не доказва, че защитата работи.
+    // The reason for the refusal matters: a failed connection also gives ok:false, but does not prove that the protection works.
     assert.match(String(r.json?.error), /local network/, input);
   }
 });
@@ -141,11 +141,11 @@ test(T('security', 'Content from a document cannot run code in the browser', 'С
     assert.doesNotMatch(html, /onerror|onload|onclick|<script|<iframe|<svg|position:\s*fixed|inset-0/i);
     const hrefs = await b.evaluate(`JSON.stringify([...document.querySelectorAll('.reading a[href]')].map((a) => a.href))`);
     for (const h of JSON.parse(hrefs)) assert.match(h, /^(https?:|mailto:)/, h);
-    // Картинка от чужд адрес се зарежда сама и може да изнесе данни (в архива няма CSP): не остава в страницата.
+    // A picture from a foreign address loads by itself and can carry data out (there is no CSP in the archive): it does not stay in the page.
     const srcs = await b.evaluate(`JSON.stringify([...document.querySelectorAll('.reading img')].map((i) => i.getAttribute('src')))`);
     for (const s of JSON.parse(srcs)) assert.doesNotMatch(String(s), /^(https?:)?\/\//i, s);
     assert.equal(await b.evaluate(`document.querySelector('.reading a[href="https://example.com/a"]')?.textContent`), 'good link', 'safe links stay');
-    // Втората защита: дори нещо да мине през пречистването, вграденият код не се изпълнява.
+    // The second protection: even if something passes the sanitising, embedded code does not run.
     await b.evaluate(`(() => { const d = document.createElement('div'); d.innerHTML = '<img src=x onerror="document.title=&quot;CSP-FAILED&quot;">'; document.body.append(d); const s = document.createElement('script'); s.textContent = 'document.title="CSP-FAILED"'; document.body.append(s); })()`);
     await new Promise((r) => setTimeout(r, 500));
     assert.notEqual(await b.evaluate('document.title'), 'CSP-FAILED');
@@ -163,7 +163,7 @@ test(T('security', 'Pages have a strict Content-Security-Policy and safe headers
     assert.equal(h['x-content-type-options'], 'nosniff', url);
     assert.equal(h['x-powered-by'], undefined, url);
   }
-  // В страниците няма вграден код, иначе политиката би ги счупила.
+  // There is no embedded code in the pages, otherwise the policy would break them.
   for (const f of ['scripts/viewer/index.html', 'docs/index.html']) assert.doesNotMatch(box.read(f), /<script>/, f);
 });
 
@@ -194,7 +194,7 @@ test(T('security', 'Claude can read only inside the project folder', 'Claude м�
   assert.ok(!/allowedTools', 'Read/.test(code), 'plain Read in the question mode');
   assert.equal((code.match(/\.\.\.guardArgs\(\)/g) || []).length, 2, 'every start of Claude uses the guard');
 
-  // Истинската кука, като отделен процес, както я пуска Claude Code.
+  // The real hook, as a separate process, as Claude Code runs it.
   const guard = (tool_name, tool_input) => spawnSync(process.execPath, [path.join(box.root, 'scripts/guard-read.js')], { input: JSON.stringify({ tool_name, tool_input, cwd: box.root }), encoding: 'utf8' }).status;
   const outside = path.join(os.tmpdir(), 'outside.txt');
   for (const [tool, input] of [
@@ -211,8 +211,8 @@ test(T('security', 'Claude can read only inside the project folder', 'Claude м�
 });
 
 test(T('security', 'Claude cannot copy files from outside raw/ through text extraction', 'Claude не може да копира файлове извън raw/ чрез извличането на текст'), () => {
-  // Claude има право да пуска `npm run extract <път>`. Път извън raw/ не бива да се извлича: иначе текстът на чужд файл
-  // попада в проекта, където Claude може да го прочете.
+  // Claude may run `npm run extract <path>`. A path outside raw/ must not be extracted: otherwise the text of a foreign file
+  // lands in the project, where Claude can read it.
   const tag = `x${process.pid}${Date.now()}`;
   const sibling = path.join(path.dirname(box.root), `${tag}-other-project`);
   fs.mkdirSync(sibling, { recursive: true });
@@ -224,10 +224,10 @@ test(T('security', 'Claude cannot copy files from outside raw/ through text extr
       assert.notEqual(r.status, 0, target);
       assert.match(r.stderr + r.stdout, /raw\//, target);
     }
-    // Там, където старият код би записал текста: в проекта и до него
+    // Where the old code would write the text: in the project and next to it
     assert.ok(!box.exists(`${path.basename(sibling)}/secret.txt.md`), 'copied into the project');
     assert.ok(!box.exists('raw/.library-auth.json.md'), 'password file copied under another name');
-    // Обикновен файл в raw/ се извлича както преди
+    // An ordinary file in raw/ is extracted as before
     box.write('raw/articles/plain.txt', 'plain text');
     assert.equal(box.script('extract.js', 'raw/articles/plain.txt').status, 0);
     assert.ok(box.exists('raw/.extracted/articles/plain.txt.md'));
@@ -237,7 +237,7 @@ test(T('security', 'Claude cannot copy files from outside raw/ through text extr
 test(T('security', 'A forged raw_path cannot delete files outside the library', 'Подправен raw_path не може да изтрие файлове извън библиотеката'), () => {
   const victim = path.join(path.dirname(box.root), `victim-${process.pid}-${Date.now()}.md`);
   fs.writeFileSync(victim, 'must stay');
-  // raw/../../../<име> води до папката над проекта (както би го написал подведен Claude)
+  // raw/../../../<name> leads to the folder above the project (as a misled Claude would write it)
   const rawPath = `raw/../../../${path.basename(victim, '.md')}`;
   box.write('wiki/sources/forged-src.md', `---\ntitle: Forged\ntype: source\ntags: []\nsources: []\nrelated: []\ncreated: 2026-01-01\nupdated: 2026-01-01\nconfidence: low\nraw_path: ${rawPath}\nformat: article\n---\n\n# Forged\n`);
   try {
@@ -259,7 +259,7 @@ test(T('security', 'The guard settings are outside the folders Claude may write 
 });
 
 test(T('security', 'The my.wiki name is accepted only after it is set in hosts', 'Името my.wiki се приема само след запис в hosts'), async () => {
-  // .wiki е истински домейн: без запис в hosts чужд сървър би могъл да се представи като my.wiki (DNS rebinding).
+  // .wiki is a real domain: without an entry in hosts a foreign server could pose as my.wiki (DNS rebinding).
   assert.ok(!box.exists('.wiki-launch'));
   for (const host of ['my.wiki', `my.wiki:${srv.port}`]) assert.equal((await rawRequest(srv.port, { url: '/api/pages', headers: { host } })).status, 403, host);
 });
@@ -269,7 +269,7 @@ test(T('security', 'The addresses are checked at the moment of connecting (DNS r
   assert.match(code, /lookup: guardedLookup/);
   assert.doesNotMatch(code, /await fetch\(/);
   const { guardedLookup, isPrivateIp } = await import(pathToFileURL(path.join(box.root, 'scripts/discover.js')).href);
-  // 'localhost' минава през истинския DNS на машината и дава вътрешен адрес.
+  // 'localhost' goes through the real DNS of the machine and gives an internal address.
   const err = await new Promise((resolve) => guardedLookup('localhost', {}, (e) => resolve(e)));
   assert.ok(err, 'a name that resolves to an internal address must fail while connecting');
   for (const ip of ['127.0.0.1', '10.1.2.3', '169.254.169.254', '172.16.0.1', '192.168.0.1', '100.64.0.1', '0.0.0.0', '198.18.0.1', '::1', 'fe80::1', 'fd00::1', '::ffff:127.0.0.1', '64:ff9b::7f00:1', '2002:7f00:1::', 'ff02::1', 'nonsense']) assert.equal(isPrivateIp(ip), true, ip);
@@ -304,9 +304,9 @@ test(T('security', 'When a password is set, nothing opens without signing in', '
     assert.equal(good.status, 303);
     assert.equal((await rawRequest(s.port, { url: '/api/pages', headers: { cookie: good.headers['set-cookie'][0].split(';')[0] } })).status, 200);
 
-    // Смяна и махане искат текущата парола.
+    // Changing and removing ask for the current password.
     assert.equal(JSON.parse((await set({ current: 'nope', password: null }, { cookie: session })).body).ok, false);
-    // След няколко грешни опита дори вярната парола чака.
+    // After a few wrong attempts even the right password waits.
     for (let i = 0; i < 5; i++) await login('wrong password');
     assert.equal((await login('correct horse battery')).status, 401, 'locked after repeated failures');
   } finally { await s.stop(); box2.remove(); }

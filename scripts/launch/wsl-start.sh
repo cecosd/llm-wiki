@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
-# Стартира Библиотеката от WSL (Ubuntu): сървърът, който при нужда пуска `claude -p`, и браузъра на Windows.
-# Прозорецът остава отворен, докато работиш: затварянето му спира библиотеката.
+# Starts the Library from WSL (Ubuntu): the server, which runs `claude -p` when needed, and the Windows browser.
+# The window stays open while you work: closing it stops the library.
 cd "$(dirname "${BASH_SOURCE[0]}")/../.." || exit 1
 ROOT="$PWD"
 PORT="${PORT:-4321}"
 WIKI_URL="http://${WIKI_HOST:-localhost}:$PORT"
-# Инсталаторът записва WIKI_URL (my.wiki, с или без порт), след като е добавил името в hosts. Файлът се чете,
-# не се изпълнява: така ред в него не може да пусне команда.
+# The installer writes WIKI_URL (my.wiki, with or without a port) after it has added the name to hosts. The file is read,
+# not executed: this way a line in it cannot run a command.
 if [ -f "$ROOT/.wiki-launch" ]; then
   saved="$(sed -n 's/^WIKI_URL=\(http:\/\/[A-Za-z0-9.:-]*\)\r\{0,1\}$/\1/p' "$ROOT/.wiki-launch" | head -1)"
   [ -n "$saved" ] && WIKI_URL="$saved"
@@ -14,13 +14,13 @@ fi
 
 pause() { echo; read -r -p "Натисни Enter за затваряне…" _; }
 
-# Пътища за node и claude (nvm и официалният инсталатор на Claude Code не винаги са в PATH при неинтерактивна обвивка)
+# Paths for node and claude (nvm and the official Claude Code installer are not always in PATH in a non-interactive shell)
 export PATH="$HOME/.local/bin:$HOME/.claude/local:$PATH"
 if [ -s "$HOME/.nvm/nvm.sh" ]; then . "$HOME/.nvm/nvm.sh" >/dev/null 2>&1; fi
 
 open_url() { ( cd /mnt/c 2>/dev/null; cmd.exe /c start "" "$1" >/dev/null 2>&1 ) || wslview "$1" >/dev/null 2>&1 || echo "Отвори ръчно: $1"; }
-# Сървърът работи, щом отговори с какъвто и да е HTTP код. С парола /api/stats връща 401 без вход;
-# ако чакаме само 200, браузърът се отваря чак след 80 опита (около 40 секунди).
+# The server is running as soon as it answers with any HTTP code. With a password /api/stats returns 401 without a sign-in;
+# if we wait only for 200, the browser opens only after 80 attempts (about 40 seconds).
 alive() { local code; code="$(curl -s -m 2 -o /dev/null -w '%{http_code}' -H 'x-library: 1' "http://localhost:$PORT/api/stats" 2>/dev/null)"; [ -n "$code" ] && [ "$code" != "000" ]; }
 
 echo "📚 Библиотека"
@@ -39,11 +39,11 @@ else
   echo "  Инсталирай го и влез веднъж с \`claude\` в терминала на Ubuntu."
 fi
 
-# Браузърът се отваря, когато сървърът започне да отговаря
+# The browser opens when the server starts to answer
 ( for _ in $(seq 1 80); do alive && break; sleep 0.5; done; open_url "$WIKI_URL" ) &
 
-# Изолация: с bubblewrap сървърът и пакетите му виждат само папката на проекта (scripts/sandbox.js).
-# LIB_SANDBOX=off я изключва.
+# Isolation: with bubblewrap the server and its packages see only the project folder (scripts/sandbox.js).
+# LIB_SANDBOX=off turns it off.
 START=(node scripts/server.js)
 if [ "${LIB_SANDBOX:-}" = "off" ]; then
   echo "⚠ Изолацията е изключена (LIB_SANDBOX=off)."
@@ -56,8 +56,8 @@ else
 fi
 
 echo "▶ Сървър на порт $PORT, адрес $WIKI_URL (Ctrl+C или затваряне на прозореца спира библиотеката)"
-# Код 75: сървърът иска да бъде пуснат отново (след обновени пакети от „Настройки → Обновления“).
-# В изолацията това го прави самият scripts/sandbox.js; цикълът тук е за пускането без нея.
+# Code 75: the server asks to be started again (after packages were updated from "Settings -> Updates").
+# In the isolation scripts/sandbox.js does this itself; the loop here is for running without it.
 export LIB_SUPERVISED=1
 while :; do
   PORT="$PORT" "${START[@]}"

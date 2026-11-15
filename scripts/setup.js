@@ -1,12 +1,12 @@
-// Инсталационен екран: проверява какво трябва, за да работи приложението, и казва как да се оправи всяка стъпка.
-// Проверките са безплатни (не викат модела). Единствената платена е „Опитай връзката“ (testClaude), и тя е по желание.
+// Setup screen: checks what the application needs to work and says how to fix each step.
+// The checks are free (they do not call the model). The only paid one is "Test the connection" (testClaude), and it is optional.
 import fs from 'node:fs';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { ROOT, RAW, WIKI } from './lib.js';
 import { $t, contentLang } from './i18n.js';
 import { findClaude, askClaude } from './agent.js';
-import { aiConfig, readiness, TIERS } from './providers.js';
+import { aiConfig, aiChosen, readiness, TIERS } from './providers.js';
 import { complete, errorText } from './llm.js';
 
 const IS_WIN = process.platform === 'win32';
@@ -18,25 +18,25 @@ function claudeVersion(bin) {
   return r.status === 0 ? (r.stdout || '').trim().split('\n')[0] : null;
 }
 
-/** `claude auth status` връща JSON без да харчи токени. Връща { known, loggedIn, method, email, plan }. */
+/** `claude auth status` returns JSON without spending tokens. Returns { known, loggedIn, method, email, plan }. */
 function claudeAuth(bin) {
   const r = bin.shell ? run(`"${bin.cmd}"`, ['auth', 'status'], true) : run(bin.cmd, ['auth', 'status']);
   try {
     const j = JSON.parse(r.stdout || '');
     return { known: true, loggedIn: !!j.loggedIn, method: j.authMethod || null, email: j.email || null, plan: j.subscriptionType || null };
   } catch {
-    // По-стара версия без `auth status`: не можем да знаем без платена заявка
+    // An older version without `auth status`: we cannot know without a paid request
     return { known: false, loggedIn: false };
   }
 }
 
 /**
- * По какви условия се обработват данните: потребителски план (обучението зависи от настройка на акаунта)
- * или търговски (Team, Enterprise, API: без обучение по подразбиране). Самата настройка не може да се прочете отвън.
+ * Under which terms the data is processed: a consumer plan (training depends on an account setting)
+ * or a commercial one (Team, Enterprise, API: no training by default). The setting itself cannot be read from outside.
  */
 export function accountTerms() {
   const cfg = aiConfig();
-  // Друг доставчик: условията са неговите. Локалният модел и ръчният режим не пращат нищо сами.
+  // Another provider: the terms are theirs. A local model and manual mode send nothing by themselves.
   if (cfg.engine === 'manual') return { terms: 'manual', plan: null, provider: cfg.provider };
   if (cfg.local) return { terms: 'local', plan: null, provider: cfg.provider };
   if (cfg.preset.id !== 'claude-code') return { terms: cfg.free ? 'free-tier' : 'commercial', plan: cfg.free ? 'free' : 'api', provider: cfg.provider, vendor: cfg.preset.vendor || cfg.name };
@@ -62,24 +62,29 @@ export function checkSetup() {
   add({ id: 'node', title: $t('Node.js 24 or newer'), ok: major >= 24, detail: $t('Installed: {0}', ['v' + process.versions.node]),
     fix: $t('Install the current version from nodejs.org, then start the library again.') });
 
-  // 2. Зависимости
+  // 2. Dependencies
   const deps = fs.existsSync(path.join(ROOT, 'node_modules', 'express'));
   add({ id: 'deps', title: $t('Libraries are installed'), ok: deps, detail: deps ? $t('The folder node_modules is in place.') : $t('The folder node_modules is missing.'),
     fix: $t('Run this once in the project folder:'), cmd: 'npm install' });
 
-  // 3. Моделът: доставчикът се избира в „Настройки → Модел“
-  const cfg = aiConfig(), ready = readiness(cfg);
-  steps.push({
+  // 3. The model: the provider is chosen in "Settings -> Model"
+  const cfg = aiConfig(), ready = readiness(cfg), chosen = aiChosen();
+  // Until the person picks a model, nothing about any particular provider is shown as required
+  if (!chosen) {
+    steps.push({ id: 'ai', required: false, title: $t('Choose an AI model'), ok: false, href: '#/settings/model', test: false,
+      detail: $t('No model has been chosen yet.'),
+      fix: $t('Open Settings → Model and pick one: an account with a key, a free tier, a model on this computer, or copy and paste. Each choice says what it needs.') });
+  } else steps.push({
     id: 'ai', required: cfg.engine !== 'agent' || cfg.preset.id !== 'claude-code', title: $t('The model: {0}', [cfg.name]),
     ok: ready.ok, href: '#/settings', test: ready.ok && cfg.engine !== 'manual',
     detail: [$t(cfg.preset.label), cfg.engine === 'agent' ? $t('agent with tools') : cfg.engine === 'manual' ? $t('copy and paste') : $t('without tools'),
       cfg.engine !== 'manual' && cfg.models.medium && cfg.preset.id !== 'claude-code' ? cfg.models.medium : null,
       !ready.ok ? { url: $t('the address is missing'), key: $t('the key is missing'), model: $t('the model is missing') }[ready.missing] : null].filter(Boolean).join(' · '),
-    fix: $t('Choose the model, the address and the key in Settings → Model. Claude Code is needed only for the agent.'),
+    fix: $t('Choose the model, the address and the key in Settings → Model.'),
   });
 
-  if (cfg.engine === 'agent') {
-    // 4. Claude Code (агентът с инструменти; работи и с модели на други доставчици)
+  if (chosen && cfg.engine === 'agent') {
+    // 4. Claude Code (the agent with tools; it also works with models of other providers)
     const bin = findClaude();
     const ver = bin ? claudeVersion(bin) : null;
     add({ id: 'claude', title: $t('Claude Code is installed'), ok: !!ver, detail: ver ? ver : $t('The command claude was not found.'),
@@ -87,7 +92,7 @@ export function checkSetup() {
       cmd: IS_WIN ? 'irm https://claude.ai/install.ps1 | iex' : 'curl -fsSL https://claude.ai/install.sh | bash',
       link: 'https://docs.claude.com/en/docs/claude-code/setup' });
 
-    // 5. Вход в акаунта (само при абонамент: при ключ или друг доставчик Claude Code ползва ключа от настройките)
+    // 5. Sign-in (only for a subscription: with a key or another provider Claude Code uses the key from the settings)
     if (cfg.preset.id === 'claude-code') {
       let auth = { known: false, loggedIn: false };
       if (ver) auth = claudeAuth(bin);
@@ -103,23 +108,23 @@ export function checkSetup() {
     }
   }
 
-  // 5. git (точки за връщане)
+  // 5. git (restore points and updates)
   const git = run('git', ['--version']);
-  add({ id: 'git', title: $t('git, for restore points'), required: false, ok: git.status === 0, detail: git.status === 0 ? (git.stdout || '').trim() : $t('git was not found.'),
+  add({ id: 'git', title: $t('git, for restore points and updates'), required: false, ok: git.status === 0, detail: git.status === 0 ? (git.stdout || '').trim() : $t('git was not found.'),
     fix: $t('Without git everything works, but the “Undo” button after {ai}’s changes will not be available.'), link: 'https://git-scm.com/downloads',
     cmd: IS_WIN ? 'winget install --id Git.Git -e' : IS_MAC ? 'brew install git' : 'sudo apt install git' });
 
-  // 6. OCR (по желание)
+  // 6. OCR (optional)
   const ocr = process.env.LIBRARY_OCR !== 'builtin' && run('ocrmypdf', ['--version']).status === 0;
   add({ id: 'ocr', title: $t('OCR for scanned PDFs'), required: false, ok: ocr, cmd: IS_WIN ? null : IS_MAC ? 'brew install ocrmypdf' : 'sudo apt install ocrmypdf',
     detail: ocr ? $t('ocrmypdf is installed (best quality).') : $t('The built-in OCR will be used. It is slower and less exact than ocrmypdf.'),
     fix: $t('Optional: install ocrmypdf for better recognition of scanned books.'), link: 'https://ocrmypdf.readthedocs.io/en/latest/installation.html' });
 
-  // 7. Език
+  // 7. Language
   const code = contentLang();
   add({ id: 'lang', title: $t('Language of the library'), required: false, ok: true, detail: $t('Now: {0}. Change it from the language menu in the sidebar.', [code]) });
 
-  // 8. Първи файл
+  // 8. First file
   const files = ['inbox', 'books', 'papers', 'articles', 'web', 'data', 'notes', 'images', 'other'].reduce((n, d) => n + count(path.join(RAW, d)), 0);
   const pages = count(path.join(WIKI, 'sources'));
   add({ id: 'first', title: $t('Your first source'), required: false, ok: files + pages > 0,
@@ -130,7 +135,7 @@ export function checkSetup() {
   return { steps, ready: blocking === 0, blocking };
 }
 
-/** Кратка платена проверка: праща една дума на най-лекия модел. Стартира се само по натискане на бутон. */
+/** A short paid check: sends one word to the lightest model. It starts only when a button is pressed. */
 export async function testAI() {
   const cfg = aiConfig();
   if (cfg.engine === 'manual') return { ok: true, manual: true };
@@ -139,7 +144,7 @@ export async function testAI() {
     return r.ok ? { ok: true, model: cfg.models.light } : { ok: false, kind: r.kind, error: r.error, detail: r.detail };
   }
   if (!readiness(cfg).ok) return { ok: false, kind: 'not-ready', error: errorText({ kind: 'not-ready' }, cfg) };
-  // Всеки различен модел от трите нива: иначе модел за реч на „мощното“ ниво се вижда чак при обработка в режим „Най-добър“
+  // Every different model of the three levels: otherwise a speech model on the "powerful" level shows up only during processing in "Best" mode
   const done = []; let answer = '';
   for (const tier of TIERS) {
     const model = cfg.models[tier];
@@ -150,4 +155,4 @@ export async function testAI() {
   }
   return { ok: true, model: done.join(', '), answer };
 }
-export const testClaude = testAI; // старото име
+export const testClaude = testAI; // the old name

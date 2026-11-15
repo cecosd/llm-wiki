@@ -1,6 +1,6 @@
-// Механичен lint на wiki. Смисловата проверка (противоречия, остарели твърдения) прави агентът.
-// npm run lint        → пълен отчет в outputs/lint-mech-YYYY-MM-DD.md
-// npm run lint:quick  → само счупени връзки, в конзолата; exit 1 ако има
+// Mechanical lint of the wiki. The check of meaning (contradictions, outdated claims) is done by the agent.
+// npm run lint        -> full report in outputs/lint-mech-YYYY-MM-DD.md
+// npm run lint:quick  -> only broken links, in the console; exit 1 if there are any
 import fs from 'node:fs';
 import path from 'node:path';
 import { OUTPUTS, ROOT, rel, rawFiles, today, wikiPages, extractLinks, ingestState, normRaw } from './lib.js';
@@ -17,7 +17,7 @@ for (const p of pages) {
 }
 
 const incoming = new Map(pages.map((p) => [p.slug, new Set()]));
-const broken = []; // [от, към]
+const broken = []; // [from, to]
 const missingCount = new Map();
 for (const p of pages) {
   const links = [...extractLinks(p.content), ...((p.data.related || []).flatMap((r) => extractLinks(String(r))))];
@@ -44,7 +44,7 @@ const TYPES = new Set(['source', 'chapter', 'concept', 'entity', 'topic', 'compa
 const orphans = pages.filter((p) => !SPECIAL.has(p.slug) && incoming.get(p.slug).size === 0);
 const indexPage = bySlug.get('index');
 const inIndex = new Set(indexPage ? extractLinks(indexPage.content) : []);
-// Главите не влизат в индекса: до тях се стига през книгата
+// Chapters are not in the index: you reach them through the book
 const notInIndex = pages.filter((p) => !SPECIAL.has(p.slug) && p.data.type !== 'chapter' && !inIndex.has(p.slug));
 
 const fmProblems = [];
@@ -54,7 +54,7 @@ for (const p of pages) {
   if (miss.length) fmProblems.push($t('{0}: missing {1}', [p.rel, miss.join(', ')]));
   if (p.data.type && !TYPES.has(p.data.type)) fmProblems.push($t('{0}: unknown type "{1}"', [p.rel, p.data.type]));
   if (p.data.type === 'source') {
-    // Книга, обединена от отделно качени файлове: раw_path-ът е на всяка глава, не на книгата
+    // A book merged from separately uploaded files: raw_path is on every chapter, not on the book
     const chapterHasRaw = p.data.format === 'book'
       && pages.some((c) => c.data.type === 'chapter' && extractLinks(String(c.data.book || '')).includes(p.slug) && c.data.raw_path);
     if (!p.data.raw_path && !chapterHasRaw) fmProblems.push($t('{0}: source without raw_path', [p.rel]));

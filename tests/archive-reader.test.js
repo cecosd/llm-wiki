@@ -1,4 +1,4 @@
-// Архивът: текстът за четеца (с. N) и списъкът на направените архиви с изтриване. Всичко е във временно копие.
+// The archive: the text for the reader (p. N) and the list of the archives made, with deletion. Everything is in a temporary copy.
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -10,7 +10,7 @@ let box, srv;
 before(async () => {
   box = makeSandbox();
   seedLibrary(box);
-  // Извлеченият текст на източника със страници (както го прави npm run extract)
+  // The extracted text of a source with pages (as npm run extract makes it)
   box.write('raw/.extracted/articles/sample-2020-note.txt.md', '<!-- стр. 1 -->\nПървата страница за проверка.\n<!-- стр. 2 -->\nВтората страница за проверка.\n');
   srv = await startServer(box);
 });

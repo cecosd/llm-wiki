@@ -1,14 +1,14 @@
-// Конвейер: обработка без инструменти. Ползва се, когато моделът не е Claude Code (виж providers.js).
+// Pipeline: processing without tools. Used when the model is not Claude Code (see providers.js).
 //
-// Тук сървърът прави това, което агентът прави сам с инструментите си: чете извлечения текст на части, подава
-// всяка част на модела като обикновен текст, получава кратък JSON или Markdown, проверява го и сам пише страниците
-// по шаблоните в wiki/_templates. Затова работи и с малък локален модел и с ръчно копиране в чат: всяка стъпка е
-// малка, а връзките, страниците, frontmatter, индексът и дневникът се правят от кода, не от модела.
+// Here the server does what the agent does by itself with its tools: reads the extracted text in parts, passes
+// each part to the model as plain text, receives a short JSON or Markdown, checks it and writes the pages itself
+// by the templates in wiki/_templates. That is why it also works with a small local model and with manual copying into a chat: every step is
+// small, and the links, pages, frontmatter, index and log are made by the code, not by the model.
 //
-// Правилата са същите като в CLAUDE.md: източникът определя акцента; книгите имат страници по глави; цитатите сочат
-// към главата и към PDF страницата от маркера <!-- стр. N -->; понятията се добавят, не се презаписват; нищо не се
-// измисля (непознатите [[връзки]] стават обикновен текст). Всяка задача минава през git точка на agent.js, затова
-// „Върни“ работи, а при грешка половинчатите страници се връщат.
+// The rules are the same as in CLAUDE.md: the source determines the emphasis; books have chapter pages; the citations point
+// to the chapter and to the PDF page from the marker <!-- стр. N -->; concepts are added, not overwritten; nothing is
+// invented (unknown [[links]] become plain text). Every task goes through a git point of agent.js, so
+// "Undo" works, and on an error the half-written pages are rolled back.
 import fs from 'node:fs';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
@@ -23,17 +23,17 @@ import { CYR } from './merge.js';
 
 export const TIER_OF = { haiku: 'light', sonnet: 'medium', opus: 'strong' };
 
-/** Грешка от модела или от стъпка: kind като в llm.js (auth, limit, model, offline, format, cancelled…) */
+/** An error from the model or from a step: kind as in llm.js (auth, limit, model, offline, format, cancelled...) */
 export class AiError extends Error {
   constructor(r) {
     super(String(r?.error || r?.kind || 'error'));
     this.kind = r?.kind || 'error'; this.detail = String(r?.detail || ''); this.status = r?.status || null; this.minutes = r?.minutes || null;
-    // Името на модела и времето до следващия опит влизат в съобщението (errorText) и в паузата на опашката
+    // The name of the model and the time until the next attempt go into the message (errorText) and into the pause of the queue
     this.error = String(r?.error || ''); this.model = r?.model || null; this.retryAfter = r?.retryAfter || 0;
   }
 }
 
-// ---------- Помощни ----------
+// ---------- Helpers ----------
 const noDash = (s) => String(s ?? '').replace(/\s+[—–]\s+|—/g, ', ');
 const clean = (s, n = 4000) => noDash(String(s ?? '').replace(/\r/g, '').trim()).slice(0, n).trim();
 const oneLine = (s, n = 300) => clean(s, n * 2).replace(/\s+/g, ' ').trim().slice(0, n);
@@ -42,14 +42,14 @@ const uniq = (xs) => [...new Set(xs.filter(Boolean))];
 const pad = (n) => String(n).padStart(2, '0');
 const esc = (s) => String(s).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 const translit = (s) => [...String(s || '').toLowerCase()].map((c) => (c in CYR ? CYR[c] : c)).join('').normalize('NFKD').replace(/[̀-ͯ]/g, '');
-/** Латинско kebab-case име на файл */
+/** A Latin kebab-case file name */
 export const latin = (s, n = 60) => translit(s).replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, n).replace(/-+$/, '');
-/** Ключ за сравнение на заглавия (на латиница, само букви и цифри) */
+/** A comparison key for titles (in Latin, only letters and digits) */
 const normT = (s) => translit(s).replace(/[^a-z0-9]+/g, '');
 
 function checkAbort(ctx) { if (ctx.signal?.aborted) throw new AiError({ kind: 'cancelled' }); }
 
-// ---------- Шаблоните (заглавията на разделите на езика на съдържанието) ----------
+// ---------- The templates (the headings of the sections in the content language) ----------
 const FALLBACK = {
   source: ['In brief', 'Emphasis of the source', 'Key ideas', 'Chapters', 'Concepts it introduces or uses', 'Links with other sources', 'My notes'],
   chapter: ['In brief', 'Key ideas', 'Concepts it introduces or develops', 'Quote', 'Links'],
@@ -61,12 +61,12 @@ const FALLBACK = {
 function tplHeadings(type, dir = path.join(WIKI, '_templates')) {
   try { return fs.readFileSync(path.join(dir, `${type}.md`), 'utf8').split('\n').filter((l) => /^## /.test(l)).map((l) => l.slice(3).trim()); } catch { return []; }
 }
-/** Заглавията на разделите на шаблон по ред */
+/** The headings of the sections of a template, in order */
 const H = (type) => { const h = tplHeadings(type); return FALLBACK[type].map((f, i) => h[i] || P(f)); };
-/** Същото заглавие на всички езици (библиотека, започната на един език, се дописва и на друг) */
+/** The same heading in all languages (a library started in one language is extended in another too) */
 function Hany(type, i) {
   const out = new Set([H(type)[i], FALLBACK[type][i]]);
-  try { for (const d of fs.readdirSync(path.join(ROOT, 'content'))) { const h = tplHeadings(type, path.join(ROOT, 'content', d, 'templates')); if (h[i]) out.add(h[i]); } } catch { /* без пакети */ }
+  try { for (const d of fs.readdirSync(path.join(ROOT, 'content'))) { const h = tplHeadings(type, path.join(ROOT, 'content', d, 'templates')); if (h[i]) out.add(h[i]); } } catch { /* without packs */ }
   return [...out];
 }
 function chapterTitle(n, title) {
@@ -75,7 +75,7 @@ function chapterTitle(n, title) {
   return pat.replace('{{n}}', n).replace('{{title}}', title).trim();
 }
 
-// ---------- Раздели в Markdown ----------
+// ---------- Sections in Markdown ----------
 function findSection(body, names) {
   const re = new RegExp(`^##[ \\t]+(?:${names.map(esc).join('|')})[ \\t]*$`, 'mi');
   const m = re.exec(body);
@@ -84,7 +84,7 @@ function findSection(body, names) {
   const next = body.slice(contentStart).search(/^##?[ \t]/m);
   return { start: m.index, contentStart, end: next < 0 ? body.length : contentStart + next };
 }
-/** Добавя текст в края на раздела; без раздел го създава (преди раздела before, ако го има, иначе накрая). */
+/** Adds text at the end of the section; without the section it creates it (before the section before, if there is one, otherwise at the end). */
 function appendToSection(body, names, text, { create, before, list = false } = {}) {
   const s = findSection(body, names);
   if (s) {
@@ -108,7 +108,7 @@ function addLink(body, names, slug, line, opts) {
   return appendToSection(body, names, line, { ...opts, list: true });
 }
 
-// ---------- Страници ----------
+// ---------- Pages ----------
 function readPage(file) {
   const m = matter(fs.readFileSync(file, 'utf8'));
   for (const [k, v] of Object.entries(m.data)) if (v instanceof Date) m.data[k] = v.toISOString().slice(0, 10);
@@ -133,7 +133,7 @@ function freeSlug(base, taken) {
 }
 const linkOf = (s) => `[[${s}]]`;
 
-/** Непознатите [[връзки]] стават обикновен текст: моделът не може да създаде връзка към страница, която я няма. */
+/** Unknown [[links]] become plain text: the model cannot create a link to a page that does not exist. */
 function fixLinks(text, known) {
   let fixed = 0;
   const out = String(text).replace(/\[\[([^\]|#]+)(?:#[^\]|]*)?(?:\|([^\]]*))?\]\]/g, (m, a, b) => {
@@ -143,7 +143,7 @@ function fixLinks(text, known) {
   return { text: out, fixed };
 }
 
-// ---------- Модел ----------
+// ---------- Model ----------
 const LANG_NOTE = {
   bg: () => '',
   both: () => P('If the source is not in English, keep the original spelling of every term and name in the field "original", exactly as in the source.'),
@@ -158,7 +158,7 @@ function systemPrompt(ctx) {
     (LANG_NOTE[ctx.settings?.lang] || LANG_NOTE.bg)(),
   ].filter(Boolean).join(' ');
 }
-/** Колко токена текст влизат в една заявка, като остане място за отговора */
+/** How many tokens of text go into one request, leaving room for the answer */
 const budgetFor = (ctx, out) => Math.max(1200, Math.floor(ctx.cfg.context * 0.85) - out - approxTokens(systemPrompt(ctx)) - 900);
 
 async function ask(ctx, { tier, prompt, json = true, maxTokens = 1500, label, images = null }) {
@@ -182,7 +182,7 @@ async function askJson(ctx, opts, ok = (j) => j && typeof j === 'object' && !Arr
   });
   j = parseJsonLoose(fixed);
   if (ok(j)) return j;
-  // Краен случай: отговорът е отрязан на лимита за изход. Остават завършените части, вместо цялата обработка да спре.
+  // A last resort: the answer is cut at the output limit. The finished parts stay, instead of the whole processing stopping.
   for (const t of [fixed, text]) {
     const s = parseJsonLoose(t, { salvage: true });
     if (ok(s)) { ctx.step({ icon: 'alert', text: $t('The answer was cut off at the output limit: only its complete part is used'), warn: true }); return s; }
@@ -190,7 +190,7 @@ async function askJson(ctx, opts, ok = (j) => j && typeof j === 'object' && !Arr
   throw new AiError({ kind: 'format', detail: String(text).slice(0, 500) });
 }
 
-// ---------- Текстът на източника ----------
+// ---------- The text of the source ----------
 const marker = (unit, n) => (unit === 'разд.' ? `<!-- раздел ${n} -->` : `<!-- стр. ${n} -->`);
 function joinPages(src, list) { return list.map((p) => (p.n != null ? `${marker(src.unit, p.n)}\n${p.text}` : p.text)).join('\n\n'); }
 const unitAbbr = (src) => (src?.unit === 'разд.' ? P('sect.') : P('p.'));
@@ -215,7 +215,7 @@ function splitText(text, maxTok) {
   if (cur.trim()) out.push(cur);
   return out;
 }
-/** Разделя страниците на групи до maxTok токена (страница не се разделя, освен ако сама е твърде дълга) */
+/** Splits the pages into groups of up to maxTok tokens (a page is not split unless it is too long itself) */
 function windows(pages, maxTok) {
   const out = []; let cur = [], tok = 0;
   for (const p of pages) {
@@ -242,7 +242,7 @@ function formatOf(rawPath, src) {
   return { papers: 'paper', articles: 'article', web: 'web', data: 'dataset', notes: 'note', images: 'image' }[folder] || 'article';
 }
 
-/** Разликата между PDF и печатен номер: числото, което стои само на първия или последния ред на повечето страници */
+/** The difference between the PDF and the printed number: the number that stands alone on the first or last line of most pages */
 export function guessOffset(pages) {
   const diffs = new Map(); let seen = 0;
   for (const p of pages) {
@@ -261,7 +261,7 @@ export function guessOffset(pages) {
   return cnt >= 3 && cnt >= seen * 0.4 ? best : null;
 }
 
-/** Къде започва всяка глава: по заглавието в началото на страница (без страниците със съдържанието) или по печатния номер + отместването */
+/** Where each chapter starts: by the title at the top of a page (without the pages of the table of contents) or by the printed number + the offset */
 export function chapterRanges(list, src, offset) {
   const pages = src.pages.filter((p) => p.n != null);
   if (!pages.length || !list?.length) return [];
@@ -288,7 +288,7 @@ export function chapterRanges(list, src, offset) {
   return out.filter((c) => c.b >= c.a);
 }
 
-// ---------- Стъпки с модела ----------
+// ---------- Steps with the model ----------
 const authorsYear = (m) => [arr(m.authors).slice(0, 3).join(', '), m.year].filter(Boolean).join(', ');
 
 async function readMeta(ctx, { rawPath, src, format, known, images }) {
@@ -377,7 +377,7 @@ async function notesFor(ctx, { meta, unit, src, label, images }) {
 
 const cite = (slug, page, src) => `([[${slug}]], ${unitAbbr(src)} ${page ?? '?'})`;
 
-// ---------- Понятия и личности ----------
+// ---------- Concepts and persons ----------
 function lookupPages(pages) {
   const m = new Map();
   for (const p of pages) {
@@ -405,7 +405,7 @@ const notesBlock = (c, src) => c.notes.map((n) => `- ${n.text} ${cite(n.slug, n.
 
 const NEW_SCHEMA = '{"pages":[{"name":"","title":"","kind":"concept","definition":"","detail":"","aliases":[""],"tags":[""]}]}';
 const UPD_SCHEMA = '{"updates":[{"slug":"","add":"","contradiction":"","aliases":[""]}]}';
-// Колко понятия в една заявка. При голям контекст (100 000+) по 12: по-малко заявки, което пази дневните лимити.
+// How many concepts in one request. With a large context (100 000+) 12: fewer requests, which protects the daily limits.
 const batchSize = (ctx) => (ctx.cfg.engine === 'manual' ? 12 : Math.max(1, Math.min(ctx.cfg.context >= 100000 ? 12 : 6, Math.floor((ctx.cfg.context * 0.35) / 650))));
 
 async function newPagesFor(ctx, list, src, meta) {
@@ -454,7 +454,7 @@ async function updatesFor(ctx, list, src) {
   return out;
 }
 
-// ---------- Общо: един източник (нов или надграждане) ----------
+// ---------- In general: one source (new or an upgrade) ----------
 async function processSource(ctx, { rawPath: wanted, existing = null }) {
   ensureStarter();
   const st = ingestState();
@@ -473,7 +473,7 @@ async function processSource(ctx, { rawPath: wanted, existing = null }) {
   const pages = wikiPages();
   const taken = new Set(pages.map((p) => p.slug));
 
-  // 1. Библиографски данни
+  // 1. Bibliographic data
   const known = existing ? { title: existing.data.title, authors: existing.data.authors, year: existing.data.year, apa: existing.data.apa } : null;
   ctx.step({ icon: 'search', text: $t('Determines the title, authors and chapters') });
   const meta = await readMeta(ctx, { rawPath, src, format, known, images });
@@ -483,7 +483,7 @@ async function processSource(ctx, { rawPath: wanted, existing = null }) {
   const word = (meta.title.split(/\s+/).find((w) => normT(w).length >= 4) || meta.title.split(/\s+/)[0] || '');
   const slug = existing?.slug || freeSlug(latin([first, meta.year, word].filter(Boolean).join(' ')) || latin(path.basename(rawPath, ext)), taken);
 
-  // 2. Глави (само книги с маркери за страници)
+  // 2. Chapters (only books with page markers)
   const offset = src ? guessOffset(src.pages) : null;
   let chapters = [];
   const oldChapters = pages.filter((p) => p.data.type === 'chapter' && extractLinks(String(p.data.book || ''))[0] === slug)
@@ -494,7 +494,7 @@ async function processSource(ctx, { rawPath: wanted, existing = null }) {
     else {
       let ranges = chapterRanges(meta.chapters, src, offset);
       if (ranges.length < 2) {
-        // Без разпознаваемо съдържание: части по брой страници, всяка колкото събира една заявка
+        // Without recognisable content: parts by the number of pages, each as much as one request holds
         ranges = windows(src.pages, Math.min(budgetFor(ctx, 1800), 12000)).map((w, i) => ({ title: P('Part {0}', [i + 1]), a: w[0].n, b: w[w.length - 1].n }));
       }
       chapters = ranges.map((r, i) => ({ n: i + 1, slug: `${slug}-ch${pad(i + 1)}`, title: r.title, a: r.a, b: r.b }));
@@ -503,7 +503,7 @@ async function processSource(ctx, { rawPath: wanted, existing = null }) {
     ctx.step({ icon: 'list', text: $t('{0} chapters: pages {1}', [chapters.length, chapters.map((c) => `${c.a}-${c.b}`).join(', ')]) });
   }
 
-  // 3. Бележки по глави (или по части на по-кратък текст)
+  // 3. Notes by chapters (or by parts of a shorter text)
   const units = chapters.length ? chapters
     : [{ n: 1, slug: null, title: '', a: src?.pages[0]?.n ?? null, b: src?.pages[src.pages.length - 1]?.n ?? null, pages: src ? src.pages : [] }];
   for (const u of units) {
@@ -513,7 +513,7 @@ async function processSource(ctx, { rawPath: wanted, existing = null }) {
     if (u.slug && !u.exists && u.notes.title && /^(?:part|част)\b/i.test(u.title)) u.title = u.notes.title;
   }
 
-  // 4. Страницата на източника: акцент, обобщение, ключови идеи (от бележките, не от целия текст)
+  // 4. The page of the source: emphasis, summary, key ideas (from the notes, not from the whole text)
   const chapterOf = (n) => (n == null ? null : chapters.find((c) => n >= c.a && n <= c.b)?.slug || null);
   const digest = units.map((u) => [
     u.slug ? `## ${chapterTitle(u.n, u.title)} (${unitAbbr(src)} ${u.a}-${u.b})` : '',
@@ -542,7 +542,7 @@ async function processSource(ctx, { rawPath: wanted, existing = null }) {
   });
   const emphasis = oneLine(sp.emphasis, 400);
 
-  // 5. Понятия и личности: съществуващите се допълват, новите се създават
+  // 5. Concepts and persons: the existing ones are extended, the new ones are created
   const cands = candidatesOf(units, slug);
   const realPage = (v) => { const n = Number(v); return Number.isInteger(n) && src?.pages.some((p) => p.n === n) ? n : null; };
   const keyIdeas = arr(sp.key_ideas).map((x) => ({ text: oneLine(x?.text ?? x, 400), page: realPage(x?.page), concept: oneLine(x?.concept, 80) })).filter((x) => x.text).slice(0, 10);
@@ -559,7 +559,7 @@ async function processSource(ctx, { rawPath: wanted, existing = null }) {
   const slugOfCand = new Map();
   for (const x of existingOnes) slugOfCand.set(x.cand.key, x.page.slug);
 
-  // 5а. Нови страници
+  // 5a. New pages
   const created = [];
   if (newOnes.length) {
     for (const { cand, page } of await newPagesFor(ctx, newOnes, src, meta)) {
@@ -577,7 +577,7 @@ async function processSource(ctx, { rawPath: wanted, existing = null }) {
   }
   const linkFor = (name) => slugOfCand.get(normT(name)) || null;
 
-  // 5б. Допълване на съществуващите
+  // 5b. Extending the existing ones
   const updated = [], contradictions = [];
   const keep = existingOnes.filter((x) => !(existing && x.page.content.includes(`[[${slug}`)));
   if (keep.length) {
@@ -604,7 +604,7 @@ async function processSource(ctx, { rawPath: wanted, existing = null }) {
     }
   }
 
-  // 5в. Запис на новите страници (след като всички имена са известни, за да се свържат помежду си)
+  // 5c. Saving the new pages (after all the names are known, so that they link to each other)
   const coSlugs = uniq([...created.map((c) => c.slug), ...existingOnes.map((x) => x.page.slug)]);
   for (const c of created) {
     const related = coSlugs.filter((s) => s !== c.slug).slice(0, 5);
@@ -628,7 +628,7 @@ async function processSource(ctx, { rawPath: wanted, existing = null }) {
     writePage(ctx, path.join(WIKI, DIRS[c.type], `${c.slug}.md`), data, body);
   }
 
-  // 6. Страниците на главите
+  // 6. The chapter pages
   const hc = H('chapter');
   for (const c of chapters) {
     if (c.exists) continue;
@@ -649,9 +649,9 @@ async function processSource(ctx, { rawPath: wanted, existing = null }) {
     }, body);
   }
 
-  // 7. Страницата на източника
+  // 7. The page of the source
   const hs = H('source');
-  const others = new Map(); // друг източник → общи понятия
+  const others = new Map(); // another source -> common concepts
   const byRaw = new Map(pages.filter((p) => p.data.type === 'source' && p.data.raw_path).map((p) => [normRaw(p.data.raw_path), p.slug]));
   for (const x of existingOnes) for (const r of arr(x.page.data.sources)) {
     const o = byRaw.get(normRaw(r));
@@ -688,7 +688,7 @@ async function processSource(ctx, { rawPath: wanted, existing = null }) {
   };
   writePage(ctx, existing?.file || path.join(WIKI, DIRS.source, `${slug}.md`), data, srcBody);
 
-  // 8. Цитатите към книгата сочат към главите
+  // 8. The citations to the book point to the chapters
   if (chapters.length) redirectCitations(ctx, slug, chapters);
 
   finishWrite(ctx);
@@ -712,7 +712,7 @@ const pathOfSlug = (s) => {
   return '';
 };
 
-/** ([[книга]], с. N) → ([[книга-chNN]], с. N), когато страницата попада в глава */
+/** ([[book]], p. N) -> ([[book-chNN]], p. N), when the page falls into a chapter */
 function redirectCitations(ctx, bookSlug, chapters) {
   const re = new RegExp(String.raw`\[\[${esc(bookSlug)}(\|[^\]]*)?\]\](,\s*${pageUnits()}\s*)(\d+)`, 'g');
   for (const p of wikiPages()) {
@@ -727,20 +727,20 @@ function redirectCitations(ctx, bookSlug, chapters) {
   }
 }
 
-/** Край на всяка задача: непознатите връзки стават текст, после индексът и обзорът се смятат наново. */
+/** The end of every task: unknown links become text, then the index and the overview are computed again. */
 function finishWrite(ctx) {
   const known = new Set(wikiPages().map((p) => p.slug));
   let fixed = 0;
   for (const f of ctx.written) {
     if (!fs.existsSync(f)) continue;
     const src = fs.readFileSync(f, 'utf8');
-    const fm = src.match(/^---[\s\S]*?\n---/)?.[0] || ''; // frontmatter (related) се оставя: lint го проверява отделно
+    const fm = src.match(/^---[\s\S]*?\n---/)?.[0] || ''; // frontmatter (related) is left: lint checks it separately
     const body = fixLinks(src.slice(fm.length), known);
     if (body.fixed) { fs.writeFileSync(f, fm + body.text); fixed += body.fixed; }
   }
   if (fixed) ctx.step({ icon: 'check', text: $t('{0} links to pages that do not exist became plain text', [fixed]), warn: true });
   ctx.step({ icon: 'check', text: $t('Updates the index and the overview') });
-  try { const ix = buildIndex(); fs.writeFileSync(ix.file, ix.text); } catch { /* индексът може да се направи наново с npm run index */ }
+  try { const ix = buildIndex(); fs.writeFileSync(ix.file, ix.text); } catch { /* the index can be made again with npm run index */ }
   try { const ov = buildOverview(); fs.writeFileSync(ov.file, ov.text); } catch {}
 }
 
@@ -749,7 +749,7 @@ function appendLog(kind, title, lines) {
   fs.appendFileSync(f, `\n## ${today()} ${kind}: ${title}\n${lines.map((l) => `- ${l}`).join('\n')}\n`);
 }
 
-// ---------- Глави за вече обработена книга ----------
+// ---------- Chapters for an already processed book ----------
 async function chaptersJob(ctx, slug) {
   const pages = wikiPages();
   const page = pages.find((p) => p.slug === slug && p.data.type === 'source');
@@ -794,7 +794,7 @@ async function chaptersJob(ctx, slug) {
   return { report: $t('{0} chapters of “{1}”.', [chapters.length, p.data.title || slug]) };
 }
 
-// ---------- Синтез между източниците (чете само страниците в wiki/) ----------
+// ---------- Synthesis between the sources (reads only the pages in wiki/) ----------
 async function synthesisJob(ctx, tag) {
   const pages = wikiPages();
   const by = new Map(pages.map((p) => [p.slug, p]));
@@ -809,7 +809,7 @@ async function synthesisJob(ctx, tag) {
   const describe = (p) => oneLine(String(p.data.emphasis || '') || p.content.replace(/^#.*$/gm, '').replace(/\[\[(?:[^\]|]*\|)?([^\]]*)\]\]/g, '$1'), 200);
   const hcmp = H('comparison');
 
-  // 1. Сравнения за понятията, които поне два източника описват
+  // 1. Comparisons for the concepts that at least two sources describe
   const M = ctx.cfg.engine === 'manual' ? 2 : 4;
   for (const x of multi.filter((y) => !covered(y.p.slug)).slice(0, M)) {
     checkAbort(ctx);
@@ -836,7 +836,7 @@ async function synthesisJob(ctx, tag) {
     made.push(s);
   }
 
-  // 2. Тематични хъбове за понятията без хъб
+  // 2. Topic hubs for the concepts without a hub
   const topics = pages.filter((p) => p.data.type === 'topic' && !['index', 'log', 'overview'].includes(p.slug));
   const inHub = new Set(topics.flatMap((t) => extractLinks(t.content)));
   const free = concepts.filter((p) => !inHub.has(p.slug)).slice(0, 80);
@@ -875,7 +875,7 @@ async function synthesisJob(ctx, tag) {
     }
   }
 
-  // 3. Обзор: основните линии в библиотеката (между маркери, автоматичният блок не се пипа)
+  // 3. Overview: the main lines in the library (between markers, the automatic block is not touched)
   checkAbort(ctx);
   const now = wikiPages();
   const listing = [
@@ -899,7 +899,7 @@ async function synthesisJob(ctx, tag) {
     fs.writeFileSync(ovFile, t); ctx.written.add(ovFile); ctx.job.updated.add(rel(ovFile));
   }
 
-  // 4. Празнини: само от страниците, без модела
+  // 4. Gaps: only from the pages, without the model
   const single = concepts.filter((p) => uniq(extractLinks(p.content).map(bookOf)).length <= 1);
   const low = now.filter((p) => p.data.confidence === 'low' && !['index', 'log', 'overview'].includes(p.slug));
   fs.mkdirSync(OUTPUTS, { recursive: true });
@@ -918,8 +918,8 @@ function findSectionText(page, names) {
 }
 
 /**
- * Изпълнява задача от опашката без инструменти. ctx: { job, signal, step, settings, tiers: { reader, writer } }.
- * Връща { report }. Грешките са AiError (kind: limit, auth, model, offline, format, cancelled, missing, no-text…).
+ * Runs a task from the queue without tools. ctx: { job, signal, step, settings, tiers: { reader, writer } }.
+ * Returns { report }. The errors are AiError (kind: limit, auth, model, offline, format, cancelled, missing, no-text...).
  */
 export async function runPipeline(kind, target, ctx) {
   ctx.written = new Set();

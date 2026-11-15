@@ -1,8 +1,8 @@
-// Преизгражда wiki/index.md, log.md и overview.md от страниците в wiki/. Не чете книгите и не харчи от лимита.
-//   npm run index                    → и трите файла (старите копия отиват в outputs/backup-*)
-//   npm run index -- --only log      → само index, log или overview
-//   npm run index -- --dry           → показва какво ще се промени, без да записва
-// Описанията от стария индекс се запазват; за страници без описание се взема от самата страница.
+// Rebuilds wiki/index.md, log.md and overview.md from the pages in wiki/. It does not read the books and does not use the limit.
+//   npm run index                    -> all three files (the old copies go to outputs/backup-*)
+//   npm run index -- --only log      -> only index, log or overview
+//   npm run index -- --dry           -> shows what will change, without writing
+// The descriptions of the old index are kept; for pages without a description one is taken from the page itself.
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -17,11 +17,11 @@ const FORMAT_GROUPS = [
 const SECTIONS = [['topic', P('Topics')], ['concept', P('Concepts')], ['entity', P('People and organizations')]];
 
 const plain = (s) => s
-  .replace(/\s*\((?:[^()]*\[\[[^()]*|[^()]*(?:с|стр|разд|pp?|sect)\.\s*[\d?][^()]*)\)/g, '') // цитати в скоби
+  .replace(/\s*\((?:[^()]*\[\[[^()]*|[^()]*(?:с|стр|разд|pp?|sect)\.\s*[\d?][^()]*)\)/g, '') // citations in parentheses
   .replace(/\[\[(?:[^\]|]*\|)?([^\]]*)\]\]/g, '$1').replace(/\[([^\]]*)\]\([^)]*\)/g, '$1')
   .replace(/[*_`>#]/g, '').replace(/\s+/g, ' ').trim();
 
-/** Едноредово описание: първото смислено изречение от страницата */
+/** A one-line description: the first meaningful sentence of the page */
 function describe(p) {
   const d = p.data;
   if (d.description) return plain(String(d.description)).slice(0, 160);
@@ -43,7 +43,7 @@ function describe(p) {
   return '';
 }
 
-/** Описанията от стария индекс: slug → текст */
+/** The descriptions of the old index: slug -> text */
 function oldDescriptions(file) {
   const map = new Map();
   if (!fs.existsSync(file)) return map;
@@ -106,7 +106,7 @@ export function rebuildIndex({ dry = false } = {}) {
 }
 
 
-// ---------- Дневник (log.md) ----------
+// ---------- Log (log.md) ----------
 const ENTRY = /^## (\d{4}-\d{2}-\d{2}) ([a-z]+): (.*)$/;
 const isStarter = (text, name) => {
   const f = path.join(path.dirname(fileURLToPath(import.meta.url)), 'starter', name);
@@ -120,7 +120,7 @@ const backupFile = (file) => {
   return rel(b);
 };
 
-/** Запазва съществуващите записи и добавя възстановени за източници, които не се споменават в лога. */
+/** Keeps the existing entries and adds restored ones for sources that are not mentioned in the log. */
 export function buildLog() {
   ensureStarter();
   const pages = wikiPages();
@@ -151,10 +151,10 @@ export function buildLog() {
   return { file, text, count: dated.length + undated.length, restored };
 }
 
-// ---------- Обзор (overview.md) ----------
+// ---------- Overview (overview.md) ----------
 const AUTO = ['<!-- auto-overview:start -->', '<!-- auto-overview:end -->'];
 
-/** Автоматичен блок с числа и водещи страници; текстът извън блока (твоят или на Claude) не се пипа. */
+/** An automatic block with numbers and leading pages; the text outside the block (yours or Claude's) is not touched. */
 export function buildOverview() {
   ensureStarter();
   const pages = wikiPages();
@@ -182,12 +182,12 @@ export function buildOverview() {
   } else if (isStarter(old, 'overview.md')) {
     text = ['---', `title: ${P('Overview')}`, 'type: topic', 'tags: [overview]', 'sources: []', 'related: []', `created: ${today()}`, `updated: ${today()}`, 'confidence: medium', '---', '', `# ${P('Library overview')}`, '', autoText, ''].join('\n');
   } else {
-    text = old.trimEnd() + '\n\n' + autoText + '\n'; // има собствен текст: добавяме блока отдолу
+    text = old.trimEnd() + '\n\n' + autoText + '\n'; // it has text of its own: we add the block below
   }
   return { file, text, count: sources.length };
 }
 
-/** Прилага избраните: ['index','log','overview']. Старите версии се копират в outputs/. */
+/** Applies the chosen ones: ['index','log','overview']. The old versions are copied into outputs/. */
 export function rebuildAll({ only = ['index', 'log', 'overview'], dry = false } = {}) {
   const out = { backups: [], counts: {}, restoredLog: 0 };
   const jobs = { index: buildIndex, log: buildLog, overview: buildOverview };

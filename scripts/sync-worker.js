@@ -1,4 +1,4 @@
-// Копирането може да е гигабайти: върви в отделна нишка, за да не замръзва интерфейсът. Напредъкът се връща със съобщения.
+// Copying can be gigabytes: it runs in a separate thread, so that the interface does not freeze. The progress comes back with messages.
 import { parentPort, workerData } from 'node:worker_threads';
 import * as sync from './sync.js';
 

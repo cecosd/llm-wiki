@@ -1,5 +1,5 @@
-// Парола за локалния интерфейс (по избор). Пази се само солта и хешът (scrypt) в .library-auth.json, който е извън git.
-// Сесиите са в паметта на сървъра: при рестарт се влиза отново. Забравена парола: спри приложението и изтрий файла.
+// Password for the local interface (optional). Only the salt and the hash (scrypt) are stored in .library-auth.json, which is outside git.
+// Sessions live in the memory of the server: after a restart you sign in again. Forgotten password: stop the app and delete the file.
 import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -13,7 +13,7 @@ const LOCK_MS = 60 * 1000;
 export const MIN_PASSWORD = 8;
 const MAX_PASSWORD = 1024;
 
-const sessions = new Map(); // хеш на бисквитката → кога изтича
+const sessions = new Map(); // hash of the cookie -> when it expires
 let fails = 0;
 let lockedUntil = 0;
 
@@ -26,7 +26,7 @@ const derive = (password, salt) => new Promise((resolve, reject) => {
 export const authEnabled = () => !!stored();
 export const isLocked = () => Date.now() < lockedUntil;
 
-/** Проверява паролата. След няколко грешни опита проверките спират за минута. */
+/** Checks the password. After a few wrong attempts the checks stop for a minute. */
 export async function verifyPassword(password) {
   const a = stored();
   if (!a || isLocked() || typeof password !== 'string' || password.length > MAX_PASSWORD) return false;
@@ -36,7 +36,7 @@ export async function verifyPassword(password) {
   return false;
 }
 
-/** Задава нова парола. Всички стари сесии спират да важат. */
+/** Sets a new password. All old sessions stop being valid. */
 export async function setPassword(password) {
   const salt = crypto.randomBytes(16).toString('hex');
   const hash = (await derive(password, salt)).toString('hex');
@@ -45,7 +45,7 @@ export async function setPassword(password) {
 }
 
 export function clearPassword() {
-  // В изолацията файлът е монтиран поотделно и не може да се изтрие; празен файл значи същото: без парола.
+  // In the isolation the file is mounted separately and cannot be deleted; an empty file means the same: no password.
   try { fs.rmSync(FILE, { force: true }); } catch { fs.writeFileSync(FILE, ''); }
   sessions.clear();
 }

@@ -1,11 +1,11 @@
-// Добавяне на статия по DOI или по директен адрес (без търсене в каталози).
-// DOI се разрешава през doi.org към страницата на издателя; от нея се четат метаданните (citation_* етикетите,
-// които издателите слагат за Google Scholar) и връзката към PDF, ако има такава. После се сваля PDF файлът или,
-// ако няма свободен, текстът на страницата, а най-накрая само резюмето. Всичко отива в raw/inbox/.
+// Adding an article by DOI or by a direct address (without searching catalogues).
+// A DOI is resolved through doi.org to the page of the publisher; from it the metadata is read (the citation_* tags
+// that publishers add for Google Scholar) and the link to the PDF, if there is one. Then the PDF is downloaded or,
+// if there is no free one, the text of the page, and finally only the abstract. Everything goes to raw/inbox/.
 //
-// Сигурност: свалят се само https адреси; адресът и всяко пренасочване се проверяват да не сочат към
-// локалната мрежа, а адресът, към който реално се свързваме, се проверява в самата връзка (срещу DNS rebinding);
-// размерът е ограничен; PDF се признава само по съдържание (%PDF).
+// Security: only https addresses are downloaded; the address and every redirect are checked not to point to
+// the local network, and the address we really connect to is checked in the connection itself (against DNS rebinding);
+// the size is limited; a PDF is accepted only by its content (%PDF).
 import fs from 'node:fs';
 import path from 'node:path';
 import https from 'node:https';
@@ -36,8 +36,8 @@ export function isPrivateIp(ip) {
 }
 
 /**
- * DNS отговорът се проверява в момента на свързване и връзката ползва точно проверения адрес. Така сайт не може да
- * върне публичен адрес при проверката и вътрешен при връзката (DNS rebinding).
+ * The DNS answer is checked at the moment of connecting and the connection uses exactly the checked address. This way a site cannot
+ * return a public address at the check and an internal one at the connection (DNS rebinding).
  */
 export function guardedLookup(host, opts, cb) {
   if (typeof opts === 'function') { cb = opts; opts = {}; }
@@ -58,7 +58,7 @@ function decoded(res) {
   return make ? pipeline(res, make(), () => {}) : res;
 }
 
-/** Проверява, че адресът е публичен https. Връща URL обекта или хвърля грешка. */
+/** Checks that the address is a public https one. Returns the URL object or throws an error. */
 async function safeUrl(raw) {
   let u;
   try { u = new URL(raw); } catch { throw new Error($t('Invalid address.')); }
@@ -71,7 +71,7 @@ async function safeUrl(raw) {
   return u;
 }
 
-/** Сваля тялото на отговора с ограничение на размера; следва пренасочвания само към публични адреси */
+/** Downloads the body of the response with a size limit; follows redirects only to public addresses */
 async function download(rawUrl, accept) {
   let url = rawUrl;
   for (let hop = 0; hop < 5; hop++) {
@@ -83,7 +83,7 @@ async function download(rawUrl, accept) {
     if (len > MAX_BYTES) { r.destroy(); throw new Error($t('The file is too large.')); }
     const chunks = []; let n = 0;
     try {
-      // Ограничението е върху разкомпресираните данни: малък архив не може да напълни паметта.
+      // The limit is on the decompressed data: a small archive cannot fill the memory.
       for await (const c of decoded(r)) { n += c.length; if (n > MAX_BYTES) throw new Error($t('The file is too large.')); chunks.push(c); }
     } finally { r.destroy(); }
     return { buf: Buffer.concat(chunks), type: String(r.headers['content-type'] || ''), url };
@@ -100,7 +100,7 @@ function uniqueName(dir, base, ext) {
 
 const decode = (t) => String(t).replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#0?39;/g, "'").replace(/&#x27;/g, "'").replace(/\s+/g, ' ').trim();
 
-/** Метаданни от етикетите на страницата (citation_*, DC.*, og:*) */
+/** Metadata from the tags of the page (citation_*, DC.*, og:*) */
 function metaOf(html) {
   const out = {};
   for (const m of html.matchAll(/<meta\s+[^>]*>/gi)) {
@@ -124,7 +124,7 @@ function metaOf(html) {
   };
 }
 
-/** Какво е въведено: DOI, адрес с https или нищо разпознаваемо */
+/** What was entered: a DOI, an address with https, or nothing recognisable */
 export function parseInput(input) {
   const s = String(input || '').trim();
   const doi = s.match(/^(?:https?:\/\/(?:dx\.)?doi\.org\/|doi:\s*)?(10\.\d{4,9}\/[^\s]+)$/i);
@@ -134,8 +134,8 @@ export function parseInput(input) {
 }
 
 /**
- * Добавя публикация в raw/inbox/ по DOI или адрес. Ред на опитите: PDF (директен адрес или citation_pdf_url
- * от страницата) → текстът на страницата → само резюме (маркирано като непълно). Връща { ok, file, kind, note }.
+ * Adds a publication to raw/inbox/ by DOI or address. Order of attempts: a PDF (a direct address or citation_pdf_url
+ * from the page) -> the text of the page -> only an abstract (marked as incomplete). Returns { ok, file, kind, note }.
  */
 export async function importPaper(input) {
   const p = parseInput(input);

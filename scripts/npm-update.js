@@ -1,10 +1,10 @@
-// Обновяване на пакетите от „Настройки → Обновления“, само в рамките на версиите в package.json (npm update).
-// Основните версии (напр. 1.x → 2.x) не се инсталират оттук: те може да искат друг Node или да чупят кода.
+// Updating the packages from "Settings -> Updates", only within the versions in package.json (npm update).
+// Major versions (for example 1.x -> 2.x) are not installed from here: they may need another Node or break the code.
 //
-// Файлът ползва САМО вградените модули на Node: в изолацията го пуска стартерът ОТВЪН (sandbox.js), а пакет,
-// внесен оттук, би се изпълнил с всичките ти права. Нищо от заявката не се приема наготово: имената трябва да са
-// преки зависимости от package.json (отвътре той е само за четене), а версиите ги избира npm по диапазоните в него.
-// Инсталационните скриптове на пакетите не се пускат (--ignore-scripts, както и в .npmrc).
+// This file uses ONLY the built-in Node modules: in the isolation the launcher runs it OUTSIDE (sandbox.js), and a package
+// imported here would run with all your rights. Nothing from the request is taken as given: the names must be
+// direct dependencies of package.json (from inside it is read-only), and npm chooses the versions by the ranges in it.
+// The install scripts of the packages are not run (--ignore-scripts, as in .npmrc).
 import fs from 'node:fs';
 import path from 'node:path';
 import { spawn } from 'node:child_process';
@@ -12,18 +12,18 @@ import { spawn } from 'node:child_process';
 const IS_WIN = process.platform === 'win32';
 const NAME_RE = /^(@[a-z0-9][a-z0-9._-]*\/)?[a-z0-9][a-z0-9._-]*$/;
 const SAFE_ARGS = ['--ignore-scripts', '--no-audit', '--no-fund'];
-/** Код на изход, с който сървърът казва на стартера „пусни ме отново“ (след обновяване на пакетите) */
+/** The exit code with which the server tells the launcher "start me again" (after the packages were updated) */
 export const RESTART_CODE = 75;
 
 const readJson = (file) => JSON.parse(fs.readFileSync(file, 'utf8'));
 
-/** Преките зависимости (dependencies и devDependencies) от package.json */
+/** The direct dependencies (dependencies and devDependencies) of package.json */
 export function directDeps(root) {
   const pkg = readJson(path.join(root, 'package.json'));
   return new Set([...Object.keys(pkg.dependencies || {}), ...Object.keys(pkg.devDependencies || {})]);
 }
 
-/** Само имена на преки зависимости, без повторения. Празен списък значи „всички“. null при непознато име. */
+/** Only names of direct dependencies, without repeats. An empty list means "all". null for an unknown name. */
 export function cleanNames(root, names) {
   if (names == null) return [];
   if (!Array.isArray(names) || names.length > 200) return null;
@@ -35,7 +35,7 @@ export function cleanNames(root, names) {
   return out;
 }
 
-/** Инсталираните версии на преките зависимости (от node_modules, не от package-lock.json) */
+/** The installed versions of the direct dependencies (from node_modules, not from package-lock.json) */
 export function installedVersions(root) {
   const out = {};
   for (const n of directDeps(root)) {
@@ -44,7 +44,7 @@ export function installedVersions(root) {
   return out;
 }
 
-/** Пуска npm без ръчен вход. Връща { ok, log } или { ok: false, error } с последните редове от изхода. */
+/** Runs npm without a manual sign-in. Returns { ok, log } or { ok: false, error } with the last lines of the output. */
 export function runNpm(root, args, timeoutMs = 10 * 60 * 1000) {
   return new Promise((resolve) => {
     let child;
@@ -55,7 +55,7 @@ export function runNpm(root, args, timeoutMs = 10 * 60 * 1000) {
     const keep = (d) => { out = (out + d).slice(-4000); };
     child.stdout.setEncoding('utf8').on('data', keep);
     child.stderr.setEncoding('utf8').on('data', keep);
-    const timer = setTimeout(() => { try { child.kill(); } catch { /* вече е спрял */ } }, timeoutMs);
+    const timer = setTimeout(() => { try { child.kill(); } catch { /* already stopped */ } }, timeoutMs);
     child.on('error', (e) => { clearTimeout(timer); resolve({ ok: false, error: e.message }); });
     child.on('close', (code) => {
       clearTimeout(timer);
@@ -68,10 +68,10 @@ export function runNpm(root, args, timeoutMs = 10 * 60 * 1000) {
 let busy = false;
 
 /**
- * Обновява избраните пакети (или всички при празен списък) до най-новата версия, която package.json позволява.
- * Връща { ok, changed: [{ name, from, to }], lockChanged, backup }. backup е предишният package-lock.json:
- * пази се САМО в паметта на процеса, който обновява (в изолацията: стартерът), и никога не се връща към клетката.
- * Ако npm спре по средата, предишните версии се връщат веднага.
+ * Updates the chosen packages (or all, with an empty list) to the newest version that package.json allows.
+ * Returns { ok, changed: [{ name, from, to }], lockChanged, backup }. backup is the previous package-lock.json:
+ * it is kept ONLY in the memory of the process that updates (in the isolation: the launcher), and never goes back to the cage.
+ * If npm stops halfway, the previous versions are put back at once.
  */
 export async function updatePackages(root, names, { npm = runNpm } = {}) {
   const list = cleanNames(root, names);
@@ -95,7 +95,7 @@ export async function updatePackages(root, names, { npm = runNpm } = {}) {
   } finally { busy = false; }
 }
 
-/** Връща предишните версии: записва стария package-lock.json и инсталира точно него (npm ci). */
+/** Puts the previous versions back: writes the old package-lock.json and installs exactly it (npm ci). */
 export async function restoreLock(root, backup, { npm = runNpm } = {}) {
   if (typeof backup !== 'string' || !backup) return { ok: false, error: 'no-backup' };
   fs.writeFileSync(path.join(root, 'package-lock.json'), backup);

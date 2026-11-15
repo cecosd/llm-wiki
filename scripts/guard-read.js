@@ -1,17 +1,17 @@
-// Кука (PreToolUse) за Claude Code: Read, Grep и Glob работят само в папката на проекта.
-// Нужна е, защото правилата за права не стигат: Read(./**) ограничава Read, но Grep и Glob трябва да са разрешени
-// по име, за да съществуват в режим dontAsk, а тогава могат да четат и извън проекта (проверено с истинския Claude).
-// Изход 2 спира инструмента; при всяко съмнение куката отказва. Пуска се от agent.js чрез --settings.
+// Hook (PreToolUse) for Claude Code: Read, Grep and Glob work only in the project folder.
+// It is needed because permission rules are not enough: Read(./**) limits Read, but Grep and Glob must be allowed
+// by name to exist in dontAsk mode, and then they can read outside the project too (checked with the real Claude).
+// Exit 2 stops the tool; when in any doubt the hook refuses. It is run by agent.js through --settings.
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-// В проекта, но не за четене: история с лични страници, настройки, паролата на интерфейса и ключовете за API.
+// Inside the project but not for reading: the history with personal pages, the settings, the interface password and the API keys.
 const PRIVATE = /(^|\/)(\.git|\.library-git)(\/|$)|(^|\/)(\.library-auth\.json|\.library-secrets\.json(\.tmp)?|library\.config\.json|\.env(\.[^/]*)?)$/;
 
 const refuse = (why) => { process.stderr.write(`Blocked by the library: ${why}\n`); process.exit(2); };
 
-/** Връща причина за отказ или null. Сравнява по текста на пътя, за да работят и raw/ папки, свързани с другаде. */
+/** Returns a reason to refuse or null. Compares by the text of the path, so that raw/ folders linked elsewhere work too. */
 export function reasonToBlock(input, root = ROOT) {
   const tool = input?.tool_name;
   const args = input?.tool_input || {};
@@ -22,7 +22,7 @@ export function reasonToBlock(input, root = ROOT) {
   const inside = path.relative(root, full).split(path.sep).join('/');
   if (inside === '..' || inside.startsWith('../') || path.isAbsolute(inside)) return 'only files inside the project folder can be read';
   if (PRIVATE.test(inside)) return 'this file is private';
-  // Шаблонът също може да сочи навън: Glob("../*") или Grep с glob: "/etc/*".
+  // The pattern can also point outside: Glob("../*") or Grep with glob: "/etc/*".
   const pattern = tool === 'Glob' ? args.pattern : tool === 'Grep' ? args.glob : '';
   const p = String(pattern || '').replace(/\\/g, '/');
   if (p.startsWith('/') || p.startsWith('~') || /^[a-z]:/i.test(p) || p.split('/').includes('..')) return 'the pattern points outside the project folder';

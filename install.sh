@@ -45,7 +45,7 @@ nvm_install() { # install and activate one version; fails quietly if this system
 }
 
 load_nvm
-say "1/4  Node.js 24 or newer"
+say "1/5  Node.js 24 or newer"
 if [ "$(node_major)" -ge 24 ]; then
   CUR="$(node -v)"; ok "Node.js $CUR is installed and supported"
   if [ "$NODEVER" != "keep" ]; then
@@ -87,10 +87,23 @@ else
 fi
 NODE_BIN="$(command -v node)"
 
-say "2/4  Libraries (npm install)"
+say "2/5  Libraries (npm install)"
 if [ -d node_modules/express ]; then ok "already installed"; else npm install --no-fund --no-audit || { echo "  npm install failed."; exit 1; }; ok "installed"; fi
 
-say "3/4  Protection (optional) and a name for the local site (optional)"
+say "3/5  git (the Undo button and one-click updates)"
+if ! have git; then
+  warn "git was not found."
+  if have apt-get && ask "Install git now (sudo apt install git)?"; then sudo apt-get install -y git
+  elif have brew && ask "Install git now (brew install git)?"; then brew install git
+  elif [ "$(uname -s)" = "Darwin" ] && ask "Install the Apple command line tools, which include git?"; then xcode-select --install || true; fi
+fi
+if have git; then
+  ok "$(git --version)"
+  # Links this folder to the project repository, so that Settings -> Updates can install new versions. Nothing is committed.
+  "$(command -v node)" scripts/git-setup.js | sed 's/^/  /'
+else warn "Without git everything works, but the Undo button and one-click updates are not available. Install git later and run this again."; fi
+
+say "4/5  Protection (optional) and a name for the local site (optional)"
 if [ "$(uname -s)" = "Linux" ]; then
   if have bwrap; then ok "bubblewrap found: safe mode can use strong protection (the program sees only this folder)"
   else
@@ -104,7 +117,7 @@ if [ -n "$SITE" ]; then
   else warn "the site name was not saved. You can set it later in Settings -> Site address."; fi
 fi
 
-say "4/4  Shortcut"
+say "5/5  Shortcut"
 if [ "$(uname -s)" = "Darwin" ]; then
   APP="$HOME/Applications/Biblioteka.app"
   mkdir -p "$APP/Contents/MacOS"

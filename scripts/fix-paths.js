@@ -1,5 +1,5 @@
-// Привежда raw_path във всички source страници към каноничния вид на диска.
-// Пипа само реда raw_path във frontmatter, нищо друго. npm run fix-paths [-- --dry]
+// Brings raw_path in all source pages to the canonical form on disk.
+// Touches only the raw_path line in the frontmatter, nothing else. npm run fix-paths [-- --dry]
 import fs from 'node:fs';
 import { ingestState } from './lib.js';
 import { $t } from './i18n.js';

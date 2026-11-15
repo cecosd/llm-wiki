@@ -1,14 +1,14 @@
-// Сортира raw/inbox/ по папки и записва файловете в manifest.json.
-// Употреба:
+// Sorts raw/inbox/ into folders and records the files in manifest.json.
+// Usage:
 //   npm run inbox
-//   npm run inbox -- --dry                    само показва какво би направил
-//   npm run inbox -- --move <raw път> <папка>  ръчно преместване на сортиран файл
+//   npm run inbox -- --dry                    only shows what it would do
+//   npm run inbox -- --move <raw path> <folder>  moves a sorted file by hand
 import fs from 'node:fs';
 import path from 'node:path';
 import { RAW, ROOT, rel, walk, sha256, loadManifest, saveManifest, today } from './lib.js';
 import { $t } from './i18n.js';
 
-const BOOK_PAGES = 80; // PDF с повече страници → books/
+const BOOK_PAGES = 80; // A PDF with more pages -> books/
 
 const EXT = {
   books: ['.epub', '.mobi', '.azw', '.azw3', '.djvu', '.fb2'],
@@ -19,7 +19,7 @@ const EXT = {
 };
 
 function pdfPages(file) {
-  // Бърза евристика без зависимости: брои /Type /Page обекти.
+  // A quick heuristic without dependencies: counts /Type /Page objects.
   const buf = fs.readFileSync(file).toString('latin1');
   const m = buf.match(/\/Type\s*\/Page[^s]/g);
   return m ? m.length : 0;
@@ -29,7 +29,7 @@ function classify(file) {
   const ext = path.extname(file).toLowerCase();
   if (ext === '.pdf') return pdfPages(file) > BOOK_PAGES ? 'books' : 'papers';
   if (ext === '.md' || ext === '.markdown') {
-    // Obsidian Web Clipper слага source: URL във frontmatter
+    // Obsidian Web Clipper puts source: URL in the frontmatter
     const head = fs.readFileSync(file, 'utf8').slice(0, 1500);
     return /^(source|url):\s*https?:/m.test(head) ? 'web' : 'notes';
   }

@@ -23,7 +23,7 @@ Paths are saved; the "read" marks too. You can limit a path to chosen **areas** 
 | Literature review | Who claims what, by theme; a table of the positions, gaps and a bibliography. |
 | Fiction | A short story with characters and a plot built on the ideas of the library; no citations in the text, the sources are listed at the end under "Based on". |
 
-- **Quick draft**: from a template, with no AI (scientific article only).
+- **Quick draft**: from a template, with no AI, for every kind of text. An essay gets an introduction, a thesis, an antithesis (taken from the contradictions and comparisons in your library) and a conclusion; a popular science article gets a lead and a section per concept; a review gets themes and a table of positions; a story gets an outline (setting, characters, conflict, turning point, ending) with `[Fill in: ...]` marks for what only you can write.
 - **With the AI** on three levels.
 - **Creativity** from 1 to 5 (strict, restrained, balanced, free, bold): it changes the language and the interpretation, not the facts. At every level the facts and the citations come only from the library; in fiction the level also sets how freely the plot and the characters are invented. Claude Code receives it as an instruction; a model through an API also gets it as the temperature of the request.
 - **Blank document**: opens a text with only a title (taken from the topic field, if there is one) and you write it yourself.

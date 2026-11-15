@@ -1,5 +1,5 @@
-// Преводи на интерфейса. /locale.js (от сървъра) задава window.__I18N = { lang, locales, messages };
-// ключът е английският текст, а липсващ превод показва самия ключ.
+// Translations of the interface. /locale.js (from the server) sets window.__I18N = { lang, locales, messages };
+// the key is the English text, and a missing translation shows the key itself.
 (() => {
   const D = window.__I18N || { lang: 'en', locales: [], messages: {} };
   const fmt = (s, args) => (args ? s.replace(/\{(\d+)\}/g, (m, i) => (args[i] ?? m)) : s);
@@ -8,19 +8,19 @@
     locales: D.locales,
     pageUnits: D.pageUnits || '',
     contentLang: D.contentLang || '',
-    // Езикът се пази в бисквитка (за интерфейса и съобщенията на сървъра); сървърът сменя и езика на съдържанието
-    // (CLAUDE.md, шаблони, промптове), за да са на един език. После страницата се зарежда наново.
+    // The language is kept in a cookie (for the interface and the messages of the server); the server also changes the content language
+    // (CLAUDE.md, templates, prompts), so that they are in one language. Then the page loads again.
     async setLang(code) {
       let r = { ok: true };
-      try { r = await (await fetch('/api/lang', { method: 'POST', headers: { 'content-type': 'application/json', 'x-library': '1' }, body: JSON.stringify({ code }) })).json(); } catch { /* офлайн: само интерфейсът */ }
-      if (!r.ok) return r; // сървърът отказа (обработката работи): нито интерфейсът, нито съдържанието се сменят
+      try { r = await (await fetch('/api/lang', { method: 'POST', headers: { 'content-type': 'application/json', 'x-library': '1' }, body: JSON.stringify({ code }) })).json(); } catch { /* offline: only the interface */ }
+      if (!r.ok) return r; // the server refused (processing is running): neither the interface nor the content changes
       document.cookie = `lang=${encodeURIComponent(code)}; path=/; max-age=31536000; samesite=lax`;
       location.reload();
       return r;
     },
   };
-  // Моделът: името замества {ai} („Попитай {ai}“ → „Попитай Gemini“), а надписите от „Настройки → Модел“
-  // заменят цели текстове по английския ключ.
+  // The model: the name replaces {ai} ("Ask {ai}" -> "Ask Gemini"), and the labels from "Settings -> Model"
+  // replace whole texts by the English key.
   const AI = D.ai || { name: 'Claude', labels: {} };
   window.AI = AI;
   window.$t = (key, args) => {

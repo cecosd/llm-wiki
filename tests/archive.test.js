@@ -1,4 +1,4 @@
-// Статичният архив за четене: един index.html и markdown файловете, без raw/ и без записи. Всичко е във временно копие.
+// The static archive for reading: one index.html and the markdown files, without raw/ and without writes. Everything is in a temporary copy.
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';

@@ -1,11 +1,11 @@
-// Обработка с бутон: пуска Claude Code във фонов режим (`claude -p`) със скиловете на библиотеката,
-// следи какво прави и го показва в интерфейса. Използва абонамента, с който си влязъл в Claude Code.
+// Processing with a button: runs Claude Code in the background (`claude -p`) with the skills of the library,
+// follows what it does and shows it in the interface. Uses the subscription you signed in to Claude Code with.
 //
-// Предпазни мерки:
-//  - Claude може да чете всичко в папката, да пише САМО в wiki/ и да пуска само скриптовете на библиотеката.
-//    Всичко друго се отказва автоматично (режим dontAsk).
-//  - Преди всяка обработка се прави git точка; „Върни“ възстановява wiki/ отпреди нея.
-//  - Един файл наведнъж; при изчерпан лимит опашката спира и чака.
+// Safeguards:
+//  - Claude can read everything in the folder, write ONLY in wiki/ and run only the scripts of the library.
+//    Everything else is refused automatically (dontAsk mode).
+//  - Before every processing a git point is made; "Undo" restores wiki/ from before it.
+//  - One file at a time; when the limit is used up the queue stops and waits.
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -22,18 +22,18 @@ const SETTINGS_FILE = path.join(ROOT, 'library.config.json');
 const HISTORY_FILE = path.join(OUTPUTS, '.agent-history.json');
 const IS_WIN = process.platform === 'win32';
 
-// Read е ограничен до проекта с правило. Grep и Glob трябва да са разрешени по име, иначе в режим dontAsk изчезват,
-// затова и трите минават през куката guard-read.js, която важи и за подагента.
+// Read is limited to the project by a rule. Grep and Glob must be allowed by name, otherwise they disappear in dontAsk mode,
+// so all three go through the guard-read.js hook, which also applies to the subagent.
 const READ_TOOLS = ['Read(./**)', 'Glob', 'Grep'];
 const DENIED_TOOLS = ['WebFetch', 'WebSearch', 'Read(./.git/**)', 'Read(./.library-git/**)', 'Read(./.library-auth.json)', 'Read(./.library-secrets.json)', 'Read(./library.config.json)', 'Read(.env)', 'Read(~/.ssh/**)', 'Read(~/.aws/**)', 'Read(~/.gnupg/**)'];
-// Claude Code с модел на друг доставчик: --effort е само за моделите на Anthropic
+// Claude Code with a model of another provider: --effort is only for Anthropic models
 const effortFor = (effort) => (aiConfig().preset.vendor === 'Anthropic' ? effort : null);
 const spawnOpts = (extra) => ({ cwd: ROOT, windowsHide: true, env: claudeEnv(), ...extra });
 const ALLOWED_TOOLS = [
   'Read(./**)', 'Glob', 'Grep', 'TodoWrite',
-  'Agent(chapter-reader)', // четецът на глави в икономичен режим (само чете)
-  'Edit(wiki/**)', // покрива и Write: Claude Code проверява писането по Edit правилата
-  'Edit(outputs/**)', // отчетите от синтеза и проверките
+  'Agent(chapter-reader)', // the chapter reader in economy mode (read-only)
+  'Edit(wiki/**)', // covers Write too: Claude Code checks writing by the Edit rules
+  'Edit(outputs/**)', // the reports of the synthesis and the checks
   'Bash(npm run pending)', 'Bash(npm run status)',
   'Bash(npm run extract)', 'Bash(npm run extract *)',
   'Bash(npm run lint)', 'Bash(npm run lint:quick)',
@@ -47,7 +47,7 @@ const systemNote = () => [
   P('At the end give a short report in English in 3 to 6 lines: the emphasis of the source, new and updated pages, contradictions.'),
 ].join(' ');
 
-// Режими: кой модел чете и кой редактира. Скъпото е четенето на стотици страници; преценката е върху бележките.
+// Modes: which model reads and which edits. Reading hundreds of pages is the expensive part; the judgement is on the notes.
 export const MODES = lazy(() => ({
   economy: {
     label: $t('Economy'), model: 'sonnet', effort: 'medium',
@@ -57,7 +57,7 @@ export const MODES = lazy(() => ({
   best: { label: $t('Best'), model: 'opus', effort: null, note: '' },
 }));
 const modeOf = (k) => MODES[k] || MODES.economy;
-// Език на индексиране: преводите на понятия понякога са лоши, затова оригиналните термини могат да се пазят и търсят
+// Indexing language: translations of concepts are sometimes bad, so the original terms can be kept and searched
 export const LANG_NOTES = lazy(() => ({
   bg: '',
   both: P('Indexing language: the pages are in English, but also index the source in its ORIGINAL language. If the source is not in English: (1) in the source page add `lang: <language code>` and `original_title: <title as in the source>`; (2) for every concept and person add to `aliases` the term or the name EXACTLY as in the source, without translating from memory; (3) `tags` may include up to 3 keywords of the original (lowercase, with hyphens); (4) at first use of a concept write the term in English and the original in parentheses; (5) if the term has no established English translation, do not invent one: keep the original as the main name and add a short explanation in English. This way search finds both the translated and the original spelling.'),
@@ -65,7 +65,7 @@ export const LANG_NOTES = lazy(() => ({
 }));
 export const MODEL_IDS = ['haiku', 'sonnet', 'opus'];
 
-/** Област на източника: една на източник; ползва вече съществуващите имена, за да не се разпадат на варианти */
+/** The area of the source: one per source; it uses the names that already exist, so that they do not fall apart into variants */
 function areaNote(kind) {
   if (kind !== 'ingest' && kind !== 'upgrade') return '';
   let names = [];
@@ -76,7 +76,7 @@ function areaNote(kind) {
     + P('Chapters, concepts and people do NOT get an `area` field: their area is determined by the books that cite them. A concept that already exists is extended in the same page, even if the new source is from another area.');
 }
 
-/** Кой модел чете главите и кой пише: избор на човека (settings.reader/writer), иначе от режима */
+/** Which model reads the chapters and which writes: the person's choice (settings.reader/writer), otherwise from the mode */
 export function effectiveModels(settings, kind) {
   const mode = modeOf(settings.mode);
   if (kind === 'synthesis' && settings.synthesisBest) return { writer: 'opus', reader: 'opus', delegate: false, mode: 'best' };
@@ -85,7 +85,7 @@ export function effectiveModels(settings, kind) {
   return { writer, reader, delegate: kind !== 'synthesis' && reader !== writer, mode: settings.mode in MODES ? settings.mode : 'economy' };
 }
 
-/** Описание на подагента chapter-reader с избрания модел (замества файла в .claude/agents само когато моделът е различен) */
+/** The description of the chapter-reader subagent with the chosen model (replaces the file in .claude/agents only when the model is different) */
 function readerAgentsJson(model) {
   try {
     const raw = fs.readFileSync(path.join(ROOT, '.claude', 'agents', 'chapter-reader.md'), 'utf8');
@@ -94,43 +94,43 @@ function readerAgentsJson(model) {
     const description = (m[1].match(/^description:\s*(.+)$/m) || [])[1] || $t('Reads one chapter');
     return JSON.stringify({ 'chapter-reader': { description, prompt: m[2].trim(), tools: ['Read', 'Grep', 'Glob'], model, ...(model === 'opus' ? {} : { effort: 'low' }) } });
   } catch {
-    // няма файл на подагента: дефинираме го тук, за да работи избраният модел
+    // there is no subagent file: we define it here, so that the chosen model works
     return JSON.stringify({ 'chapter-reader': { description: P('Reads ONE chapter of the extracted text of a book and returns structured notes in English. Does not write files.'), prompt: P('Read only the given range (by the markers <!-- стр. N -->) and return in English: in brief, key ideas with p. N, concepts, a quote of up to 2 sentences, claims to cross-check. Do not invent pages. No em dash.'), tools: ['Read', 'Grep', 'Glob'], model }, });
   }
 }
 
-// ---------- Помощни ----------
+// ---------- Helpers ----------
 const now = () => new Date().toISOString();
 const readJSON = (f, d) => { try { return JSON.parse(fs.readFileSync(f, 'utf8')); } catch { return d; } };
 const writeJSON = (f, v) => { fs.mkdirSync(path.dirname(f), { recursive: true }); fs.writeFileSync(f, JSON.stringify(v, null, 2) + '\n'); };
 
-// Точките за връщане („Върни“) са в отделно git хранилище (.library-git), за да не се бъркат с git на кода и да работят,
-// дори wiki/ да е в .gitignore на проекта.
+// The restore points ("Undo") are in a separate git repository (.library-git), so that they are not mixed with the git of the code and work
+// even if wiki/ is in the .gitignore of the project.
 const HISTORY_GIT = path.join(ROOT, '.library-git');
 function git(args) {
   const r = spawnSync('git', ['-c', 'user.name=Library', '-c', 'user.email=library@localhost', '-c', 'core.quotepath=false', `--git-dir=${HISTORY_GIT}`, `--work-tree=${ROOT}`, ...args], { cwd: ROOT, encoding: 'utf8' });
   return { ok: r.status === 0, out: (r.stdout || '').trim(), err: (r.stderr || '').trim() };
 }
 
-// Настройките на куката са в лична временна папка (само за този потребител), а не в outputs/: там Claude може да пише
-// и, ако Claude Code препрочете настройките по време на работа, подведен Claude би могъл да махне куката.
+// The settings of the hook are in a private temporary folder (only for this user), not in outputs/: Claude can write there
+// and, if Claude Code rereads the settings during the work, a misled Claude could remove the hook.
 let guardDir = null;
 function privateGuardDir() {
   if (guardDir && fs.existsSync(guardDir)) return guardDir;
-  guardDir = fs.mkdtempSync(path.join(os.tmpdir(), 'llm-wiki-guard-')); // 0700, ново име всеки път
+  guardDir = fs.mkdtempSync(path.join(os.tmpdir(), 'llm-wiki-guard-')); // 0700, a new name every time
   process.once('exit', () => { try { fs.rmSync(guardDir, { recursive: true, force: true }); } catch {} });
   return guardDir;
 }
 
 /**
- * Аргументите за сигурност на всяко пускане на Claude. Настройките се записват наново всеки път, извън папките,
- * в които Claude има право да пише (wiki/ и outputs/).
+ * The security arguments of every run of Claude. The settings are written again every time, outside the folders
+ * in which Claude may write (wiki/ and outputs/).
  */
 export function guardArgs() {
   const file = path.join(privateGuardDir(), 'claude-guard.json');
   const slash = (p) => p.split(path.sep).join('/');
   const hook = (script) => `"${slash(process.execPath)}" "${slash(path.join(ROOT, 'scripts', script))}"`;
-  // guard-write.js не позволява Write върху wiki/log.md (дневникът се допълва с Edit)
+  // guard-write.js does not allow Write on wiki/log.md (the log is appended with Edit)
   writeJSON(file, { hooks: { PreToolUse: [
     { matcher: 'Read|Grep|Glob', hooks: [{ type: 'command', command: hook('guard-read.js') }] },
     { matcher: 'Write', hooks: [{ type: 'command', command: hook('guard-write.js') }] },
@@ -138,15 +138,15 @@ export function guardArgs() {
   return ['--settings', file, '--disallowedTools', DENIED_TOOLS.join(',')];
 }
 
-/** Намира изпълнимия файл на claude (на Windows: claude.exe или claude.cmd от npm) */
+/** Finds the executable of claude (on Windows: claude.exe or claude.cmd from npm) */
 export function findClaude() {
   if (process.env.CLAUDE_BIN) return { cmd: process.env.CLAUDE_BIN, shell: /\.(cmd|bat)$/i.test(process.env.CLAUDE_BIN) };
   const which = spawnSync(IS_WIN ? 'where' : 'which', ['claude'], { encoding: 'utf8' });
   const found = (which.stdout || '').split(/\r?\n/).map((s) => s.trim()).filter(Boolean);
   if (!found.length) {
-    // Обичайното място от официалния инсталатор, ако PATH още не е обновен
+    // The usual place from the official installer, if PATH is not updated yet
     const guess = path.join(process.env.HOME || process.env.USERPROFILE || '', '.local', 'bin', IS_WIN ? 'claude.exe' : 'claude');
-    // В защитен режим (node --permission) проверка на път извън проекта хвърля грешка, затова е в try
+    // In safe mode (node --permission) checking a path outside the project throws, so it is in try
     try { return fs.existsSync(guess) ? { cmd: guess, shell: false } : null; } catch { return null; }
   }
   const exe = found.find((f) => /\.exe$/i.test(f)) || found[0];
@@ -155,7 +155,7 @@ export function findClaude() {
 
 const winQuote = (a) => (/[\s"&|<>^()%!,]/.test(a) ? `"${a.replace(/"/g, '""')}"` : a);
 
-// ---------- Описание на действията на Claude на човешки език ----------
+// ---------- A description of the actions of Claude in human language ----------
 function pageTitle(file) {
   try {
     const m = fs.readFileSync(file, 'utf8').match(/^title:\s*["']?(.+?)["']?\s*$/m);
@@ -202,13 +202,13 @@ function describe(name, input, job) {
   }
 }
 
-const RETRY_MS = Number(process.env.LIBRARY_RETRY_MS) || 30 * 60 * 1000; // повторен опит след лимит// Сканиран ли е източникът: под 15 думи средно на страница (или под 30 думи общо) текстът е твърде беден
+const RETRY_MS = Number(process.env.LIBRARY_RETRY_MS) || 30 * 60 * 1000; // a retry after the limit// Is the source scanned: under 15 words per page on average (or under 30 words in total) the text is too poor
 const MIN_WORDS_PER_PAGE = 15, MIN_WORDS = 30;
 function pdfPageCount(file) {
   try { return (fs.readFileSync(file).toString('latin1').match(/\/Type\s*\/Page[^s]/g) || []).length; } catch { return 0; }
 }
 
-/** Източниците, обработени по стария стандарт, подредени по важност (колко страници сочат към тях или главите им) */
+/** The sources processed by the old standard, ordered by importance (how many pages point to them or to their chapters) */
 export function legacySources(pages = wikiPages()) {
   const chapterBook = new Map(pages.filter((p) => p.data.type === 'chapter').map((p) => [p.slug, extractLinks(String(p.data.book || ''))[0]]));
   const score = new Map();
@@ -234,8 +234,8 @@ export function legacySources(pages = wikiPages()) {
 const LIMIT_RE = /usage limit|rate.?limit|limit reached|лимит|5-hour|weekly limit|reset/i;
 const AUTH_RE = /log ?in|logged in|authenticat|invalid api key|oauth|credential|\/login/i;
 
-// ---------- Кратки въпроси към Claude (само четене): пътеки за учене ----------
-// Три нива, както при обработката: по-лекият модел е по-евтин за лимита, по-мощният чете повече и подрежда по-грижливо.
+// ---------- Short questions to Claude (read-only): learning paths ----------
+// Three levels, as in processing: the lighter model is cheaper for the limit, the more powerful one reads more and orders more carefully.
 export const PATH_LEVELS = lazy(() => ({
   light:  { label: $t('Light'),    model: 'haiku',  effort: null,     maxTurns: 10, timeoutMs: 150000, depth: 'light' },
   medium: { label: $t('Medium'), model: 'sonnet', effort: 'medium', maxTurns: 24, timeoutMs: 300000, depth: 'medium' },
@@ -243,8 +243,8 @@ export const PATH_LEVELS = lazy(() => ({
 }));
 
 /**
- * Пуска `claude -p` само с право да чете (Read, Glob, Grep). Подава въпроса през stdin, така че дългият текст
- * не минава през командния ред. Връща { ok, text } или { ok:false, kind, error }. signal прекъсва заявката.
+ * Runs `claude -p` with the right only to read (Read, Glob, Grep). Passes the question through stdin, so that a long text
+ * does not go through the command line. Returns { ok, text } or { ok:false, kind, error }. signal interrupts the request.
  */
 export function askClaude({ prompt, model, effort, maxTurns = 20, timeoutMs = 300000, signal }) {
   return new Promise((resolve) => {
@@ -279,16 +279,16 @@ export function askClaude({ prompt, model, effort, maxTurns = 20, timeoutMs = 30
   });
 }
 
-// ---------- Агентът ----------
+// ---------- The agent ----------
 export function createAgent({ broadcast }) {
   const state = {
     queue: [],          // { id, kind, target, label }
-    current: null,      // работещата задача
+    current: null,      // the running task
     history: readJSON(HISTORY_FILE, []),
     paused: null,       // { reason, at }
-    // „ai“ (доставчикът) се чете и пише от providers.js, затова не се пази тук (иначе стара версия би го презаписала)
+    // "ai" (the provider) is read and written by providers.js, so it is not kept here (otherwise an old version would overwrite it)
     settings: (({ ai, sync, ...rest }) => ({ autoIngest: true, autoResume: true, mode: 'economy', synthesisBest: true, lang: 'both', confirmCost: true, ...rest }))(readJSON(SETTINGS_FILE, {})),
-    batch: { total: 0, done: 0 }, // за „файл 2 от 5“
+    batch: { total: 0, done: 0 }, // for "file 2 of 5"
   };
   let child = null, seq = Date.now(), pushTimer = null, retryTimer = null;
 
@@ -326,14 +326,14 @@ export function createAgent({ broadcast }) {
     }
     return true;
   }
-  /** Записва текущото състояние на wiki/ (само ако има промени) и връща идентификатора му */
+  /** Records the current state of wiki/ (only if there are changes) and returns its identifier */
   function checkpoint(message) {
     if (!ensureRepo()) return null;
     git(['add', '-A', '-f', '--', 'wiki']);
     if (!git(['diff', '--cached', '--quiet']).ok) git(['commit', '-m', message, '--no-verify']);
     return git(['rev-parse', 'HEAD']).out || null;
   }
-  /** Връща wiki/ към даден запис. Новите файлове на задачата (още извън git) се трият само ако тя ги е създала. */
+  /** Returns wiki/ to a given record. The new files of the task (still outside git) are deleted only if it created them. */
   function restoreWiki(commit, createdByJob = []) {
     const ok = git(['restore', `--source=${commit}`, '--staged', '--worktree', '--', 'wiki']).ok;
     for (const f of createdByJob) {
@@ -343,7 +343,7 @@ export function createAgent({ broadcast }) {
     return ok;
   }
 
-  // --- опашка ---
+  // --- queue ---
   function enqueue(kind, target, label, opts) {
     const busy = (state.current && state.current.target === target) || state.queue.some((q) => q.target === target);
     if (busy) return false;
@@ -353,7 +353,7 @@ export function createAgent({ broadcast }) {
     return true;
   }
 
-  /** opts: настройки само за тези файлове (режим, език), напр. избрани при добавяне на статия */
+  /** opts: settings only for these files (mode, language), for example chosen when adding an article */
   function enqueuePending(paths, opts) {
     const pending = paths?.length ? paths : ingestState().pending.map((f) => normRaw(rel(f)));
     let n = 0;
@@ -362,7 +362,7 @@ export function createAgent({ broadcast }) {
     return n;
   }
 
-  // Сканирани източници: последният опит за надграждане е спрял на проверката на текста
+  // Scanned sources: the last attempt to upgrade stopped at the check of the text
   function needsOcr() {
     const seen = new Set(), out = [];
     for (const h of state.history) {
@@ -403,7 +403,7 @@ export function createAgent({ broadcast }) {
     const job = {
       ...state.queue.shift(), steps: [], created: new Set(), updated: new Set(), startedAt: now(),
       before: new Set(walk(WIKI).map((f) => rel(f))),
-      logBefore: readLog(path.join(WIKI, 'log.md')), // дневникът преди задачата: проверява се в finish()
+      logBefore: readLog(path.join(WIKI, 'log.md')), // the log before the task: it is checked in finish()
       index: state.batch.done + 1, total: Math.max(state.batch.total, state.batch.done + 1),
     };
     state.current = job;
@@ -415,7 +415,7 @@ export function createAgent({ broadcast }) {
     if (cfg.engine === 'agent') run(job, c); else runWithoutTools(job, cfg);
   }
 
-  /** Обработка без инструменти (pipeline.js): сървърът подава текста на части и пише страниците сам */
+  /** Processing without tools (pipeline.js): the server passes the text in parts and writes the pages itself */
   function runWithoutTools(job, cfg) {
     const st = { ...state.settings, ...(job.opts || {}) };
     const eff = effectiveModels(st, job.kind);
@@ -432,14 +432,14 @@ export function createAgent({ broadcast }) {
       .catch((e) => {
         if (job.cancelled || e.kind === 'cancelled') return finish(job, { status: 'cancelled', message: $t('Stopped by you.') });
         if (e.kind === 'limit') return finish(job, { status: 'limited', message: errorText(e, cfg) + ' ' + $t('The queue is waiting.'), detail: e.message });
-        // Дневен лимит: опашката чака колкото казва доставчикът (Groq), иначе до полунощ тихоокеанско време (Google)
+        // Daily limit: the queue waits as long as the provider says (Groq), otherwise until midnight Pacific time (Google)
         if (e.kind === 'daily') return finish(job, { status: 'limited', message: errorText(e, cfg) + ' ' + $t('The queue is waiting.'), detail: e.message, retryMs: e.retryAfter ? e.retryAfter * 1000 + 60000 : msToPacificMidnight() + 120000 });
         if (!e.kind) return finish(job, { status: 'error', message: $t('The processing stopped with an error.'), detail: String(e.stack || e).slice(0, 2000) });
         finish(job, { status: 'error', message: errorText(e, cfg), detail: String(e.detail || e.message || '').slice(0, 2000) });
       });
   }
 
-  /** Преди надграждане: извлича текста наново (с OCR при нужда) и проверява, че има какво да се чете. Не харчи от лимита. */
+  /** Before an upgrade: extracts the text again (with OCR if needed) and checks that there is something to read. Does not use the limit. */
   function preflight(job) {
     const page = wikiPages().find((p) => p.slug === job.target);
     const raw = page && ingestState().resolve(page.data.raw_path);
@@ -467,7 +467,7 @@ export function createAgent({ broadcast }) {
       upgrade: `/wiki-upgrade ${job.target}`,
       synthesis: job.target === '*' ? '/wiki-synthesis' : `/wiki-synthesis ${job.target}`,
     }[job.kind] || `/wiki-ingest ${job.target}`;
-    // Модел за задачата: синтезът по избор на най-силния, иначе изборът на човека, иначе режимът
+    // The model for the task: the synthesis by the choice of the strongest, otherwise the person's choice, otherwise the mode
     const st = { ...state.settings, ...(job.opts || {}) };
     const eff = effectiveModels(st, job.kind);
     const mode = modeOf(eff.mode);
@@ -538,7 +538,7 @@ export function createAgent({ broadcast }) {
     if (ev.type === 'result') { job.usage = { costUsd: ev.total_cost_usd ?? null, in: ev.usage?.input_tokens ?? null, out: ev.usage?.output_tokens ?? null, cacheRead: ev.usage?.cache_read_input_tokens ?? null, cacheWrite: ev.usage?.cache_creation_input_tokens ?? null }; setResult(ev); }
   }
 
-  /** Възстановява стари записи в дневника, ако задачата са изчезнали (вж. log-guard.js). Връща { lost } или null. */
+  /** Restores old entries in the log if the task made them disappear (see log-guard.js). Returns { lost } or null. */
   function restoreLogEntries(job) {
     if (job.logBefore == null) return null;
     const file = path.join(WIKI, 'log.md');
@@ -553,13 +553,13 @@ export function createAgent({ broadcast }) {
     job.finished = true;
     child = null;
     let report = status === 'done' ? (message || job.lastText || '') : message;
-    // Дневникът е само за добавяне: ако задачата е изтрила стари записи, връщаме ги, преди да се направи точката
+    // The log is append-only: if the task deleted old entries, we restore them before the point is made
     const logFix = restoreLogEntries(job);
     if (logFix) report += ' ' + $t('The log had lost {0} entries during the job; they were restored.', [logFix.lost]);
     let commitAfter = null;
     if (job.commitBefore && status === 'done') commitAfter = checkpoint(`Processed: ${job.label}`);
     else if (job.commitBefore && (job.created.size || job.updated.size)) {
-      // Неуспешна или спряна обработка: без половинчати страници. Файлът остава „чака“ и ще се обработи наново.
+      // A failed or stopped processing: no half-written pages. The file stays "waiting" and will be processed again.
       if (restoreWiki(job.commitBefore, [...job.created])) report += $t(' The half-finished changes in the wiki were rolled back.');
       job.created.clear(); job.updated.clear();
     }
@@ -585,7 +585,7 @@ export function createAgent({ broadcast }) {
     next();
   }
 
-  // --- действия от интерфейса ---
+  // --- actions from the interface ---
   function cancel() {
     state.queue = [];
     clearTimeout(retryTimer); retryTimer = null;
@@ -629,15 +629,15 @@ export function createAgent({ broadcast }) {
     const { ai, ...rest } = s || {};
     state.settings = { ...state.settings, ...rest };
     delete state.settings.ai; delete state.settings.sync;
-    // Слива се с файла: другите модули също пишат в него (contentLang, ai, prices)
-    // Пише се само промененото (rest), не снимката от старта: иначе се връщат старите ai, sync, contentLang и цени
+    // Merged with the file: the other modules write into it too (contentLang, ai, prices)
+    // Only what changed (rest) is written, not the snapshot from the start: otherwise the old ai, sync, contentLang and prices come back
     writeJSON(SETTINGS_FILE, { ...readJSON(SETTINGS_FILE, {}), ...rest });
     if ('autoResume' in s) scheduleRetry();
     push();
     return state.settings;
   }
 
-  /** Действие извън опашката (напр. премахване на източник): записва се в историята, за да може „Върни“. */
+  /** An action outside the queue (for example removing a source): recorded in the history, so that "Undo" works. */
   function record(entry) {
     state.history.unshift({ id: String(Date.now()), status: 'done', startedAt: now(), finishedAt: now(), created: [], updated: [], steps: 0, ...entry });
     saveHistory(); push();

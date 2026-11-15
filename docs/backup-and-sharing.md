@@ -1,6 +1,6 @@
 # Backups and sharing a library
 
-This guide is for anyone who wants their library to survive a dead disk, or to work on one library together with another person. Read the first two sections if you only want a backup. Read the whole guide if you share a folder (for example in pCloud, Dropbox or Google Drive) with a colleague.
+This guide is for anyone who wants their library to survive a dead disk, or to work on one library together with another person. Read the first two sections if you only want a backup. Read the whole guide if you share a folder (for example in Dropbox or Google Drive) with a colleague.
 
 The Bulgarian version is [backup-and-sharing.bg.md](backup-and-sharing.bg.md).
 
@@ -8,7 +8,7 @@ The Bulgarian version is [backup-and-sharing.bg.md](backup-and-sharing.bg.md).
 
 Your library lives on one computer: `raw/` (your sources), `wiki/` (the pages), `drafts/` (your articles) and some personal files. If that disk dies, everything is gone. The reading archive in Settings is not enough, because it is a read-only copy without the original files.
 
-A **copy** is any folder you point the app to: another disk, a network disk, a folder that Google Drive, Dropbox or pCloud uploads. You press **Copy now** when you want. Nothing runs by itself, and nothing is watched in the background.
+A **copy** is any folder you point the app to: another disk, a network disk, a folder that Google Drive, Dropbox or another cloud service uploads. You press **Copy now** when you want. Nothing runs by itself, and nothing is watched in the background.
 
 There are three kinds of copy. Choosing the right kind is the only decision that matters.
 
@@ -74,14 +74,14 @@ Keys and the password are restored only if the copy had them. Otherwise add your
 
 ## 4. Work with another person in a shared folder
 
-Example: you and Ivan both use a pCloud folder `llm-wiki-shared`.
+Example: you and Ivan both use a folder of a cloud service `llm-wiki-shared`.
 
 ### 4.1 Set up (both of you)
 
 Each person, on their own computer:
 
 1. **Settings → Backups and sync → Add a copy**.
-2. Choose **Shared folder**, and write the path of the pCloud folder on your computer.
+2. Choose **Shared folder**, and write the path of the cloud folder on your computer.
 3. Press **Add**.
 
 Also add your own **private Backup** to a different folder. The shared folder is for working together; it is not your safety net (see 4.4).
@@ -142,7 +142,7 @@ Nothing is written in their folder. After the merge, the app writes a line in `l
 ## 6. Windows and WSL
 
 - A Windows disk `D:` is `/mnt/d/` in WSL. You may write `D:\folder` in the form.
-- **Virtual drives do not work.** `pCloud Drive` (the drive letter, usually `P:`) is a virtual drive: WSL does not see it. Use a normal folder instead: the **pCloud Sync** folder (a real folder on `C:`), or a folder on a real disk that pCloud uploads. The form tells you when a drive is not visible.
+- **Virtual drives do not work.** A virtual cloud drive (for example with its own drive letter such as `P:`) is not a normal disk: WSL does not see it. Use a normal folder instead: the sync folder of your cloud service (a real folder on `C:`), or a folder on a real disk that the cloud program uploads. The form tells you when a drive is not visible.
 - **Network paths** (`\\server\share`) must be mounted in WSL first.
 - **Isolated mode.** If you start the library with `npm run serve:safe` (or a desktop shortcut that uses it), copies to other folders are switched off, because the isolation sees only the project folder. Start with `npm run serve` to use them. Giving the isolation access to chosen folders only is planned.
 
@@ -178,4 +178,4 @@ Nothing is written in their folder. After the merge, the app writes a line in `l
 
 **Does it use my model's tokens?** No. Copying is done by the program and never calls a model.
 
-**What is not tested yet?** The app is tested with ordinary folders. It is not yet tested with real pCloud, Dropbox or Google Drive, or with two people at once. Try a small library first.
+**What is not tested yet?** The app is tested with ordinary folders. It is not yet tested with a real cloud service such as Dropbox or Google Drive, or with two people at once. Try a small library first.

@@ -1,10 +1,10 @@
-// Обединява няколко отделно обработени source страници (напр. качени като отделни глави на една книга)
-// в стандартния book+chapters модел: нова source страница (книгата) + по една chapter страница на всеки избран източник.
-//   npm run merge-sources -- "Заглавие на книгата" <slug1> <slug2> [...]            → преглед (нищо не се пипа)
-//   npm run merge-sources -- "Заглавие на книгата" <slug1> <slug2> [...] --apply
-// Редът на слъговете е редът на главите. Нищо не се губи: страниците на оригиналните източници
-// отиват в архив (outputs/merged/), а raw_path на всеки от тях остава в съответната глава
-// (изключение от общото правило "само книгата има raw_path": тук всяка глава идва от отделен суров файл).
+// Merges several separately processed source pages (for example uploaded as separate chapters of one book)
+// into the standard book+chapters model: a new source page (the book) + one chapter page for every chosen source.
+//   npm run merge-sources -- "Title of the book" <slug1> <slug2> [...]            -> preview (nothing is touched)
+//   npm run merge-sources -- "Title of the book" <slug1> <slug2> [...] --apply
+// The order of the slugs is the order of the chapters. Nothing is lost: the pages of the original sources
+// go to an archive (outputs/merged/), and the raw_path of each of them stays in the matching chapter
+// (an exception to the general rule "only the book has raw_path": here every chapter comes from a separate raw file).
 import fs from 'node:fs';
 import path from 'node:path';
 import matter from 'gray-matter';
@@ -27,7 +27,7 @@ function relink(text, drop, keep) {
 const list = (x) => [].concat(x || []).map(String).filter(Boolean);
 const dedupe = (arr) => [...new Map(arr.map((v) => [v.toLowerCase(), v])).values()];
 
-/** Какво ще се направи (нищо не се записва). */
+/** What will be done (nothing is written). */
 export function planMergeBook(title, orderedSlugs, pages = wikiPages()) {
   title = String(title || '').trim();
   orderedSlugs = [...new Set((orderedSlugs || []).map(String).filter(Boolean))];
@@ -60,7 +60,7 @@ export function planMergeBook(title, orderedSlugs, pages = wikiPages()) {
   };
 }
 
-/** Прилага обединяването. Връща същия отчет плюс архива и пренасочените връзки. */
+/** Applies the merge. Returns the same report plus the archive and the redirected links. */
 export function applyMergeBook(title, orderedSlugs) {
   const pages = wikiPages();
   const plan = planMergeBook(title, orderedSlugs, pages);
@@ -74,12 +74,12 @@ export function applyMergeBook(title, orderedSlugs) {
   const internal = new Set([bookSlug, ...oldSlugs, ...plan.chapters.map((c) => c.newSlug)]);
   const notInternal = (link) => !extractLinks(link).some((l) => internal.has(l));
 
-  // 1. архив на оригиналните страници
+  // 1. archive of the original pages
   const archive = path.join(OUTPUTS, 'merged', `${bookSlug}-${today()}`);
   fs.mkdirSync(archive, { recursive: true });
   for (const p of originals) fs.copyFileSync(p.file, path.join(archive, path.basename(p.file)));
 
-  // 2. нови страници на главите
+  // 2. new chapter pages
   const chaptersDir = path.join(WIKI, 'sources', 'chapters');
   fs.mkdirSync(chaptersDir, { recursive: true });
   const collectedTags = [], collectedAuthors = [], collectedSources = [], collectedRelated = [], areas = [];
@@ -117,7 +117,7 @@ export function applyMergeBook(title, orderedSlugs) {
     if (!firstYear && d.year) firstYear = d.year;
   });
 
-  // 3. страницата на книгата
+  // 3. the page of the book
   const areaCounts = new Map();
   for (const a of areas) areaCounts.set(a, (areaCounts.get(a) || 0) + 1);
   const topArea = [...areaCounts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] || null;
@@ -139,7 +139,7 @@ export function applyMergeBook(title, orderedSlugs) {
   ].join('\n');
   fs.writeFileSync(path.join(WIKI, 'sources', `${bookSlug}.md`), matter.stringify(bookBody, bookData));
 
-  // 4. пренасочване на връзките във всички останали страници (вкл. новите, в случай на кръстосани цитати)
+  // 4. redirecting the links in all the other pages (including the new ones, in case of cross citations)
   const touched = [];
   for (const p of wikiPages()) {
     if (internal.has(p.slug)) continue;
@@ -148,14 +148,14 @@ export function applyMergeBook(title, orderedSlugs) {
     if (n) { fs.writeFileSync(p.file, text); touched.push({ slug: p.slug, rel: p.rel, links: n }); }
   }
 
-  // 5. изтриване на оригиналните страници
+  // 5. deleting the original pages
   for (const p of originals) fs.rmSync(p.file, { force: true });
 
-  // 6. преизграждане на index.md (старите източници излизат, книгата влиза автоматично)
+  // 6. rebuilding index.md (the old sources leave, the book comes in automatically)
   const idx = buildIndex();
   fs.writeFileSync(idx.file, idx.text);
 
-  // 7. запис в дневника
+  // 7. an entry in the log
   fs.appendFileSync(path.join(WIKI, 'log.md'),
     `\n## ${today()} refactor: ${P('Merged {0} sources into a book', [originals.length])} “${title}”\n`
     + `- ${P('New')}: [[${bookSlug}]] ${P('with chapters')} ${plan.chapters.map((c) => `[[${c.newSlug}]]`).join(', ')}\n`

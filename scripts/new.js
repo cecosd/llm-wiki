@@ -1,4 +1,4 @@
-// Нова страница от шаблон: npm run new -- concept my-concept "Моето понятие"
+// A new page from a template: npm run new -- concept my-concept "My concept"
 import fs from 'node:fs';
 import path from 'node:path';
 import { WIKI, rel, today } from './lib.js';

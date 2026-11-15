@@ -1,8 +1,8 @@
-// Извлича текст от raw файловете в raw/.extracted/<път>.md, за да може агентът да ги чете.
-// Пропуска файлове, чиято текстова версия е по-нова от оригинала.
-// Употреба: npm run extract [-- --force] [-- --ocr] [-- raw/books/x.pdf]
-//   --ocr  за PDF почти без текст (сканирани): OCR с ocrmypdf, ако е инсталиран, иначе с вградения (tesseract.js).
-//          Оригиналът не се пипа; OCR копието е временно и служи само за текста.
+// Extracts text from the raw files into raw/.extracted/<path>.md, so that the agent can read them.
+// Skips files whose text version is newer than the original.
+// Usage: npm run extract [-- --force] [-- --ocr] [-- raw/books/x.pdf]
+//   --ocr  for PDFs with almost no text (scanned): OCR with ocrmypdf if installed, otherwise with the built-in one (tesseract.js).
+//          The original is not touched; the OCR copy is temporary and serves only for the text.
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -16,7 +16,7 @@ const force = args.includes('--force');
 const ocr = args.includes('--ocr');
 const hasOcrmypdf = () => process.env.LIBRARY_OCR !== 'builtin' && spawnSync('ocrmypdf', ['--version'], { stdio: 'ignore' }).status === 0;
 
-/** OCR на сканиран PDF във временен файл; първо с български, после само с английски */
+/** OCR of a scanned PDF into a temporary file; first with Bulgarian, then with English only */
 function ocrCopy(file) {
   const tmp = path.join(os.tmpdir(), `library-ocr-${process.pid}-${Date.now()}.pdf`);
   for (const lang of ['bul+eng', 'eng']) {
@@ -32,15 +32,15 @@ function hasPdftotext() {
 }
 const PDFTOTEXT = hasPdftotext();
 
-let lastPages = 0; // брой страници на последния PDF (за откриване на сканирани книги)
+let lastPages = 0; // the number of pages of the last PDF (for detecting scanned books)
 async function pdf(file) {
   if (PDFTOTEXT) {
-    // -layout пази колоните; \f разделя страниците → маркираме ги
+    // -layout keeps the columns; \f separates the pages -> we mark them
     const txt = execFileSync('pdftotext', ['-layout', '-enc', 'UTF-8', file, '-'], { maxBuffer: 1 << 30 }).toString();
     lastPages = txt.split('\f').length - 1 || 1;
     return txt.split('\f').map((p, i) => (p.trim() ? `\n\n<!-- стр. ${i + 1} -->\n\n${p.trim()}` : '')).join('');
   }
-  // Резервен вариант без poppler: unpdf (актуален pdf.js)
+  // A fallback without poppler: unpdf (a current pdf.js)
   const { getDocumentProxy, extractText } = await import('unpdf');
   const doc = await getDocumentProxy(new Uint8Array(fs.readFileSync(file)));
   const { text } = await extractText(doc, { mergePages: false });
@@ -54,21 +54,21 @@ async function docx(file) {
   return value;
 }
 
-// Стар Word формат (.doc, Word 97-2003): word-extractor чете двоичния OLE файл, без LibreOffice
+// The old Word format (.doc, Word 97-2003): word-extractor reads the binary OLE file, without LibreOffice
 async function doc(file) {
   const WordExtractor = (await import('word-extractor')).default;
   const extracted = await new WordExtractor().extract(file);
   return extracted.getBody().replace(/\r\n?/g, '\n');
 }
 
-// Стойност на клетка от exceljs → текст (формули, дати, rich text, хипервръзки)
+// A cell value from exceljs -> text (formulas, dates, rich text, hyperlinks)
 function cellText(v) {
   if (v == null) return '';
   if (v instanceof Date) return v.toISOString().slice(0, 10);
   if (typeof v !== 'object') return String(v);
-  if ('result' in v) return cellText(v.result);          // формула
+  if ('result' in v) return cellText(v.result);          // formula
   if ('richText' in v) return v.richText.map((r) => r.text).join('');
-  if ('text' in v) return String(v.text);                // хипервръзка
+  if ('text' in v) return String(v.text);                // hyperlink
   if ('error' in v) return String(v.error);
   return '';
 }
@@ -97,7 +97,7 @@ async function table(file) {
   for (const { name, rows } of await readSheets(file)) {
     const nonEmpty = rows.filter((r) => r.some((c) => String(c).trim() !== ''));
     out.push(`## Лист: ${name}\n\nРедове: ${nonEmpty.length}, колони: ${Math.max(0, ...nonEmpty.map((r) => r.length))}\n`);
-    const LIMIT = 200; // за големи таблици агентът вижда началото + обобщение
+    const LIMIT = 200; // for large tables the agent sees the beginning + a summary
     const shown = nonEmpty.slice(0, LIMIT);
     if (shown.length) {
       const width = Math.max(...shown.map((r) => r.length));
@@ -141,7 +141,7 @@ const HANDLERS = {
   '.docx': docx,
   '.doc': doc,
   '.xlsx': table, '.xlsm': table, '.csv': table, '.tsv': table,
-  // .xls и .ods: запази ги като .xlsx (LibreOffice/Excel) и пусни extract отново
+  // .xls and .ods: save them as .xlsx (LibreOffice/Excel) and run extract again
   '.epub': epub,
   '.html': (f) => html(fs.readFileSync(f, 'utf8')), '.htm': (f) => html(fs.readFileSync(f, 'utf8')),
   '.md': (f) => fs.readFileSync(f, 'utf8'), '.markdown': (f) => fs.readFileSync(f, 'utf8'),
@@ -149,9 +149,9 @@ const HANDLERS = {
   '.json': (f) => '```json\n' + fs.readFileSync(f, 'utf8').slice(0, 200_000) + '\n```',
 };
 
-// Само файлове вътре в raw/ (без .extracted). Claude може да пуска `npm run extract <път>`, затова път извън raw/
-// би копирал чужд файл в библиотеката, където Claude може да го прочете. Сравнява се текстът на пътя, както в
-// guard-read.js: подпапки на raw/ може да са връзки към друг диск, а Claude не може да създава връзки.
+// Only files inside raw/ (without .extracted). Claude can run `npm run extract <path>`, so a path outside raw/
+// would copy a foreign file into the library, where Claude can read it. The text of the path is compared, as in
+// guard-read.js: subfolders of raw/ may be links to another disk, and Claude cannot create links.
 const RAW_DIR = path.join(ROOT, 'raw');
 function insideRaw(p) {
   const full = path.resolve(ROOT, p);
@@ -179,7 +179,7 @@ for (const file of files) {
     const text = (await handler(file)) ?? '';
     fs.mkdirSync(path.dirname(out), { recursive: true });
     const words = text.split(/\s+/).filter(Boolean).length;
-    const scanned = ext === '.pdf' && (words < 30 || words / Math.max(1, lastPages) < 15); // под 15 думи на страница = сканиран
+    const scanned = ext === '.pdf' && (words < 30 || words / Math.max(1, lastPages) < 15); // under 15 words per page = scanned
     const header = `<!-- извлечено от ${rel(file)} | думи: ${words} | ${new Date().toISOString()} -->\n\n`;
     fs.writeFileSync(out, header + text);
     if (scanned && ocr) {

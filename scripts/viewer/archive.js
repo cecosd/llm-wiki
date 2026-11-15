@@ -1,14 +1,14 @@
-// Статичният архив: същият интерфейс, но данните идват от вградените lib-static, а не от сървъра.
-// Тук се подменя fetch за адресите /api/... Всичко, което води до запис или до Claude, се скрива в app.js (флагът ro).
-// Текстовете за четеца са в reader/<източник>.js до index.html и се зареждат при първо отваряне (file:// не позволява fetch).
-// Файлът се вгражда в index.html от scripts/archive.js; в обикновената библиотека не се зарежда.
+// The static archive: the same interface, but the data comes from the embedded lib-static, not from the server.
+// Here fetch is replaced for the addresses /api/... Everything that leads to writing or to Claude is hidden in app.js (the ro flag).
+// The texts for the reader are in reader/<source>.js next to index.html and are loaded on first opening (file:// does not allow fetch).
+// The file is embedded into index.html by scripts/archive.js; in the ordinary library it is not loaded.
 (() => {
-  const el = document.getElementById('lib-static'); // вгражда се от scripts/archive.js като JSON
+  const el = document.getElementById('lib-static'); // embedded by scripts/archive.js as JSON
   const data = window.LIB_STATIC = el ? JSON.parse(el.textContent) : { api: {}, meta: {}, readerOf: {} };
   const readerOf = data.readerOf || {};
   const json = (body, status = 200) => new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json; charset=utf-8' } });
 
-  // Търсене в заглавията, псевдонимите и текста: същото като сървъра, но без сгъване на кирилица и латиница
+  // Search in the titles, aliases and text: the same as the server, but without folding Cyrillic and Latin
   const plainLinks = (s) => s.replace(/\[\[([^\]|#]+)(?:#[^\]|]*)?(?:\|([^\]]*))?\]\]/g, (_, a, b) => b || a.trim().split('/').pop());
   function search(q) {
     q = q.trim().toLowerCase();
@@ -30,7 +30,7 @@
     return hits.sort((a, b) => b.score - a.score).slice(0, 40);
   }
 
-  // Текстът на книга: файлът reader/<ключ>.js задава window.LIB_READER_DATA[ключ]; зарежда се веднъж
+  // The text of a book: the file reader/<key>.js sets window.LIB_READER_DATA[key]; it is loaded once
   function loadReader(key) {
     const have = window.LIB_READER_DATA && window.LIB_READER_DATA[key];
     if (have) return Promise.resolve(have);
@@ -42,7 +42,7 @@
       document.head.appendChild(s);
     });
   }
-  // Същата логика като /api/reader в server.js: коя страница, кой раздел и кои глави
+  // The same logic as /api/reader in server.js: which page, which section and which chapters
   function readerPayload(R, pageParam) {
     if (!R.order.length) return { book: R.book, unit: null, text: R.whole };
     const want = Number(pageParam) || R.order[0];
@@ -77,5 +77,5 @@
     if (path in data.api) return Promise.resolve(json(data.api[path]));
     return Promise.resolve(json({ ok: false, error: 'Not available in the archive' }, 404));
   };
-  window.LIB_ARCHIVE_META = data.meta || {}; // дата и брой страници за началния изглед
+  window.LIB_ARCHIVE_META = data.meta || {}; // date and number of pages for the start view
 })();

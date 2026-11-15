@@ -1,4 +1,4 @@
-// Проверка за обновления срещу локален фалшив GitHub: без истински интернет.
+// A check for updates against a local fake GitHub: without a real internet.
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import http from 'node:http';
@@ -85,8 +85,8 @@ test(T('updates', 'Reports from npm are read correctly', 'Отчетите на 
 
 test(T('updates', 'The application does not install anything by itself', 'Приложението не инсталира нищо само'), () => {
   const code = box.read('scripts/updates.js');
-  assert.doesNotMatch(code, /'install'|'update'|git pull|'pull'/);
-  // npm update се пуска само от бутона (POST /api/updates/apply) и само без инсталационните скриптове
+  assert.doesNotMatch(code, /'install'|'update'|'pull'/);
+  // npm update runs only from the button (POST /api/updates/apply) and only without the install scripts
   const server = box.read('scripts/server.js');
   assert.equal((server.match(/applyUpdates\(/g) || []).length, 1);
   assert.match(server, /app\.post\('\/api\/updates\/apply'/);
@@ -95,7 +95,7 @@ test(T('updates', 'The application does not install anything by itself', 'При
   assert.doesNotMatch(npmCode, /'install'|@latest/);
 });
 
-// ---------- Обновяване до безопасните версии (npm update) с фалшив npm: без мрежа и без истинския node_modules ----------
+// ---------- Updating to the safe versions (npm update) with a fake npm: without a network and without the real node_modules ----------
 function fakeProject() {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'llm-wiki-npm-'));
   const w = (rel, v) => { const f = path.join(root, rel); fs.mkdirSync(path.dirname(f), { recursive: true }); fs.writeFileSync(f, typeof v === 'string' ? v : JSON.stringify(v)); };
@@ -161,7 +161,7 @@ test(T('security', 'The launcher keeps the old package list to itself; the isola
 test(T('updates', 'The update button refuses a package that is not in package.json', 'Бутонът за обновяване отказва пакет, който не е в package.json'), async () => {
   const srv = await startServer(box, { LIBRARY_GITHUB_BASE: base });
   try {
-    // само неправилно име: с правилно npm би тръгнал срещу node_modules на проекта, който тестовото копие споделя
+    // only a wrong name: with a right one npm would run against the node_modules of the project, which the test copy shares
     const { json } = await api(srv.port, 'POST', '/api/updates/apply', { names: ['surely-not-a-dependency'] });
     assert.equal(json.ok, false);
     assert.match(json.error, /package\.json/);

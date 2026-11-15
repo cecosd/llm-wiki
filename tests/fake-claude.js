@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Фалшив claude за тестовете: не излиза в интернет и не харчи токени. Записва с какво е бил извикан.
+// A fake claude for the tests: it does not go out to the internet and does not spend tokens. It records what it was called with.
 import fs from 'node:fs';
 
 const args = process.argv.slice(2);
@@ -13,8 +13,8 @@ if (args[0] === 'auth') {
 
 const format = args[args.indexOf('--output-format') + 1];
 let stdin = '';
-if (format === 'json') { try { stdin = fs.readFileSync(0, 'utf8'); } catch { /* няма вход */ } }
-// Само дали има ключ/адрес и кои модели, без самите ключове: така тестът вижда, накъде е насочен Claude Code
+if (format === 'json') { try { stdin = fs.readFileSync(0, 'utf8'); } catch { /* no sign-in */ } }
+// Only whether there is a key/address and which models, without the keys themselves: this way the test sees where Claude Code points
 const env = {
   baseUrl: process.env.ANTHROPIC_BASE_URL || null, hasToken: !!process.env.ANTHROPIC_AUTH_TOKEN, hasApiKey: !!process.env.ANTHROPIC_API_KEY,
   haiku: process.env.ANTHROPIC_DEFAULT_HAIKU_MODEL || null, sonnet: process.env.ANTHROPIC_DEFAULT_SONNET_MODEL || null, opus: process.env.ANTHROPIC_DEFAULT_OPUS_MODEL || null,

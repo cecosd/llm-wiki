@@ -1,15 +1,15 @@
-// Стартер на приложението: пуска сървъра СКРИТО (без прозорец с порт), отваря библиотеката в собствен прозорец
-// на приложението (Edge, Chrome, Chromium или Brave в режим --app) и спира сървъра, когато прозорецът се затвори.
+// The application launcher: starts the server HIDDEN (without a window with a port), opens the library in its own window
+// of the application (Edge, Chrome, Chromium or Brave in --app mode) and stops the server when the window is closed.
 //
-//   npm run app                    обикновено пускане (двойно щракване върху прекия път прави същото)
-//   npm run app -- --safe          пуска в защитен режим (запомня се)
-//   npm run app -- --normal        пуска в обикновен режим (запомня се)
-//   npm run app -- --no-window     само сървърът, без прозорец (спира се с Ctrl+C)
-//   npm run app -- --check         какво би се случило (браузър, порт, режим, защита), без да пуска нищо
+//   npm run app                    normal start (a double click on the shortcut does the same)
+//   npm run app -- --safe          starts in safe mode (remembered)
+//   npm run app -- --normal        starts in normal mode (remembered)
+//   npm run app -- --no-window     only the server, without a window (stopped with Ctrl+C)
+//   npm run app -- --check         what would happen (browser, port, mode, protection), without starting anything
 //
-// Файлът върви ИЗВЪН изолацията, затова ползва само вградените модули на Node (виж modes.js).
-// Сървърът иска промяна на режима, на името на сайта или спиране с файл в outputs/.launcher/ (виж handleRequest):
-// така работи и в клетката на bubblewrap, и под `node --permission`, където няма друг канал.
+// This file runs OUTSIDE the isolation, so it uses only the built-in Node modules (see modes.js).
+// The server asks for a change of mode, of the site name or for stopping with a file in outputs/.launcher/ (see handleRequest):
+// this works both in the bubblewrap cage and under `node --permission`, where there is no other channel.
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -24,7 +24,7 @@ const IS_MAC = process.platform === 'darwin';
 const RESTART_CODE = 75;
 const args = new Set(process.argv.slice(2));
 
-// ---------- Помощни ----------
+// ---------- Helpers ----------
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const hash = crypto.createHash('sha256').update(ROOT).digest('hex').slice(0, 12);
 const stateRoot = IS_WIN ? path.join(process.env.LOCALAPPDATA || path.join(os.homedir(), 'AppData', 'Local'), 'llm-wiki')
@@ -35,17 +35,17 @@ const LOCK = path.join(STATE, 'launcher.json');
 const LOG = path.join(ROOT, 'outputs', 'server.log');
 
 function log(text) {
-  try { fs.mkdirSync(path.dirname(LOG), { recursive: true }); fs.appendFileSync(LOG, `[${new Date().toISOString()}] ${text}\n`); } catch { /* няма къде */ }
+  try { fs.mkdirSync(path.dirname(LOG), { recursive: true }); fs.appendFileSync(LOG, `[${new Date().toISOString()}] ${text}\n`); } catch { /* nowhere */ }
 }
 
-/** Диалог с грешка, когато няма прозорец на конзола (скритото пускане). */
+/** A dialog with an error when there is no console window (the hidden start). */
 function notify(text) {
   log('ERROR ' + text);
   try {
     if (IS_WIN) spawnSync('powershell', ['-NoProfile', '-WindowStyle', 'Hidden', '-Command', `Add-Type -AssemblyName System.Windows.Forms; [void][System.Windows.Forms.MessageBox]::Show(${JSON.stringify(text).replace(/"/g, "'")}, 'Biblioteka')`], { windowsHide: true });
     else if (IS_MAC) spawnSync('osascript', ['-e', `display dialog ${JSON.stringify(text)} buttons {"OK"} with title "Biblioteka"`]);
     else for (const [bin, a] of [['zenity', ['--error', '--text', text]], ['kdialog', ['--error', text]], ['notify-send', ['Biblioteka', text]]]) if (spawnSync(bin, a, { stdio: 'ignore' }).status === 0) return;
-  } catch { /* остава в лога */ }
+  } catch { /* stays in the log */ }
   console.error(text);
 }
 
@@ -53,7 +53,7 @@ const portFree = (port) => new Promise((resolve) => {
   const s = net.createServer().once('error', () => resolve(false)).once('listening', () => s.close(() => resolve(true)));
   s.listen(port, '127.0.0.1');
 });
-/** Всеки HTTP отговор значи, че сървърът работи (с парола /api/stats връща 401). */
+/** Any HTTP answer means the server works (with a password /api/stats returns 401). */
 const alive = (port) => new Promise((resolve) => {
   const req = http.get({ host: '127.0.0.1', port, path: '/api/stats', headers: { 'x-library': '1' }, timeout: 1500 }, (r) => { r.resume(); resolve(true); });
   req.on('error', () => resolve(false)); req.on('timeout', () => { req.destroy(); resolve(false); });
@@ -71,11 +71,11 @@ async function pickPort(wanted) {
   return null;
 }
 
-// ---------- Прозорец на приложението ----------
+// ---------- The application window ----------
 const first = (list) => list.find((f) => f && fs.existsSync(f)) || null;
 const whichBin = (name) => { const r = spawnSync(IS_WIN ? 'where' : 'which', [name], { encoding: 'utf8', windowsHide: true }); return r.status === 0 ? (r.stdout || '').split(/\r?\n/)[0].trim() || null : null; };
 
-/** Браузър на основата на Chromium, който може да отвори адрес като прозорец на приложение. */
+/** A Chromium-based browser that can open an address as an application window. */
 function findBrowser() {
   if (process.env.LIB_BROWSER && fs.existsSync(process.env.LIB_BROWSER)) return process.env.LIB_BROWSER;
   if (IS_WIN) {
@@ -87,7 +87,7 @@ function findBrowser() {
     return first(['/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge', '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
       '/Applications/Brave Browser.app/Contents/MacOS/Brave Browser', '/Applications/Chromium.app/Contents/MacOS/Chromium']);
   }
-  if (isWSL()) return null; // прозорец на Windows от WSL: ползва се браузърът по подразбиране
+  if (isWSL()) return null; // a Windows window from WSL: the default browser is used
   for (const n of ['microsoft-edge', 'microsoft-edge-stable', 'google-chrome', 'google-chrome-stable', 'chromium', 'chromium-browser', 'brave-browser']) {
     const f = whichBin(n); if (f) return f;
   }
@@ -102,7 +102,7 @@ function openDefault(url) {
   else run('xdg-open', [url]);
 }
 
-/** Отваря прозорец на приложението. Връща процеса (ако браузърът ще остане, докато прозорецът е отворен) или null. */
+/** Opens an application window. Returns the process (if the browser stays while the window is open) or null. */
 function openWindow(url, browser) {
   if (!browser) { openDefault(url); return null; }
   const profile = path.join(STATE, 'browser');
@@ -112,15 +112,15 @@ function openWindow(url, browser) {
   return child;
 }
 
-// ---------- Hosts с повишени права ----------
+// ---------- Hosts with raised rights ----------
 const psQuote = (s) => `'${String(s).replace(/'/g, "''")}'`;
 
-/** Записва (или маха при name = null) името в hosts. Показва на потребителя стандартния въпрос за администратор. */
+/** Writes (or removes when name = null) the name in hosts. Shows the user the standard administrator question. */
 function elevatedHosts(name) {
   const hostsJs = path.join(ROOT, 'scripts', 'hosts.js');
   const action = name ? ['set', name] : ['remove'];
   if (IS_WIN || isWSL()) {
-    // Един PowerShell код за Windows и за WSL: променя само блока на библиотеката в hosts на Windows.
+    // One PowerShell code for Windows and for WSL: it changes only the block of the library in the Windows hosts.
     const script = `
 $f = Join-Path $env:SystemRoot 'System32\\drivers\\etc\\hosts'
 $b = '# llm-wiki begin'; $e = '# llm-wiki end'
@@ -145,7 +145,7 @@ ipconfig /flushdns | Out-Null`;
   return spawnSync('sudo', ['-n', process.execPath, hostsJs, ...action], { encoding: 'utf8', timeout: 20000 });
 }
 
-// ---------- Основен ход ----------
+// ---------- Main flow ----------
 const ctl = { server: null, window: null, stopping: false, restarting: false, port: DEFAULT_PORT, backend: chooseBackend(), usePresence: false };
 
 function killTree(child) {
@@ -153,7 +153,7 @@ function killTree(child) {
   try {
     if (IS_WIN) spawnSync('taskkill', ['/pid', String(child.pid), '/t', '/f'], { windowsHide: true });
     else child.kill('SIGTERM');
-  } catch { /* вече го няма */ }
+  } catch { /* it is no longer there */ }
 }
 
 function startServer() {
@@ -193,19 +193,19 @@ let down = false;
 function shutdown(code = 0) {
   if (down) return; down = true; ctl.stopping = true;
   killTree(ctl.server);
-  if (ctl.window && ctl.window.exitCode === null) { try { ctl.window.kill(); } catch { /* затворен */ } }
-  try { fs.rmSync(LOCK, { force: true }); } catch { /* няма */ }
+  if (ctl.window && ctl.window.exitCode === null) { try { ctl.window.kill(); } catch { /* closed */ } }
+  try { fs.rmSync(LOCK, { force: true }); } catch { /* none */ }
   setTimeout(() => process.exit(code), 400);
 }
 
-// ---------- Заявки от сървъра ----------
+// ---------- Requests from the server ----------
 function answer(id, result) {
-  try { fs.writeFileSync(path.join(REQUEST_DIR, 'result.json'), JSON.stringify({ id, ...result })); } catch { /* няма къде */ }
+  try { fs.writeFileSync(path.join(REQUEST_DIR, 'result.json'), JSON.stringify({ id, ...result })); } catch { /* nowhere */ }
 }
 
 async function handleRequest(req) {
   const id = String(req.id || '');
-  // Малко изчакване, за да стигне отговорът до страницата, преди сървърът да бъде спрян
+  // A short wait so that the answer reaches the page before the server is stopped
   if (req.type === 'quit') { answer(id, { ok: true }); setTimeout(() => shutdown(0), 1500); return; }
   if (req.type === 'mode') {
     if (!MODES.includes(req.mode)) return answer(id, { ok: false, error: 'mode' });
@@ -213,7 +213,7 @@ async function handleRequest(req) {
     saveLaunch({ mode: req.mode });
     log('Режимът се сменя на ' + req.mode);
     answer(id, { ok: true });
-    setTimeout(restartServer, 800); // първо отговорът стига до страницата
+    setTimeout(restartServer, 800); // first the answer reaches the page
     return;
   }
   if (req.type === 'host') {
@@ -229,7 +229,7 @@ async function handleRequest(req) {
     }
     saveLaunch({ host: c.name || '' });
     answer(id, { ok: true, name: c.name, url: c.name ? `http://${c.name}:${ctl.port}/` : `http://localhost:${ctl.port}/` });
-    setTimeout(restartServer, 800); // първо отговорът стига до страницата
+    setTimeout(restartServer, 800); // first the answer reaches the page
     return;
   }
   answer(id, { ok: false, error: 'unknown' });
@@ -248,7 +248,7 @@ function watchRequests() {
   }, 600).unref();
 }
 
-// ---------- Започване ----------
+// ---------- Starting ----------
 async function main() {
   const major = Number(process.versions.node.split('.')[0]);
   if (major < 24) { notify(`Node.js 24 or newer is required (this is ${process.version}). Run the installer again.`); process.exit(1); }
@@ -267,7 +267,7 @@ async function main() {
   fs.mkdirSync(STATE, { recursive: true });
   fs.mkdirSync(REQUEST_DIR, { recursive: true });
 
-  // Вече пусната библиотека: само отваря прозорец към нея
+  // A library that is already running: only opens a window to it
   try {
     const lock = JSON.parse(fs.readFileSync(LOCK, 'utf8'));
     if (pidAlive(lock.pid) && await alive(lock.port)) {
@@ -275,7 +275,7 @@ async function main() {
       if (!args.has('--no-window')) openWindow(urlFor(lock.port, lock.host), browser);
       return;
     }
-  } catch { /* няма активен стартер */ }
+  } catch { /* no active launcher */ }
 
   const port = await pickPort(cfg.port);
   if (!port) { notify(`No free port from ${cfg.port} to ${cfg.port + 19}. Close the program that uses them, or set another port in .launch.json.`); process.exit(1); }
@@ -292,11 +292,11 @@ async function main() {
   const url = urlFor(port, readLaunch().host);
   const opened = Date.now();
   ctl.window = openWindow(url, browser);
-  // Прозорецът върви, докато е отворен; ако браузърът предаде работата на друг процес и излезе веднага, се следи присъствието
+  // The window runs while it is open; if the browser hands the work to another process and exits at once, the presence is watched
   if (ctl.window) ctl.window.on('exit', () => { if (Date.now() - opened > 4000) shutdown(0); else ctl.usePresence = true; });
   else ctl.usePresence = true;
 
-  // Присъствие: страницата държи отворена връзка към сървъра. Без никаква 30 секунди, след като е имало, сървърът се спира.
+  // Presence: the page keeps a connection to the server open. With none for 30 seconds after there had been one, the server stops.
   let seen = false; let empty = 0;
   setInterval(async () => {
     if (!ctl.usePresence || ctl.restarting) return;

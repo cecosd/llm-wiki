@@ -1,9 +1,9 @@
-// Дубликати по изписване (Чайковски / Чайковский / Tchaikovsky) и обединяване на страници.
-//   npm run dupes                          → списък на възможните дубликати и на разминаващите се автори
-//   npm run dupes -- <запази> <махни>      → преглед на обединяването (нищо не се пипа)
-//   npm run dupes -- <запази> <махни> --apply
-// Нищо не се губи: махнатата страница се архивира в outputs/merged/, съдържанието ѝ се прибавя в оставащата,
-// а всички връзки към нея започват да сочат към оставащата. Старото име остава като псевдоним (aliases).
+// Duplicates by spelling (Чайковски / Чайковский / Tchaikovsky) and merging of pages.
+//   npm run dupes                          -> a list of possible duplicates and of authors that differ
+//   npm run dupes -- <keep> <drop>         -> a preview of the merge (nothing is touched)
+//   npm run dupes -- <keep> <drop> --apply
+// Nothing is lost: the dropped page is archived in outputs/merged/, its content is added to the remaining one,
+// and all links to it start to point to the remaining one. The old name stays as an alias (aliases).
 import fs from 'node:fs';
 import path from 'node:path';
 import matter from 'gray-matter';
@@ -17,10 +17,10 @@ const MERGEABLE = new Set(['entity', 'concept', 'topic']);
 const SPECIAL = new Set(['index', 'log', 'overview']);
 const esc = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
-// ---------- Сравнение по звучене ----------
+// ---------- Comparison by sound ----------
 export const CYR = { а: 'a', б: 'b', в: 'v', г: 'g', д: 'd', е: 'e', ж: 'zh', з: 'z', и: 'i', й: 'i', к: 'k', л: 'l', м: 'm', н: 'n', о: 'o', п: 'p', р: 'r', с: 's', т: 't', у: 'u', ф: 'f', х: 'h', ц: 'ts', ч: 'ch', ш: 'sh', щ: 'sht', ъ: 'a', ь: '', ю: 'iu', я: 'ia' };
 
-/** Свежда имената до груб звуков ключ: Чайковски, Чайковский и Tchaikovsky дават един и същ ключ. */
+/** Reduces the names to a rough sound key: Чайковски, Чайковский and Tchaikovsky give the same key. */
 export function fold(s) {
   let t = String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
   t = [...t].map((c) => (c in CYR ? CYR[c] : c)).join('');
@@ -48,7 +48,7 @@ const near = (a, b) => {
   return n >= 6 && lev(a, b) <= (n >= 12 ? 2 : 1);
 };
 
-/** Фамилията и собственото име от „Пьотр Чайковски“, „Tchaikovsky, P.“ или „Tchaikovsky“. */
+/** The surname and the given name from "Пьотр Чайковски", "Tchaikovsky, P." or "Tchaikovsky". */
 function nameParts(s) {
   const t = String(s).replace(/\(.*?\)/g, ' ').trim();
   if (t.includes(',')) { const [a, ...b] = t.split(','); return { sur: fold(a), given: fold(b.join(' ')) }; }
@@ -57,7 +57,7 @@ function nameParts(s) {
   return { sur: fold(w[w.length - 1]), given: fold(w[0]) };
 }
 
-/** Всички изписвания на страницата: заглавие, думите в скоби, aliases */
+/** All spellings of the page: title, the words in parentheses, aliases */
 function variants(p) {
   const title = String(p.data.title || p.slug);
   const out = new Set([title, title.replace(/\(.*?\)/g, '').trim()]);
@@ -71,7 +71,7 @@ function sameName(p, q, person) {
     if (person) {
       const a = nameParts(x), b = nameParts(y);
       if (!near(a.sur, b.sur)) continue;
-      if (a.given && b.given && a.given[0] !== b.given[0]) continue; // различни собствени имена
+      if (a.given && b.given && a.given[0] !== b.given[0]) continue; // different given names
       return `${x} ≈ ${y}`;
     }
     const a = fold(x), b = fold(y);
@@ -103,7 +103,7 @@ const brief = (p, bl) => ({
   sources: [].concat(p.data.sources || []).length,
 });
 
-/** Възможни дубликати сред понятия, личности и теми + автори, изписани по различен начин в източниците. */
+/** Possible duplicates among concepts, persons and topics + authors written differently in the sources. */
 export function findDupes(pages = wikiPages()) {
   const bl = backlinkCounts(pages), skip = ignored(), pairs = [];
   const pool = pages.filter((p) => MERGEABLE.has(p.data.type) && !SPECIAL.has(p.slug));
@@ -115,8 +115,8 @@ export function findDupes(pages = wikiPages()) {
     if (why) pairs.push({ a: brief(p, bl), b: brief(q, bl), why });
   }
 
-  // автори: групиране по звучене на фамилията
-  const strings = new Map(); // низ → източници
+  // authors: grouping by the sound of the surname
+  const strings = new Map(); // string -> sources
   for (const p of pages.filter((x) => x.data.type === 'source')) {
     for (const a of [].concat(p.data.authors || []).map((x) => String(x).trim()).filter(Boolean)) {
       if (!strings.has(a)) strings.set(a, []);
@@ -140,10 +140,10 @@ export function findDupes(pages = wikiPages()) {
   return { pairs, authors };
 }
 
-// ---------- Обединяване ----------
+// ---------- Merging ----------
 const FM = /^---\r?\n[\s\S]*?\r?\n---\r?\n?/;
 
-/** [[drop]], [[drop|етикет]], [[път/drop#раздел]] → към keep */
+/** [[drop]], [[drop|label]], [[path/drop#section]] -> to keep */
 function relink(text, drop, keep) {
   const re = new RegExp(`\\[\\[\\s*(?:[^\\]|#]*/)?${esc(drop)}\\s*(#[^\\]|]*)?(\\|[^\\]]*)?\\]\\]`, 'g');
   let n = 0;
@@ -151,7 +151,7 @@ function relink(text, drop, keep) {
   return { text: out, n };
 }
 
-/** Махни повторените елементи на списъците във frontmatter (след пренасочването могат да се удвоят) */
+/** Remove the repeated items of the lists in the frontmatter (after redirecting they can double) */
 function dedupeFrontmatter(fm, selfSlug) {
   const seen = new Map(); let key = null;
   const selfRe = new RegExp(`\\[\\[\\s*(?:[^\\]|#]*/)?${esc(selfSlug)}\\s*(?:#[^\\]|]*)?(?:\\|[^\\]]*)?\\]\\]`);
@@ -190,12 +190,12 @@ export function applyMerge(keepSlug, dropSlug) {
   if (!plan.ok) return plan;
   const keep = pages.find((p) => p.slug === keepSlug), drop = pages.find((p) => p.slug === dropSlug);
 
-  // 1. архив
+  // 1. archive
   const archive = path.join(OUTPUTS, 'merged', `${drop.slug}-${today()}`);
   fs.mkdirSync(archive, { recursive: true });
   fs.copyFileSync(drop.file, path.join(archive, path.basename(drop.file)));
 
-  // 2. пренасочване на връзките във всички страници
+  // 2. redirecting the links in all pages
   const dropLine = new RegExp(`^\\s*[-*+]\\s*\\[\\[\\s*(?:[^\\]|#]*/)?${esc(drop.slug)}\\s*(?:#[^\\]|]*)?(?:\\|[^\\]]*)?\\]\\].*\\n?`, 'gm');
   for (const p of pages) {
     if (p.slug === drop.slug) continue;
@@ -205,7 +205,7 @@ export function applyMerge(keepSlug, dropSlug) {
     const r = relink(text, drop.slug, keep.slug);
     if (r.n) { text = r.text; changed = true; }
     if (p.slug === keep.slug) {
-      // 3. съдържание и метаданни на оставащата страница
+      // 3. content and metadata of the remaining page
       const m = matter(text);
       const d = m.data;
       for (const [k, v] of Object.entries(d)) if (v instanceof Date) d[k] = v.toISOString().slice(0, 10);
@@ -229,7 +229,7 @@ export function applyMerge(keepSlug, dropSlug) {
     if (changed) fs.writeFileSync(p.file, text);
   }
 
-  // 4. махане на дубликата и запис в лога
+  // 4. removing the duplicate and an entry in the log
   fs.rmSync(drop.file, { force: true });
   fs.appendFileSync(path.join(WIKI, 'log.md'),
     `\n## ${today()} refactor: ${P('Merged')} “${plan.drop.title}” ${P('and')} “${plan.keep.title}”\n`
@@ -238,7 +238,7 @@ export function applyMerge(keepSlug, dropSlug) {
   return { ...plan, archive: rel(archive) };
 }
 
-// ---------- Единно изписване на автор ----------
+// ---------- A single spelling of an author ----------
 export function normalizeAuthors(canonical, names) {
   const from = names.filter((n) => n && n !== canonical);
   let files = 0;

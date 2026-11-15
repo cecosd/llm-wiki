@@ -1,8 +1,8 @@
-// Премахване на източник (книга, статия...) заедно с главите му и цитатите към него.
-//   npm run remove                       → списък на източниците, чийто оригинал липсва
-//   npm run remove -- <slug>             → преглед на промените (нищо не се пипа)
-//   npm run remove -- <slug> --apply     → прилага (архивира страниците в outputs/removed/)
-// Нищо не се губи безвъзвратно: страниците на източника се архивират, а интерфейсът прави и git запис.
+// Removing a source (a book, an article...) together with its chapters and the citations to it.
+//   npm run remove                       -> a list of the sources whose original is missing
+//   npm run remove -- <slug>             -> a preview of the changes (nothing is touched)
+//   npm run remove -- <slug> --apply     -> applies (archives the pages in outputs/removed/)
+// Nothing is lost for good: the pages of the source are archived, and the interface also makes a git record.
 import fs from 'node:fs';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
@@ -14,7 +14,7 @@ import { any, P } from './vocab.js';
 const esc = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 const FM = /^---\r?\n[\s\S]*?\r?\n---\r?\n?/;
 
-/** Намира източника и главите му. */
+/** Finds the source and its chapters. */
 function findTargets(pages, slug) {
   const source = pages.find((p) => p.slug === slug && p.data.type === 'source');
   if (!source) return null;
@@ -23,10 +23,10 @@ function findTargets(pages, slug) {
   return { source, chapters };
 }
 
-/** Връзка към премахнат слъг: [[x]], [[x|етикет]], [[x#раздел]] */
+/** A link to a removed slug: [[x]], [[x|label]], [[x#section]] */
 const linkRe = (slugs) => new RegExp(`\\[\\[\\s*(?:[^\\]|#]*/)?(?:${[...slugs].map(esc).join('|')})\\s*(?:#[^\\]|]*)?(?:\\|([^\\]]*))?\\]\\]`, 'g');
 
-/** Пренаписва текста на една страница; връща {text, changes, sourcesLeft} */
+/** Rewrites the text of one page; returns {text, changes, sourcesLeft} */
 function rewrite(page, removed, titles, rawPath) {
   const re = linkRe(removed);
   const hasLink = (s) => { re.lastIndex = 0; return re.test(s); };
@@ -36,7 +36,7 @@ function rewrite(page, removed, titles, rawPath) {
   let body = fmMatch ? src.slice(fm.length) : src;
   let changes = 0;
 
-  // frontmatter: редове от списъци (sources, related) и вградени масиви
+  // frontmatter: lines of lists (sources, related) and inline arrays
   const rawKeyOf = (s) => normRaw(s).toLowerCase();
   fm = fm.split('\n').filter((line) => {
     const m = line.match(/^\s*-\s*(.+?)\s*$/);
@@ -52,7 +52,7 @@ function rewrite(page, removed, titles, rawPath) {
     return `${k}[${keep.join(', ')}]`;
   });
 
-  // тяло: цитати в скоби, после редове-връзки, после останалите връзки като обикновен текст
+  // body: citations in parentheses, then lines that are links, then the other links as plain text
   body = body.replace(/\s*\(([^()\n]*)\)/g, (all, inner) => {
     if (!hasLink(inner)) return all;
     const keep = inner.split(';').map((x) => x.trim()).filter((seg) => seg && !hasLink(seg));
@@ -67,14 +67,14 @@ function rewrite(page, removed, titles, rawPath) {
   body = body.replace(re, (all, label) => { changes++; return label || titles.get(all.replace(/^\[\[|\]\]$/g, '').split(/[|#]/)[0].trim().split('/').pop()) || P('removed source'); });
   body = body.replace(/ {2,}/g, ' ').replace(/ +([,.;:])/g, '$1');
 
-  // колко източника остават
+  // how many sources remain
   const m = fm.match(/^sources\s*:\s*\r?\n((?:\s+-.*\r?\n?)*)/m);
   const inline = fm.match(/^sources\s*:\s*\[(.*)\]/m);
   const left = m ? m[1].split('\n').filter((l) => /^\s*-\s*\S/.test(l)).length : inline ? inline[1].split(',').filter((x) => x.trim()).length : 0;
   return { text: fm + body, changes, sourcesLeft: left };
 }
 
-/** Какво ще се промени (нищо не се записва). */
+/** What will change (nothing is written). */
 export function planRemoval(slug) {
   const pages = wikiPages();
   const t = findTargets(pages, slug);
@@ -100,11 +100,11 @@ export function planRemoval(slug) {
     ok: true, slug, title: titles.get(slug), rawPath, originalMissing: missing,
     pages: [source, ...chapters].map((p) => ({ rel: p.rel, slug: p.slug, type: p.data.type })),
     touched, orphaned, hasNotes: notes.length > 0 && !/^\(.*\)$|^_.*_$/.test(notes), notesPreview: notes.slice(0, 300),
-    extracted: extractedPathOf(rawPath) ? rel(extractedPathOf(rawPath)) : null, // null при път извън raw/.extracted/
+    extracted: extractedPathOf(rawPath) ? rel(extractedPathOf(rawPath)) : null, // null for a path outside raw/.extracted/
   };
 }
 
-/** Прилага премахването. Връща същия отчет плюс къде е архивът. */
+/** Applies the removal. Returns the same report plus where the archive is. */
 export function applyRemoval(slug) {
   const plan = planRemoval(slug);
   if (!plan.ok) return plan;
@@ -114,28 +114,28 @@ export function applyRemoval(slug) {
   const titles = new Map([source, ...chapters].map((p) => [p.slug, String(p.data.title || p.slug)]));
   const rawPath = plan.rawPath;
 
-  // 1. Архив на страниците на източника (с „Мои бележки“)
+  // 1. Archive of the pages of the source (with "My notes")
   const archive = path.join(OUTPUTS, 'removed', `${slug}-${today()}`);
   fs.mkdirSync(archive, { recursive: true });
   for (const p of [source, ...chapters]) fs.copyFileSync(p.file, path.join(archive, path.basename(p.file)));
 
-  // 2. Пренаписване на страниците, които ги цитират
+  // 2. Rewriting the pages that cite them
   for (const p of pages) {
     if (removed.has(p.slug)) continue;
     const r = rewrite(p, removed, titles, rawPath);
     if (r.changes) fs.writeFileSync(p.file, r.text);
   }
-  // 3. Изтриване на страниците на източника, текстовата версия и записа в manifest
+  // 3. Deleting the pages of the source, the text version and the entry in the manifest
   for (const p of [source, ...chapters]) fs.rmSync(p.file, { force: true });
-  const extracted = extractedPathOf(rawPath); // проверено наново точно преди изтриването
+  const extracted = extractedPathOf(rawPath); // checked again right before the deletion
   if (extracted) fs.rmSync(extracted, { force: true });
   try {
     const m = loadManifest();
     const key = Object.keys(m.files || {}).find((k) => normRaw(k).toLowerCase() === (rawPath || '').toLowerCase());
     if (key) { delete m.files[key]; saveManifest(m); }
-  } catch { /* manifest-ът не е задължителен */ }
+  } catch { /* the manifest is not mandatory */ }
 
-  // 4. Запис в лога
+  // 4. An entry in the log
   const logFile = path.join(WIKI, 'log.md');
   const entry = `\n## ${today()} refactor: ${P('Source removed')} “${plan.title}”\n`
     + `- ${P('Pages removed')}: ${plan.pages.length} (${P('archive')}: \`${rel(archive)}\`)\n`

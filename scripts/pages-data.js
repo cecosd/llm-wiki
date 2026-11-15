@@ -1,5 +1,5 @@
-// Данните за страниците: едни и същи за локалния сървър (server.js) и за статичния архив (archive.js).
-// Нищо тук не чете raw/ освен когато е поискано изрично (archive: false), и нищо не пише.
+// The data for the pages: the same for the local server (server.js) and for the static archive (archive.js).
+// Nothing here reads raw/ except when explicitly asked (archive: false), and nothing writes.
 import fs from 'node:fs';
 import path from 'node:path';
 import { WIKI, rel, wikiPages, extractLinks, ingestState } from './lib.js';
@@ -8,7 +8,7 @@ import { fold } from './merge.js';
 import { $t } from './i18n.js';
 
 export const SPECIAL = new Set(['index', 'log', 'overview']);
-const NAV = new Set(['index', 'log']); // технически страници: не се броят като „сочат насам“
+const NAV = new Set(['index', 'log']); // technical pages: not counted as "pointing here"
 export let TITLES = new Map();
 export let AREAS = new Map(); // slug → { area, how }
 
@@ -28,7 +28,7 @@ export function snapshot() {
   return { pages, backlinks, edges };
 }
 
-/** Редът, в който страниците са вписани в wiki/index.md: slug → пореден номер на първото срещане */
+/** The order in which the pages are listed in wiki/index.md: slug -> serial number of the first occurrence */
 export function indexOrder() {
   const order = new Map();
   try {
@@ -37,11 +37,11 @@ export function indexOrder() {
       const s = m[1].trim().split('/').pop();
       if (!order.has(s)) order.set(s, order.size);
     }
-  } catch { /* няма index.md */ }
+  } catch { /* there is no index.md */ }
   return order;
 }
 
-// Markdown → четим текст: [[slug|етикет]] става заглавие, махат се символите на форматирането
+// Markdown -> readable text: [[slug|label]] becomes the title, formatting symbols are removed
 export function plain(md) {
   return md
     .replace(/\[\[([^\]|#]+)(?:#[^\]|]*)?(?:\|([^\]]*))?\]\]/g, (_, a, b) => b || TITLES.get(a.trim().split('/').pop()) || a)
@@ -76,9 +76,9 @@ export function summary(p, backlinks) {
 }
 
 /**
- * Всички записи от wiki/log.md, най-новите първи. Файлът расте отдолу (новото се добавя в края), а частта преди
- * първия „## “ (frontmatter и бележки) не е запис. Подреждат се по дата, а в един ден по реда във файла (по-късното
- * първо), така че запис, вмъкнат на друго място (напр. възстановен от npm run index), застава при своя ден.
+ * All entries of wiki/log.md, newest first. The file grows at the bottom (new entries are appended), and the part before
+ * the first "## " (frontmatter and notes) is not an entry. They are sorted by date, and within one day by the order in the file (the later
+ * first), so that an entry inserted elsewhere (for example restored by npm run index) takes its own day.
  */
 export function logEntries() {
   const f = path.join(WIKI, 'log.md');
@@ -96,17 +96,17 @@ export function lastLogEntries(n = 6) {
   return logEntries().slice(0, n);
 }
 
-/** Всички страници, в обобщен вид (за списъците) */
+/** All pages, in summary form (for the lists) */
 export function pagesList(ctx = snapshot()) {
   const { pages, backlinks } = ctx;
   return pages.map((p) => summary(p, backlinks));
 }
 
 /**
- * Една страница с всичко, което ѝ трябва: глави, навигация, обратни и изходящи връзки.
- * archive: true → без пътища към raw/ (архивът не ги съдържа).
- * ctx: готов снимък от snapshot() (архивът обхожда много страници и не чете wiki/ наново за всяка).
- * Връща null, ако страницата не съществува.
+ * One page with everything it needs: chapters, navigation, backlinks and outgoing links.
+ * archive: true -> without paths to raw/ (the archive does not contain them).
+ * ctx: a ready snapshot from snapshot() (the archive walks many pages and does not read wiki/ again for each).
+ * Returns null if the page does not exist.
  */
 export function pageDetail(slug, { archive = false, ctx = null, readerOf = null } = {}) {
   const { pages, backlinks } = ctx || snapshot();
@@ -115,7 +115,7 @@ export function pageDetail(slug, { archive = false, ctx = null, readerOf = null 
   const bySlug = new Map(pages.map((x) => [x.slug, x]));
   const outgoing = [...new Set(extractLinks(p.content))].filter((l) => bySlug.has(l) && l !== p.slug)
     .map((l) => summary(bySlug.get(l), backlinks));
-  // Drill down: главите на книгата / съседните глави
+  // Drill down: the chapters of the book / the neighbouring chapters
   const chaptersOf = (bookSlug) => pages.filter((x) => x.data.type === 'chapter' && extractLinks(String(x.data.book || ''))[0] === bookSlug)
     .sort((a, b) => (Number(a.data.chapter) || 0) - (Number(b.data.chapter) || 0) || a.slug.localeCompare(b.slug))
     .map((x) => summary(x, backlinks));
@@ -128,7 +128,7 @@ export function pageDetail(slug, { archive = false, ctx = null, readerOf = null 
     nav = { book: bySlug.has(bookSlug) ? summary(bySlug.get(bookSlug), backlinks) : null, prev: sib[i - 1] || null, next: sib[i + 1] || null, count: sib.length };
   }
   const bookPage = p.data.type === 'chapter' ? (p.data.raw_path ? p : bySlug.get(extractLinks(String(p.data.book || ''))[0])) : p;
-  // Предишна/следваща в колекцията, в реда на вписване в wiki/index.md (непосочените отиват накрая, по заглавие)
+  // Previous/next in the collection, in the order of listing in wiki/index.md (the unlisted go last, by title)
   let seq = null;
   if (!SPECIAL.has(p.slug) && p.data.type !== 'chapter') {
     const order = indexOrder();
@@ -141,7 +141,7 @@ export function pageDetail(slug, { archive = false, ctx = null, readerOf = null 
   return {
     ...summary(p, backlinks),
     chapters, nav, seq,
-    // В архива четецът е само за текстовете, които са записани в архива (readerOf); на живо – книгата със суров файл
+    // In the archive the reader is only for the texts that are saved in the archive (readerOf); live: the book with a raw file
     readerSrc: archive ? (readerOf?.[p.slug] || null) : (bookPage?.data?.raw_path ? bookPage.slug : null),
     originalMissing: !archive && !!(bookPage?.data?.raw_path && !ingestState(pages).resolve(bookPage.data.raw_path)),
     data: JSON.parse(JSON.stringify(p.data)),
@@ -156,7 +156,7 @@ export function pageDetail(slug, { archive = false, ctx = null, readerOf = null 
   };
 }
 
-/** Търсене в заглавията, псевдонимите и текста на страниците (до 40 съвпадения) */
+/** Search in the titles, aliases and text of the pages (up to 40 matches) */
 export function searchHits(q) {
   q = String(q || '').trim().toLowerCase();
   if (q.length < 2) return [];
@@ -166,7 +166,7 @@ export function searchHits(q) {
     const title = (String(p.data.title || p.slug) + ' ' + [].concat(p.data.aliases || []).join(' ')).toLowerCase();
     const text = plain(p.content.replace(/^\s*#\s+.*\n/, ''));
     const body = text.toLowerCase();
-    const fq = fold(q); // „Чайковский“ намира и „Чайковски“, и „Tchaikovsky“
+    const fq = fold(q); // "Чайковский" also finds "Чайковски" and "Tchaikovsky"
     const inTitle = title.includes(q) || (fq.length >= 4 && fold(title).includes(fq));
     const idx = body.indexOf(q);
     if (!inTitle && idx === -1) continue;
@@ -179,7 +179,7 @@ export function searchHits(q) {
   return hits.sort((a, b) => b.score - a.score).slice(0, 40);
 }
 
-/** Броячи и списъци за началната страница (без суровите файлове и обработката) */
+/** Counters and lists for the home page (without the raw files and the processing) */
 export function contentStats() {
   const { pages, backlinks } = snapshot();
   const byType = {};
@@ -199,7 +199,7 @@ export function contentStats() {
   };
 }
 
-/** Карта на връзките: възли и ребра без служебните страници */
+/** The link map: nodes and edges without the service pages */
 export function graphData() {
   const { pages, backlinks, edges } = snapshot();
   return {

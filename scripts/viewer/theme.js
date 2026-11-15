@@ -1,4 +1,4 @@
-// Тема преди първото рисуване, за да няма проблясване. Отделен файл, защото Content-Security-Policy забранява вграден код.
+// The theme before the first paint, so that there is no flash. A separate file, because the Content-Security-Policy forbids embedded code.
 (() => {
   let t = 'system';
   try { t = localStorage.getItem('theme') || 'system'; } catch {}

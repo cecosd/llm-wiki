@@ -1,5 +1,5 @@
-// Пуска се ВЪТРЕ в клетката от `npm run sandbox:check` (scripts/sandbox.js): проверява какво се вижда отвътре
-// и връща резултата като JSON. Само вградени модули. Нищо не се праща към Claude (`claude auth status` е безплатно).
+// Run INSIDE the cage by `npm run sandbox:check` (scripts/sandbox.js): checks what is visible from inside
+// and returns the result as JSON. Built-in modules only. Nothing is sent to Claude (`claude auth status` is free).
 import fs from 'node:fs';
 import path from 'node:path';
 import dns from 'node:dns/promises';
@@ -11,11 +11,11 @@ const add = (id, ok, detail = '', kind = 'security') => out.push({ id, ok: !!ok,
 const sameFile = (s) => { try { const st = fs.statSync(s.path); return st.dev === s.dev && st.ino === s.ino; } catch { return false; } };
 const canWrite = (f) => { try { fs.writeFileSync(f, 'x', { flag: 'wx' }); fs.rmSync(f); return true; } catch { return false; } };
 
-// Сигурност
+// Security
 const seen = (P.secrets || []).filter(sameFile);
 add('secrets', !seen.length, seen.map((s) => s.path).join(', '));
 let siblings = [];
-try { siblings = fs.readdirSync(path.dirname(P.root)).filter((n) => n !== path.basename(P.root)); } catch { /* няма какво да се види */ }
+try { siblings = fs.readdirSync(path.dirname(P.root)).filter((n) => n !== path.basename(P.root)); } catch { /* nothing to see */ }
 add('siblings', !siblings.length, siblings.slice(0, 8).join(', '));
 add('windows-drives', !fs.existsSync('/mnt/c'), '/mnt/c');
 const extraEnv = Object.keys(process.env).filter((k) => !(P.allowedEnv || []).includes(k));
@@ -25,7 +25,7 @@ const codeWritable = ['', 'scripts', '.claude', 'node_modules', 'content'].map((
 add('code-readonly', !codeWritable.length, codeWritable.join(', '));
 if (P.settings) {
   let w = false;
-  try { fs.appendFileSync(P.settings, ''); w = true; } catch { /* само за четене: така трябва */ }
+  try { fs.appendFileSync(P.settings, ''); w = true; } catch { /* read-only: as it should be */ }
   add('claude-settings', !w, P.settings);
 }
 if (P.exe) {
@@ -34,7 +34,7 @@ if (P.exe) {
   add('windows-exe', !ran, ran ? String(r.stdout).trim() : '');
 }
 
-// Нужното за работа
+// What is needed to work
 const dataOk = ['raw', 'wiki', 'outputs', 'drafts'].every((d) => canWrite(path.join(P.root, d, probe)));
 add('data-writable', dataOk, '', 'function');
 const claude = process.env.CLAUDE_BIN;

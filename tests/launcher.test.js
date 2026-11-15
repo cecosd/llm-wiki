@@ -1,4 +1,4 @@
-// Стартерът (scripts/app.js), режимите (modes.js), името на сайта (hosts) и защитата с права на Node.
+// The launcher (scripts/app.js), the modes (modes.js), the site name (hosts) and the protection with Node permissions.
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -100,7 +100,7 @@ const api = async (method, url, body) => {
   const r = await fetch(`http://127.0.0.1:${port}${url}`, { method, headers: { 'x-library': '1', 'content-type': 'application/json' }, body: body ? JSON.stringify(body) : undefined });
   return { status: r.status, json: await r.json().catch(() => null) };
 };
-const waitFor = async (fn, ms = 40000) => { const end = Date.now() + ms; while (Date.now() < end) { try { const v = await fn(); if (v) return v; } catch { /* още не */ } await sleep(300); } return null; };
+const waitFor = async (fn, ms = 40000) => { const end = Date.now() + ms; while (Date.now() < end) { try { const v = await fn(); if (v) return v; } catch { /* not yet */ } await sleep(300); } return null; };
 
 before(async () => {
   box = makeSandbox();
@@ -111,7 +111,7 @@ before(async () => {
   await waitFor(async () => (await fetch(`http://127.0.0.1:${port}/api/app/presence`)).ok);
 });
 after(async () => {
-  if (launcher && launcher.exitCode === null) { try { launcher.kill(); } catch { /* вече го няма */ } }
+  if (launcher && launcher.exitCode === null) { try { launcher.kill(); } catch { /* it is gone */ } }
   await sleep(500);
   box?.remove();
 });

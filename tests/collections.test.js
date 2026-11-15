@@ -1,4 +1,4 @@
-// Колекциите на човека (умни и ръчни списъци, ред на видовете в менюто) и дневникът (най-новите първи).
+// The person's collections (smart and manual lists, the order of the kinds in the menu) and the log (newest first).
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { T, makeSandbox, startServer, api, seedLibrary } from './helpers.js';
@@ -7,7 +7,7 @@ let box, srv;
 before(async () => {
   box = makeSandbox();
   seedLibrary(box);
-  // Дневник, в който записите не са по ред (както след възстановяване с npm run index)
+  // A log in which the entries are out of order (as after restoring with npm run index)
   box.write('wiki/log.md', `---
 title: Log
 type: topic

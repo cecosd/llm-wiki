@@ -1,6 +1,6 @@
-// Показва кои raw файлове още нямат source страница.
-//   npm run status            обобщение
-//   npm run pending           само чакащите, по един път на ред (за /wiki-ingest)
+// Shows which raw files do not have a source page yet.
+//   npm run status            a summary
+//   npm run pending           only the pending ones, one path per line (for /wiki-ingest)
 import fs from 'node:fs';
 import path from 'node:path';
 import { EXTRACTED, ROOT, rel, rawFiles, wikiPages, walk, ingestState, normRaw } from './lib.js';
@@ -11,7 +11,7 @@ const raw = rawFiles();
 const { pending, done, broken, nonCanonical } = ingestState(pages, raw);
 
 if (process.argv.includes('--pending')) {
-  // Каноничните пътища: точно тях Claude записва в raw_path
+  // The canonical paths: exactly these are what Claude writes in raw_path
   pending.forEach((f) => console.log(normRaw(rel(f))));
   process.exit(0);
 }
