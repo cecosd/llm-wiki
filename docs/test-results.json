@@ -1,14 +1,14 @@
 {
-  "version": "2.1.0",
-  "date": "2026-11-14T15:15:51.049Z",
-  "durationMs": 30616,
+  "version": "2.2.0",
+  "date": "2026-11-16T11:09:58.511Z",
+  "durationMs": 40248,
   "environment": {
     "platform": "linux",
     "node": "26.12.1"
   },
   "summary": {
-    "total": 130,
-    "pass": 127,
+    "total": 142,
+    "pass": 139,
     "fail": 0,
     "known": 1,
     "notRun": 2,
@@ -387,6 +387,78 @@
       "group": "security",
       "en": "Collections cannot be changed without the header of the page",
       "bg": "Колекциите не се променят без заглавката на страницата",
+      "status": "pass"
+    },
+    {
+      "group": "updates",
+      "en": "The changelog is read into versions, groups and breaking changes",
+      "bg": "Дневникът на промените се чете на версии, групи и несъвместими промени",
+      "status": "pass"
+    },
+    {
+      "group": "updates",
+      "en": "A check returns what changed and flags breaking changes and major versions",
+      "bg": "Проверката връща какво е променено и отбелязва несъвместими промени и основни версии",
+      "status": "pass"
+    },
+    {
+      "group": "updates",
+      "en": "Only the install button installs a new version of the program",
+      "bg": "Нова версия на програмата се инсталира само с бутона",
+      "status": "pass"
+    },
+    {
+      "group": "updates",
+      "en": "A new version is fast-forwarded in, and packages are installed only when the lock file changed",
+      "bg": "Нова версия се прилага без разклонение, а пакетите се инсталират само ако ключовият файл се е променил",
+      "status": "pass"
+    },
+    {
+      "group": "updates",
+      "en": "Edited program files are never overwritten without a copy and a yes",
+      "bg": "Променени файлове на програмата не се презаписват без копие и съгласие",
+      "status": "pass"
+    },
+    {
+      "group": "updates",
+      "en": "A copy with its own commits is not merged, and a failed npm puts the old version back",
+      "bg": "Копие със собствени промени не се слива, а неуспешен npm връща старата версия",
+      "status": "pass"
+    },
+    {
+      "group": "updates",
+      "en": "A folder from a ZIP becomes a git clone without losing any file",
+      "bg": "Папка от ZIP става git клонинг без да се загуби файл",
+      "status": "pass"
+    },
+    {
+      "group": "ai",
+      "en": "A retired model is noticed from the provider list, without spending tokens",
+      "bg": "Спрян модел се забелязва от списъка на доставчика, без да се харчат токени",
+      "status": "pass"
+    },
+    {
+      "group": "ai",
+      "en": "The quick draft arranges an essay as introduction, thesis, antithesis and conclusion",
+      "bg": "Бързата чернова подрежда есе като увод, теза, антитеза и заключение",
+      "status": "pass"
+    },
+    {
+      "group": "ai",
+      "en": "Every kind of text has a quick draft; the story is an outline without citations",
+      "bg": "Всеки вид текст има бърза чернова; разказът е план без цитати",
+      "status": "pass"
+    },
+    {
+      "group": "app",
+      "en": "The server no longer refuses a quick draft for other kinds of text",
+      "bg": "Сървърът вече не отказва бърза чернова за други видове текст",
+      "status": "pass"
+    },
+    {
+      "group": "app",
+      "en": "The levels of use only hide menu items; addresses and the Keeper level keep everything",
+      "bg": "Нивата на ползване само скриват точки от менюто; адресите и Пазителят запазват всичко",
       "status": "pass"
     },
     {
@@ -941,29 +1013,7 @@
     }
   ],
   "packages": {
-    "outdated": [
-      {
-        "name": "@napi-rs/canvas",
-        "current": "1.1.0",
-        "wanted": "1.1.1",
-        "latest": "1.1.1",
-        "major": false
-      },
-      {
-        "name": "papaparse",
-        "current": "5.7.0",
-        "wanted": "5.7.1",
-        "latest": "5.7.1",
-        "major": false
-      },
-      {
-        "name": "unpdf",
-        "current": "2.1.0",
-        "wanted": "2.2.0",
-        "latest": "2.2.0",
-        "major": false
-      }
-    ],
+    "outdated": [],
     "audit": {
       "total": 0,
       "critical": 0,
