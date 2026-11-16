@@ -5,7 +5,7 @@ The program reads this file to show "What is new" before an update, so please ke
 `## [version] - date`, then `### Added`, `### Changed`, `### Fixed` and, when something may stop working for someone,
 `### Breaking changes` (every item under that heading is shown in a warning box).
 
-## [2.2.0] - 2026-11-15
+## [2.2.0] - 2026-11-16
 
 ### Added
 - **Install new versions from the app.** The start-up check shows a "New version" button with what changed and whether anything may break; one more button installs it (git fast-forward, packages when the lock file changed, then a restart). Edited program files are never overwritten without a copy in `outputs/update-backup/` and your yes.
