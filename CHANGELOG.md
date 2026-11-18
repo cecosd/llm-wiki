@@ -5,6 +5,11 @@ The program reads this file to show "What is new" before an update, so please ke
 `## [version] - date`, then `### Added`, `### Changed`, `### Fixed` and, when something may stop working for someone,
 `### Breaking changes` (every item under that heading is shown in a warning box).
 
+## [Unreleased]
+
+### Added
+- **Photos of pages** (`#/scan`): photos of the pages of a book, an article or another document become one source. The sheet is found on every photo and the background (a table, a tablecloth) is cut away, the perspective and the tilt of the lines are straightened, and the corners can be moved by hand. The pages become one PDF with one page per photo; the text is read by the built-in OCR, and only the pages where OCR is weak go to a model that sees images, after the estimate of the tokens and the cost. The original photos are kept in `raw/.scans/`. HEIC photos from an iPhone, which Chrome and Edge cannot open, are converted to JPEG on your computer (new package `heic-decode`, libheif in WebAssembly, no external programs).
+
 ## [2.2.0] - 2026-11-16
 
 ### Added

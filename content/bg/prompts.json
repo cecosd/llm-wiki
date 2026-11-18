@@ -494,6 +494,11 @@
     "who they are, what each of them wants": "кои са те и какво иска всеки от тях",
     "what stands between the character and what they want": "какво стои между героя и онова, което иска",
     "the scene where something changes": "сцената, в която нещо се променя",
-    "how the story closes, what the character understands": "как свършва разказът и какво разбира героят"
+    "how the story closes, what the character understands": "как свършва разказът и какво разбира героят",
+    "Transcribe all the text on this photo of a page exactly as it is written, in its original language.": "Препиши целия текст от тази снимка на страница точно както е написан, на езика на оригинала.",
+    "Keep the paragraphs and the order of reading; mark headings with #. Do not translate, do not summarize, do not correct and do not add anything.": "Запази абзаците и реда на четене; отбелязвай заглавията с #. Не превеждай, не обобщавай, не поправяй и не добавяй нищо.",
+    "If a word cannot be read, write [unreadable]. If there is no text on the page, write only [no text].": "Ако дума не може да се прочете, пиши [неразборливо]. Ако на страницата няма текст, пиши само [няма текст].",
+    "Answer only with the text of the page, without comments.": "Отговори само с текста на страницата, без коментари.",
+    "Open the image file {0} with the Read tool. It is a photo of page {1} of “{2}”.": "Отвори файла с изображението {0} с инструмента Read. Това е снимка на страница {1} от „{2}“."
   }
 }

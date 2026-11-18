@@ -19,6 +19,7 @@ import { $t } from './i18n.js';
 import { aiConfig } from './providers.js';
 import { TIER_OF } from './pipeline.js';
 import { textBudget } from './ai.js';
+import { weakPages } from './scan.js';
 
 export const PRICE_DATE = '2026-10-31';
 const DEFAULT_PRICES = {
@@ -45,6 +46,13 @@ const writeWords = (b) => (Number(b.words) > 0 ? Math.min(3000, Number(b.words))
 const reviewSize = (b) => {
   const words = Math.min(30000, Math.max(100, Number(b.words) || 1500));
   return { words, text: Math.round(words * 2.4), works: Math.min(80, Math.max(1, Number(b.sources) || Math.round(words / 250))), report: b.mode === 'report' };
+};
+// Photos of pages: an image of 1568 px costs about (width x height) / 750 tokens, at most about 1600 (Anthropic, n.d.,
+// "Vision"); a full page of text is about 700 tokens out (Cyrillic, about 350 words).
+const IMAGE_TOKENS = 1600, PAGE_OUT = 900;
+const scanPagesOf = (b) => {
+  if (Array.isArray(b.pages) && b.pages.length) return Math.min(1000, b.pages.length);
+  try { return b.id ? weakPages(String(b.id)).length : 0; } catch { return 0; }
 };
 const claudeMdTokens = () => readTokens(path.join(ROOT, 'CLAUDE.md'));
 const wikiTokens = () => wikiPages().reduce((n, p) => n + tokensOf(p.content), 0);
@@ -182,6 +190,13 @@ function pipelineEstimate(kind, b, settings) {
     extra.delegate = cfg.engine !== 'manual' && r.reader !== r.writer; extra.reader = r.reader; extra.writer = r.writer;
     if (r.items.some((i) => !i.found)) warn.push($t('Some of the files have no extracted text yet: the estimate is based on file size.'));
     extra.past = pastAverage(kind);
+  } else if (kind === 'scan-pages') {
+    const n = scanPagesOf(b);
+    if (!n) return { ok: false, error: $t('There is nothing to process.') };
+    if (cfg.engine === 'manual') return { ok: false, error: $t('In the copy and paste mode a model cannot read photos. Choose another way of work in Settings → Model, or leave the OCR text.') };
+    title = $t('Reading {0} photos of pages', [n]);
+    parts = [callCost('medium', n * (IMAGE_TOKENS + 250), n * PAGE_OUT, n)];
+    if (!cfg.vision) warn.push($t('The chosen model does not read images. Turn on “Reads images” in Settings → Model for a model that can.'));
   } else if (kind === 'areas') {
     const cp = classifyPrompt();
     if (!cp.count) return { ok: false, error: $t('All sources already have an area.') };
@@ -301,6 +316,12 @@ export function estimate(kind, body = {}, { settings } = {}) {
     parts = r.parts; extra.items = r.items.slice(0, 12); extra.itemsMore = Math.max(0, r.items.length - 12); extra.delegate = r.eff.delegate; extra.reader = r.eff.reader; extra.writer = r.eff.writer;
     if (r.items.some((i) => !i.found)) warn.push($t('Some of the files have no extracted text yet: the estimate is based on file size.'));
     extra.past = pastAverage(kind);
+  } else if (kind === 'scan-pages') {
+    const n = scanPagesOf(b);
+    if (!n) return { ok: false, error: $t('There is nothing to process.') };
+    title = $t('Reading {0} photos of pages', [n]);
+    // one short run of Claude Code per page: the prompt, the image (Read) and the text of the page
+    for (let i = 0; i < n; i++) parts.push(runCost({ model: PATH_LEVELS.medium.model, promptTokens: 250, reads: IMAGE_TOKENS, out: PAGE_OUT, turns: 2 }));
   } else if (kind === 'areas') {
     const L = PATH_LEVELS[b.level] || PATH_LEVELS.light;
     const cp = classifyPrompt();

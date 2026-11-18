@@ -92,7 +92,7 @@ A pull request with a new locale file is welcome.
 
 ## Everyday use
 
-1. **Upload:** drop files on the home page (or copy them into `raw/inbox/`).
+1. **Upload:** drop files on the home page (or copy them into `raw/inbox/`). Photos of the pages of a book or a document go to **Photos of pages**: the sheet is cut out of every photo (also from a tablecloth or a table), the perspective and the lines are straightened, and the pages become one PDF. OCR reads the text on your computer; only the pages where it fails go to a model, after you see the cost. HEIC photos from an iPhone are converted by themselves.
 2. **Sort:** “Sort and extract text” puts files into folders and extracts their text.
 3. **Process:** Claude reads each source, decides its emphasis, writes the source page (books also get one page per chapter) and updates concepts, people and topics. You see live what it reads and which page it writes.
 4. **Browse:** pages appear on their own. Search with `Ctrl K`, follow the link map, open the original page of a book from any “p. N” citation.

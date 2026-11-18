@@ -494,6 +494,11 @@
     "who they are, what each of them wants": "who they are, what each of them wants",
     "what stands between the character and what they want": "what stands between the character and what they want",
     "the scene where something changes": "the scene where something changes",
-    "how the story closes, what the character understands": "how the story closes, what the character understands"
+    "how the story closes, what the character understands": "how the story closes, what the character understands",
+    "Transcribe all the text on this photo of a page exactly as it is written, in its original language.": "Transcribe all the text on this photo of a page exactly as it is written, in its original language.",
+    "Keep the paragraphs and the order of reading; mark headings with #. Do not translate, do not summarize, do not correct and do not add anything.": "Keep the paragraphs and the order of reading; mark headings with #. Do not translate, do not summarize, do not correct and do not add anything.",
+    "If a word cannot be read, write [unreadable]. If there is no text on the page, write only [no text].": "If a word cannot be read, write [unreadable]. If there is no text on the page, write only [no text].",
+    "Answer only with the text of the page, without comments.": "Answer only with the text of the page, without comments.",
+    "Open the image file {0} with the Read tool. It is a photo of page {1} of “{2}”.": "Open the image file {0} with the Read tool. It is a photo of page {1} of “{2}”."
   }
 }

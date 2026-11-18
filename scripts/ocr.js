@@ -54,3 +54,23 @@ export async function ocrPdf(file, onProgress = () => {}) {
   } finally { await worker.terminate(); }
   return parts.join('');
 }
+
+/**
+ * OCR of page images (JPEG/PNG files), one per page. Returns [{ text, conf, words }] in the same order.
+ * conf is the mean confidence of tesseract (0..100): photos with a weak result are read again by a model (scan.js).
+ */
+export async function ocrImages(files, onProgress = () => {}) {
+  prepareLangs();
+  const { createWorker } = await import('tesseract.js');
+  const worker = await createWorker(LANGS, 1, { langPath: DATA_DIR, gzip: true, cachePath: DATA_DIR });
+  const out = [];
+  try {
+    for (let i = 0; i < files.length; i++) {
+      const { data } = await worker.recognize(fs.readFileSync(files[i]));
+      const text = (data.text || '').trim();
+      out.push({ text, conf: Math.round(Number(data.confidence) || 0), words: text.split(/\s+/).filter(Boolean).length });
+      onProgress(i + 1, files.length);
+    }
+  } finally { await worker.terminate(); }
+  return out;
+}
