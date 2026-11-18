@@ -191,6 +191,7 @@ const ICONS = {
   globe: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18',
   table: 'M4 4h16v16H4zM4 10h16M4 15h16M10 4v16',
   pen: 'M4 20h4L19 9a2.8 2.8 0 0 0-4-4L4 16zM13.5 6.5l4 4',
+  camera: 'M4 8h3l2-3h6l2 3h3v11H4zM12 17a4 4 0 1 0 0-8 4 4 0 0 0 0 8z',
   image: 'M4 4h16v16H4zM4 16l5-5 4 4 2-2 5 5M15 9.5a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3z',
   upload: 'M12 16V4M7 9l5-5 5 5M4 16v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3',
   sparkle: 'M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8zM19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8z',
@@ -1963,6 +1964,243 @@ const FindView = defineComponent({
   },
 });
 
+// ---------- Photos of pages (viewer/scan-tools.js in the browser, scripts/scan.js on the server) ----------
+// The photos are cut out and straightened here, on the person's computer; only the finished pages (and the originals) go to the server.
+// The decoded photos are never kept in Vue state: 40 photos of 12 MP would take gigabytes. Only the file, the corners and a thumbnail are kept.
+const SCAN_KINDS = [
+  { id: 'book', label: $t('Book'), hint: $t('A source with chapters (raw/books/).') },
+  { id: 'paper', label: $t('Article'), hint: $t('A scientific or other article (raw/papers/).') },
+  { id: 'document', label: $t('Other document'), hint: $t('A letter, notes, a handout (raw/articles/).') },
+];
+const SCAN_DECODE = 4000;   // the long side of a decoded photo for the final page
+const SCAN_PAGE = 2400;     // the long side of a finished page (about 200 dpi for A4)
+const SCAN_VIEW = 1400;     // the photo in the editor and for the detection
+const SCAN_INSET = 0.008;   // a thin margin left out along the edge, as scanners do (no dark frame from the background)
+const natCmp = new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' }).compare;
+const nextFrame = () => new Promise((r) => setTimeout(r, 0));
+
+/** A photo file -> ImageData of at most maxSide px (the orientation from EXIF is applied by the browser) */
+async function decodePhoto(file, maxSide) {
+  const bmp = await createImageBitmap(file);
+  const k = Math.min(1, maxSide / Math.max(bmp.width, bmp.height));
+  const c = document.createElement('canvas');
+  c.width = Math.max(1, Math.round(bmp.width * k)); c.height = Math.max(1, Math.round(bmp.height * k));
+  const ctx = c.getContext('2d', { willReadFrequently: true });
+  ctx.imageSmoothingQuality = 'high';
+  ctx.drawImage(bmp, 0, 0, c.width, c.height);
+  bmp.close?.();
+  return ctx.getImageData(0, 0, c.width, c.height);
+}
+function imageToCanvas(img, canvas = document.createElement('canvas')) {
+  canvas.width = img.width; canvas.height = img.height;
+  canvas.getContext('2d').putImageData(new ImageData(img.data, img.width, img.height), 0, 0);
+  return canvas;
+}
+const canvasBlob = (c, q = 0.85) => new Promise((r) => c.toBlob(r, 'image/jpeg', q));
+
+/** The finished page from a decoded photo: cut, straightened, levelled and (if not in colour) with a clean contrast */
+function scanPage(img, p, maxSide, { level, color }) {
+  let angle = 0;
+  if (level) angle = ScanTools.skewAngle(ScanTools.warp(img, p.corners, { maxSide: 1000 }));
+  let out = ScanTools.warp(img, p.corners, { maxSide, angle, inset: SCAN_INSET });
+  if (!color) out = ScanTools.enhance(out);
+  return { out, angle };
+}
+
+let scanEditImg = null; // the decoded photo in the editor (outside Vue on purpose)
+
+const ScanView = defineComponent({
+  template: '#tpl-scan',
+  emits: ['toast', 'refresh'],
+  data: () => ({
+    ...shared, SCAN_KINDS, LANGS, drag: false, pages: [], title: '', kind: 'book', level: true, color: false,
+    analyzing: 0, stage: 'edit', progress: { done: 0, total: 0 }, error: '', scan: null, poll: null, dragFrom: -1,
+    edit: null, mode: 'economy', lang: 'both', processed: false, readAsked: false,
+  }),
+  computed: {
+    ready() { return this.pages.length > 0 && !this.analyzing && this.title.trim().length > 0 && this.pages.every((p) => !p.error); },
+    bad() { return this.pages.filter((p) => p.error).length; },
+    job() { return this.scan?.job || {}; },
+    busyJob() { return ['waiting', 'ocr', 'model'].includes(this.job.phase); },
+    weakThumbs() { return (this.scan?.weak || []).map((n) => ({ n, thumb: this.pages[n - 1]?.thumb || '' })); },
+    poly() { return this.edit ? this.edit.corners.map((c) => `${c.x * this.edit.w},${c.y * this.edit.h}`).join(' ') : ''; },
+  },
+  created() {
+    const st = this.$root.agent?.settings || {};
+    this.mode = ['economy', 'balanced', 'best'].includes(st.mode) ? st.mode : 'economy';
+    this.lang = st.lang || 'both';
+  },
+  beforeUnmount() { clearInterval(this.poll); scanEditImg = null; this.pages.forEach((p) => p.thumb && URL.revokeObjectURL(p.thumb)); },
+  methods: {
+    onDrop(e) { this.drag = false; this.add([...e.dataTransfer.files]); },
+    onPick(e) { this.add([...e.target.files]); e.target.value = ''; },
+    async add(files) {
+      const imgs = files.filter((f) => /^image\//.test(f.type) || /\.(jpe?g|png|webp|heic|heif|tiff?|bmp|gif)$/i.test(f.name)).sort((a, b) => natCmp(a.name, b.name));
+      if (imgs.length < files.length) this.$emit('toast', { text: $t('Only photos can be added here.'), icon: 'alert' });
+      // src: what the browser reads (a JPEG converted on the server for HEIC); file stays the original that is kept
+      const fresh = imgs.map((f) => Vue.reactive({ id: uid(), file: f, src: null, converting: false, name: f.name, corners: ScanTools.FULL(), found: false, angle: 0, thumb: '', error: '', busy: true }));
+      this.pages.push(...fresh);
+      // one by one, so that the page stays responsive
+      for (const p of fresh) { this.analyzing++; await this.analyze(p, true); this.analyzing--; await nextFrame(); }
+    },
+    /** Finds the sheet (detect) and makes the thumbnail of the finished page */
+    async analyze(p, detect) {
+      p.busy = true; p.error = '';
+      try {
+        const img = await this.readPhoto(p, SCAN_VIEW);
+        if (detect) { const d = ScanTools.detectPage(img); p.corners = d.corners; p.found = d.found; }
+        await this.makeThumb(p, img);
+      } catch (e) { p.error = e.message || $t('The browser cannot read this photo. Save it as JPG and add it again.'); }
+      p.converting = false; p.busy = false;
+    },
+    /**
+     * Decodes a photo. When the browser cannot (HEIC from an iPhone in Chrome and Edge), the server converts it
+     * to JPEG once (/api/scan/convert) and the JPEG is used from then on. Safari opens HEIC by itself.
+     */
+    async readPhoto(p, maxSide) {
+      try { return await decodePhoto(p.src || p.file, maxSide); }
+      catch (first) {
+        if (p.src) throw first;
+        p.converting = true;
+        const r = await api('/api/scan/convert', { method: 'POST', headers: { 'content-type': 'application/octet-stream' }, body: p.file });
+        if (!r.ok) {
+          const d = await r.json().catch(() => ({}));
+          throw new Error(r.status === 400 ? $t('The browser cannot read this photo. Save it as JPG and add it again.') : d.error || $t('The HEIC photo could not be converted.'));
+        }
+        p.src = await r.blob();
+        p.converting = false;
+        return decodePhoto(p.src, maxSide);
+      }
+    },
+    async makeThumb(p, img) {
+      const { out, angle } = scanPage(img, p, 420, { level: this.level, color: this.color });
+      p.angle = angle;
+      const blob = await canvasBlob(imageToCanvas(out), 0.8);
+      if (p.thumb) URL.revokeObjectURL(p.thumb);
+      p.thumb = URL.createObjectURL(blob);
+    },
+    async redoAll() {
+      for (const p of this.pages) { if (p.error) continue; this.analyzing++; await this.analyze(p, false); this.analyzing--; await nextFrame(); }
+    },
+    move(i, d) { const j = i + d; if (j < 0 || j >= this.pages.length) return; const [p] = this.pages.splice(i, 1); this.pages.splice(j, 0, p); },
+    dropOn(i) { if (this.dragFrom < 0 || this.dragFrom === i) return; const [p] = this.pages.splice(this.dragFrom, 1); this.pages.splice(i, 0, p); this.dragFrom = -1; },
+    remove(i) { const [p] = this.pages.splice(i, 1); if (p?.thumb) URL.revokeObjectURL(p.thumb); },
+    sortByName() { this.pages.sort((a, b) => natCmp(a.name, b.name)); },
+    clearAll() { if (!confirm($t('Remove all photos from the list? The files on your computer are not touched.'))) return; this.pages.forEach((p) => p.thumb && URL.revokeObjectURL(p.thumb)); this.pages = []; },
+
+    // ----- the editor of the corners -----
+    async openEdit(i) {
+      const p = this.pages[i]; if (!p || p.busy) return;
+      try {
+        scanEditImg = await this.readPhoto(p, SCAN_VIEW);
+        const url = URL.createObjectURL(await canvasBlob(imageToCanvas(scanEditImg), 0.9));
+        this.edit = { i, url, w: scanEditImg.width, h: scanEditImg.height, corners: p.corners.map((c) => ({ ...c })), dragging: -1 };
+        this.$nextTick(() => this.preview());
+      } catch { this.$emit('toast', { text: $t('I could not open the photo.'), icon: 'alert' }); }
+    },
+    closeEdit(save) {
+      const e = this.edit; if (!e) return;
+      const p = this.pages[e.i];
+      if (save && p) { p.corners = e.corners.map((c) => ({ ...c })); p.found = true; if (scanEditImg) this.makeThumb(p, scanEditImg); }
+      URL.revokeObjectURL(e.url); this.edit = null; scanEditImg = null;
+    },
+    pointAt(ev) {
+      const r = this.$refs.editSvg.getBoundingClientRect();
+      return { x: Math.min(1, Math.max(0, (ev.clientX - r.left) / r.width)), y: Math.min(1, Math.max(0, (ev.clientY - r.top) / r.height)) };
+    },
+    grab(k, ev) { this.edit.dragging = k; ev.target.setPointerCapture?.(ev.pointerId); },
+    dragMove(ev) { const e = this.edit; if (!e || e.dragging < 0) return; e.corners.splice(e.dragging, 1, this.pointAt(ev)); },
+    dragEnd() { if (!this.edit || this.edit.dragging < 0) return; this.edit.dragging = -1; this.preview(); },
+    nudge(k, ev) {
+      const step = ev.shiftKey ? 0.02 : 0.004, d = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] }[ev.key];
+      if (!d) return; ev.preventDefault();
+      const c = this.edit.corners[k];
+      this.edit.corners.splice(k, 1, { x: Math.min(1, Math.max(0, c.x + d[0] * step)), y: Math.min(1, Math.max(0, c.y + d[1] * step)) });
+      clearTimeout(this._pv); this._pv = setTimeout(() => this.preview(), 250);
+    },
+    editAuto() { if (!scanEditImg) return; this.edit.corners = ScanTools.detectPage(scanEditImg).corners; this.preview(); },
+    editFull() { this.edit.corners = ScanTools.FULL(); this.preview(); },
+    editRotate() { this.edit.corners = ScanTools.rotateCorners(this.edit.corners); this.preview(); },
+    preview() {
+      const c = this.$refs.editPreview; if (!c || !scanEditImg || !this.edit) return;
+      const { out } = scanPage(scanEditImg, { corners: this.edit.corners }, 700, { level: this.level, color: this.color });
+      imageToCanvas(out, c);
+    },
+    cornerName: (k) => [$t('top left'), $t('top right'), $t('bottom right'), $t('bottom left')][k],
+
+    // ----- upload, PDF, OCR -----
+    async putPart(id, kind, n, blob, name) {
+      const r = await api(`/api/scan/${id}/${kind}/${n}`, { method: 'PUT', headers: { 'x-filename': encodeURIComponent(name || `${kind}-${n}.jpg`) }, body: blob });
+      if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error || $t('The upload failed.'));
+    },
+    async build() {
+      if (!this.ready) return;
+      this.stage = 'upload'; this.error = ''; this.progress = { done: 0, total: this.pages.length };
+      try {
+        const s = await (await api('/api/scan', { method: 'POST' })).json();
+        if (!s.id) throw new Error(s.error || $t('The server is not responding.'));
+        for (let i = 0; i < this.pages.length; i++) {
+          const p = this.pages[i];
+          const img = await this.readPhoto(p, SCAN_DECODE);
+          const { out, angle } = scanPage(img, p, SCAN_PAGE, { level: this.level, color: this.color });
+          p.angle = angle;
+          const blob = await canvasBlob(imageToCanvas(out), 0.85);
+          await this.putPart(s.id, 'page', i + 1, blob);
+          await this.putPart(s.id, 'orig', i + 1, p.file, p.name);
+          this.progress.done = i + 1;
+          await nextFrame();
+        }
+        const layout = this.pages.map((p) => ({ corners: p.corners, angle: p.angle, color: this.color, name: p.name }));
+        const r = await api(`/api/scan/${s.id}/finish`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ title: this.title.trim(), kind: this.kind, layout }) });
+        const d = await r.json().catch(() => ({}));
+        if (!r.ok) throw new Error(d.error || $t('The server is not responding.'));
+        this.stage = 'ocr';
+        this.scan = { id: s.id, pdf: d.pdf, pages: d.pages, job: { phase: 'waiting' } };
+        this.$emit('refresh');
+        this.watch();
+      } catch (e) { this.error = e.message; this.stage = 'edit'; }
+    },
+    watch() {
+      clearInterval(this.poll);
+      const tick = async () => {
+        try {
+          const d = await (await api(`/api/scan/${this.scan.id}`)).json();
+          if (d.id) this.scan = d;
+        } catch { return; }
+        if (this.busyJob) return;
+        clearInterval(this.poll); this.poll = null;
+        this.stage = 'result';
+        this.$emit('refresh');
+        // OCR first; where it is weak, a model (after the estimate of the tokens and the cost)
+        if (this.scan.weak?.length && !this.readAsked) { this.readAsked = true; this.readWeak(); }
+      };
+      this.poll = setInterval(tick, 1500); tick();
+    },
+    async readWeak() {
+      const id = this.scan?.id; if (!id || !this.scan.weak?.length) return;
+      if (!(await this.$root.confirmClaude({ kind: 'scan-pages', id }))) return;
+      const r = await api(`/api/scan/${id}/read`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{}' });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) { this.$emit('toast', { text: d.error || $t('I could not'), icon: 'alert' }); return; }
+      if (d.started) { this.stage = 'ocr'; this.scan.job = { phase: 'model', done: 0, total: d.total }; this.watch(); }
+    },
+    async cancelRead() { if (this.scan?.id) await api(`/api/scan/${this.scan.id}/cancel`, { method: 'POST' }); },
+    async process() {
+      if (!this.scan?.pdf) return;
+      const opts = { mode: this.mode, lang: this.lang }, paths = [this.scan.pdf];
+      if (!(await this.$root.confirmClaude({ kind: 'ingest', paths, opts }))) return;
+      const r = await (await api('/api/agent/ingest', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ paths, opts }) })).json().catch(() => ({}));
+      this.processed = true;
+      this.$emit('toast', r.queued ? { text: $t('{ai} started processing. Progress is on the home page.') } : { text: $t('Already in the queue.'), icon: 'alert' });
+    },
+    again() {
+      clearInterval(this.poll); this.pages.forEach((p) => p.thumb && URL.revokeObjectURL(p.thumb));
+      Object.assign(this, { pages: [], title: '', stage: 'edit', scan: null, error: '', processed: false, readAsked: false });
+    },
+    modeLabel(id) { return MODES.find((m) => m.id === id)?.label || id; },
+  },
+});
+
 // Kinds of text and creativity (the same values as GENRES and CREATIVITY_DEFAULT in scripts/write.js)
 const GENRE_LIST = [
   { id: 'article', label: $t('Scientific article'), hint: $t('Abstract, keywords, introduction, theoretical framework, analysis, discussion, conclusion and a bibliography in APA 7.'), ph: $t('The topic or question, e.g. What caused the First World War and what do historians say about it') },
@@ -2608,6 +2846,7 @@ function parseRoute() {
   if (parts[0] === 'graph') return { name: 'graph' };
   if (parts[0] === 'write') return { name: 'write', id: parts[1] || '' };
   if (parts[0] === 'find') return { name: 'find' };
+  if (parts[0] === 'scan') return { name: 'scan' };
   if (parts[0] === 'areas') return { name: 'areas' };
   if (parts[0] === 'setup') return { name: 'setup' };
   if (parts[0] === 'welcome') return { name: 'welcome' };
@@ -2801,7 +3040,7 @@ const app = createApp({
     setNav(show) { this.navHidden = !show; store.set('nav:hidden', show ? '0' : '1'); },
     setFocus(v) { this.focus = !!v; store.set('focus', v ? '1' : '0'); },
     // In the archive the screens that write or call Claude do not work: we return to the start
-    guardArchive() { if (window.LIB_STATIC && ['path', 'write', 'find', 'areas', 'setup', 'settings', 'collections', 'welcome', 'docs'].includes(this.route.name)) location.hash = '#/'; },
+    guardArchive() { if (window.LIB_STATIC && ['path', 'write', 'find', 'scan', 'areas', 'setup', 'settings', 'collections', 'welcome', 'docs'].includes(this.route.name)) location.hash = '#/'; },
     // ---------- The menu: collapsing the groups ----------
     navOpen(g) { return !this.navClosed[g]; },
     navToggle(g) { this.navClosed = { ...this.navClosed, [g]: !this.navClosed[g] }; store.set('nav:closed', JSON.stringify(this.navClosed)); },
@@ -3045,6 +3284,7 @@ app.component('graph-view', GraphView);
 app.component('path-view', PathView);
 app.component('write-view', WriteView);
 app.component('find-view', FindView);
+app.component('scan-view', ScanView);
 app.component('areas-view', AreasView);
 app.component('setup-view', SetupView);
 app.component('settings-view', SettingsView);

@@ -9,6 +9,7 @@ import path from 'node:path';
 import { execFileSync, spawnSync } from 'node:child_process';
 import { EXTRACTED, ROOT, rel, rawFiles } from './lib.js';
 import { ocrPdf, builtinOcrAvailable } from './ocr.js';
+import { scanForRaw, ocrScan, ocrBusy } from './scan.js';
 import { $t } from './i18n.js';
 
 const args = process.argv.slice(2);
@@ -175,6 +176,20 @@ for (const file of files) {
   if (!handler) { unsupported.push(rel(file)); continue; }
   const out = path.join(EXTRACTED, path.relative(path.join(ROOT, 'raw'), file) + '.md');
   if (!force && fs.existsSync(out) && fs.statSync(out).mtimeMs >= fs.statSync(file).mtimeMs) { skipped++; continue; }
+  // A PDF made from photos of pages: OCR of the page images (the PDF has no text layer), and what a model
+  // has already read for a weak page stays (scan.js)
+  const scan = ext === '.pdf' ? scanForRaw(rel(file)) : null;
+  if (scan) {
+    if (ocrBusy(scan.id)) { console.log($t('… {0}: OCR is already running', [rel(file)])); skipped++; continue; }
+    try {
+      let last = 0;
+      const r = await ocrScan(scan, (d, t) => { if (d - last >= 10 || d === t) { last = d; console.log($t('   OCR page {0} of {1}', [d, t])); } });
+      console.log($t('✔ {0} ({1} words)', [rel(file), r.words.toLocaleString('bg-BG')]));
+      if (r.weak.length) console.log($t('⚠ {0}: OCR is weak on pages {1}; a model can read them again from “Photos of pages”.', [rel(file), r.weak.join(', ')]));
+      done++;
+    } catch (e) { failed.push(`${rel(file)}: ${e.message}`); }
+    continue;
+  }
   try {
     const text = (await handler(file)) ?? '';
     fs.mkdirSync(path.dirname(out), { recursive: true });

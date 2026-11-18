@@ -17,6 +17,7 @@ import { aiConfig, aiPublic, readiness, claudeEnv } from './providers.js';
 import { runPipeline, TIER_OF } from './pipeline.js';
 import { errorText, msToPacificMidnight } from './llm.js';
 import { repairLog, readLog } from './log-guard.js';
+import { scanNotReady } from './scan.js';
 
 const SETTINGS_FILE = path.join(ROOT, 'library.config.json');
 const HISTORY_FILE = path.join(OUTPUTS, '.agent-history.json');
@@ -355,7 +356,8 @@ export function createAgent({ broadcast }) {
 
   /** opts: settings only for these files (mode, language), for example chosen when adding an article */
   function enqueuePending(paths, opts) {
-    const pending = paths?.length ? paths : ingestState().pending.map((f) => normRaw(rel(f)));
+    // a PDF from photos of pages waits for its OCR (scan.js); after it the person starts it from "Photos of pages" or the home page
+    const pending = paths?.length ? paths : ingestState().pending.map((f) => normRaw(rel(f))).filter((p) => !scanNotReady(p));
     let n = 0;
     for (const p of pending) if (enqueue('ingest', p, path.basename(p), opts)) n++;
     push(); next();

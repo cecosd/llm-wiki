@@ -20,7 +20,7 @@ const ARCHIVE_DIR = path.join(OUTPUTS, 'archive');
 const ARCHIVE_NAME = /^library-archive-[\d-]+\.zip$/;
 
 // Everything that index.html loads from the server is embedded. An unknown address is an error, not a silent gap.
-const SCRIPT_FILES = { '/theme.js': path.join(VIEWER, 'theme.js'), '/i18n.js': path.join(VIEWER, 'i18n.js'), '/app.js': path.join(VIEWER, 'app.js') };
+const SCRIPT_FILES = { '/theme.js': path.join(VIEWER, 'theme.js'), '/i18n.js': path.join(VIEWER, 'i18n.js'), '/app.js': path.join(VIEWER, 'app.js'), '/scan-tools.js': path.join(VIEWER, 'scan-tools.js') };
 const FONTS = { '/fonts/inter/index.css': path.join(NM, '@fontsource-variable/inter'), '/fonts/literata/index.css': path.join(NM, '@fontsource-variable/literata') };
 
 // The fonts: only Cyrillic and Latin (the languages of the library), otherwise the ZIP grows for no reason

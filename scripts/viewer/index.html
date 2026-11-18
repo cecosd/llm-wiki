@@ -150,6 +150,7 @@
           <a href="#/path" :class="['nav-item', route.name==='path' && 'active']" @click="drawer=false"><ic name="route" class="size-4"></ic>{{ $t('Learn by question') }}</a>
           <a href="#/write" :class="['nav-item', route.name==='write' && 'active']" @click="drawer=false"><ic name="pen" class="size-4"></ic>{{ $t('Write with the wiki') }}</a>
           <a v-if="atLeast('librarian')" href="#/find" :class="['nav-item', route.name==='find' && 'active']" @click="drawer=false"><ic name="link" class="size-4"></ic>{{ $t('Add an article') }}</a>
+          <a v-if="atLeast('librarian')" href="#/scan" :class="['nav-item', route.name==='scan' && 'active']" @click="drawer=false"><ic name="camera" class="size-4"></ic>{{ $t('Photos of pages') }}</a>
         </div>
       </div>
 
@@ -305,6 +306,7 @@
       <log-view v-else-if="route.name==='log'" :pages="pages" :version="version"></log-view>
       <graph-view v-else-if="route.name==='graph'" :version="version"></graph-view>
       <find-view v-else-if="route.name==='find'" @toast="toast" @refresh="refresh"></find-view>
+      <scan-view v-else-if="route.name==='scan'" @toast="toast" @refresh="refresh"></scan-view>
       <setup-view v-else-if="route.name==='setup'" @copy="copy" @done="loadAgent"></setup-view>
       <welcome-view v-else-if="route.name==='welcome' && !ro" :agent="agent" @tour="startTour" @finish="finishWelcome"></welcome-view>
       <docs-view v-else-if="route.name==='docs' && !ro" :id="route.id"></docs-view>
@@ -673,6 +675,7 @@
           <span v-for="f in [$t('Books'),$t('Articles'),$t('Tables'),$t('Notes')]" :key="f" class="chip bg-ink/5 text-ink/60 dark:bg-white/5 dark:text-night-ink/60">{{ f }}</span>
         </span>
       </label>
+      <a v-if="!ro" href="#/scan" class="mt-2 inline-flex items-center gap-1.5 text-sm text-sage-700 hover:underline dark:text-sage-200"><ic name="camera" class="size-4"></ic>{{ $t('Photos of pages of a book or a document? Put them together into one source') }}</a>
 
       <div v-if="uploads.length || stats.inbox?.length" class="card mt-4 p-5">
         <div class="flex flex-wrap items-center justify-between gap-3">
@@ -2049,6 +2052,198 @@ npm run restore -- /path/to/copy --apply</pre>
 </div>
 </script>
 
+<!-- ============================ PHOTOS OF PAGES ============================ -->
+<script type="text/x-template" id="tpl-scan">
+<div class="mx-auto max-w-5xl px-5 py-8 sm:px-8 lg:py-12">
+  <p class="eyebrow">{{ $t('Photos of pages') }}</p>
+  <h1 class="mt-1 font-serif text-3xl font-semibold">{{ $t('A book or a document from photos') }}</h1>
+  <p class="mt-2 max-w-3xl text-sm text-muted dark:text-night-muted">{{ $t('Choose the photos of the pages. The library finds the sheet in every photo, cuts away the background (a table, a tablecloth), straightens the perspective and the lines of text, and puts the pages together in one PDF. Then the text is read by OCR on your computer; only the pages where OCR fails go to a model, after you see the cost.') }}</p>
+
+  <!-- ===== 1. Photos ===== -->
+  <template v-if="stage==='edit'">
+    <label @dragover.prevent="drag=true" @dragleave.prevent="drag=false" @drop.prevent="onDrop"
+           :class="['card mt-6 flex cursor-pointer flex-col items-center justify-center border-2 border-dashed px-6 py-8 text-center transition', drag ? 'border-sage-500 bg-sage-50 dark:bg-sage-900/30' : 'hover:border-sage-200 dark:hover:border-sage-700']">
+      <input type="file" multiple accept="image/*,.heic,.heif" class="sr-only" @change="onPick">
+      <span class="grid size-12 place-items-center rounded-2xl bg-sage-50 text-sage-600 dark:bg-sage-900/40 dark:text-sage-200"><ic name="camera" class="size-6"></ic></span>
+      <span class="mt-3 font-serif text-lg font-semibold">{{ pages.length ? $t('Add more photos') : $t('Drop the photos here') }}</span>
+      <span class="mt-1 text-xs text-muted dark:text-night-muted">{{ $t('or click to choose · JPG, PNG, WEBP, HEIC from an iPhone · they are put in order by file name') }}</span>
+    </label>
+
+    <div v-if="pages.length" class="mt-6">
+      <div class="flex flex-wrap items-center justify-between gap-3">
+        <p class="text-sm"><b>{{ pages.length }}</b> {{ pages.length === 1 ? $t('page') : $t('pages') }}<span v-if="analyzing" class="ml-2 text-muted"><ic name="spinner" class="inline size-3.5 animate-spin"></ic> {{ $t('looking for the sheets…') }}</span></p>
+        <div class="flex flex-wrap items-center gap-2 text-sm">
+          <button class="btn-ghost !py-1.5" @click="sortByName">{{ $t('Order by name') }}</button>
+          <button class="btn-ghost !py-1.5" @click="clearAll"><ic name="trash" class="size-4"></ic>{{ $t('Remove all') }}</button>
+        </div>
+      </div>
+      <p class="mt-1 text-xs text-muted dark:text-night-muted">{{ $t('Click a page to move its corners by hand. Drag a page to change the order.') }}</p>
+
+      <ol class="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-6">
+        <li v-for="(p, i) in pages" :key="p.id" draggable="true" @dragstart="dragFrom=i" @dragover.prevent @drop.prevent="dropOn(i)"
+            :class="['group relative rounded-2xl border p-1.5 transition', p.error ? 'border-clay-500/60' : 'border-line hover:border-sage-300 dark:border-night-line']">
+          <button type="button" class="block w-full" :disabled="p.busy || !!p.error" @click="openEdit(i)" :title="p.name" :aria-label="$t('Page {0}: edit the corners', [i + 1])">
+            <div class="grid aspect-[3/4] place-items-center overflow-hidden rounded-xl bg-ink/[.04] dark:bg-white/5">
+              <span v-if="p.busy" class="flex flex-col items-center gap-1 text-[11px] text-muted"><ic name="spinner" class="size-5 animate-spin"></ic><template v-if="p.converting">{{ $t('HEIC to JPG…') }}</template></span>
+              <p v-else-if="p.error" class="p-2 text-[11px] leading-snug text-clay-500">{{ p.error }}</p>
+              <img v-else :src="p.thumb" alt="" class="max-h-full max-w-full object-contain">
+            </div>
+          </button>
+          <div class="mt-1 flex items-center gap-1 text-[11px]">
+            <span class="font-semibold">{{ i + 1 }}</span>
+            <span v-if="!p.busy && !p.error && !p.found" class="chip bg-amber-50 px-1.5 text-[10px] text-amber-800 dark:bg-amber-500/10 dark:text-amber-200" :title="$t('No sheet was found: the whole photo is used. Click to set the corners.')">{{ $t('whole') }}</span>
+            <span v-if="p.angle" class="text-muted" :title="$t('Levelled by {0}°', [p.angle])">{{ p.angle > 0 ? '↻' : '↺' }}{{ Math.abs(p.angle) }}°</span>
+            <span class="ml-auto flex opacity-60 group-hover:opacity-100">
+              <button class="btn-ghost !p-1" :disabled="i===0" :aria-label="$t('Earlier')" :title="$t('Earlier')" @click="move(i,-1)"><ic name="chevron" class="size-3.5 rotate-180"></ic></button>
+              <button class="btn-ghost !p-1" :disabled="i===pages.length-1" :aria-label="$t('Later')" :title="$t('Later')" @click="move(i,1)"><ic name="chevron" class="size-3.5"></ic></button>
+              <button class="btn-ghost !p-1" :aria-label="$t('Remove')" :title="$t('Remove')" @click="remove(i)"><ic name="x" class="size-3.5"></ic></button>
+            </span>
+          </div>
+        </li>
+      </ol>
+
+      <div class="mt-6 grid gap-5 lg:grid-cols-2">
+        <div class="card p-5">
+          <label class="block text-sm font-semibold" for="scan-title">{{ $t('Title') }}</label>
+          <input id="scan-title" v-model="title" maxlength="200" :placeholder="$t('e.g. Structural family therapy')" class="mt-1.5 w-full rounded-xl border border-line bg-panel px-3 py-2 outline-none focus:border-sage-400 dark:border-night-line dark:bg-night-panel">
+          <p class="mt-4 text-sm font-semibold">{{ $t('What is it?') }}</p>
+          <div class="mt-1.5 grid gap-2 sm:grid-cols-3" role="radiogroup" :aria-label="$t('What is it?')">
+            <button v-for="k in SCAN_KINDS" :key="k.id" type="button" role="radio" :aria-checked="kind===k.id" @click="kind=k.id"
+                    :class="['rounded-2xl border p-3 text-left transition', kind===k.id ? 'border-sage-500 bg-sage-50 dark:bg-sage-900/40' : 'border-line hover:border-sage-200 dark:border-night-line']">
+              <span class="block text-sm font-semibold">{{ k.label }}</span>
+              <span class="mt-1 block text-[11px] leading-snug text-muted dark:text-night-muted">{{ k.hint }}</span>
+            </button>
+          </div>
+        </div>
+        <div class="card p-5">
+          <p class="text-sm font-semibold">{{ $t('The pages') }}</p>
+          <label class="mt-3 flex items-start gap-3 text-sm"><input type="checkbox" v-model="level" @change="redoAll" class="mt-1"><span>{{ $t('Level the lines of text') }}<span class="block text-xs text-muted dark:text-night-muted">{{ $t('Finds a small tilt (up to 5°) and turns the page so that the lines are level.') }}</span></span></label>
+          <label class="mt-3 flex items-start gap-3 text-sm"><input type="checkbox" v-model="color" @change="redoAll" class="mt-1"><span>{{ $t('Keep the colours') }}<span class="block text-xs text-muted dark:text-night-muted">{{ $t('Without it the pages are grey with a clean white background: better for OCR and a smaller file. Keep the colours for pictures and maps.') }}</span></span></label>
+          <p class="mt-4 text-xs text-muted dark:text-night-muted">{{ $t('The photos are processed on your computer. The originals are kept unchanged next to the PDF (raw/.scans/).') }}</p>
+        </div>
+      </div>
+
+      <p v-if="error" class="mt-4 rounded-2xl bg-clay-100/60 p-4 text-sm dark:bg-clay-500/10">{{ error }}</p>
+      <div class="mt-5 flex flex-wrap items-center gap-3">
+        <button class="btn-primary" :disabled="!ready" @click="build"><ic name="book" class="size-4"></ic>{{ $t('Put together and read the text') }}</button>
+        <span v-if="!title.trim()" class="text-xs text-muted dark:text-night-muted">{{ $t('Write a title.') }}</span>
+        <span v-else-if="bad" class="text-xs text-clay-500">{{ $t('Remove the photos that cannot be read.') }}</span>
+        <span v-else class="text-xs text-muted dark:text-night-muted">{{ $t('OCR is free and works on your computer.') }}</span>
+      </div>
+    </div>
+  </template>
+
+  <!-- ===== 2. Upload and OCR ===== -->
+  <div v-else-if="stage==='upload' || stage==='ocr'" class="card mt-6 p-6">
+    <div class="flex items-center gap-3">
+      <ic name="spinner" class="size-5 animate-spin text-sage-600"></ic>
+      <p class="font-semibold" v-if="stage==='upload'">{{ $t('Preparing and uploading page {0} of {1}…', [Math.min(progress.done + 1, progress.total), progress.total]) }}</p>
+      <p class="font-semibold" v-else-if="job.phase==='model'">{{ $t('A model reads page {0} of {1}…', [Math.min((job.done || 0) + 1, job.total || 1), job.total || 1]) }}</p>
+      <p class="font-semibold" v-else-if="job.phase==='ocr'">{{ $t('OCR: page {0} of {1}…', [Math.min((job.done || 0) + 1, job.total || 1), job.total || 1]) }}</p>
+      <p class="font-semibold" v-else>{{ $t('Waiting for the OCR to start…') }}</p>
+    </div>
+    <div class="mt-4 h-2 overflow-hidden rounded-full bg-ink/[.06] dark:bg-white/10">
+      <div class="h-full rounded-full bg-sage-500 transition-all" :style="{ width: (stage==='upload' ? progress.done / Math.max(1, progress.total) : (job.done || 0) / Math.max(1, job.total || 1)) * 100 + '%' }"></div>
+    </div>
+    <p class="mt-3 text-xs text-muted dark:text-night-muted">{{ stage==='upload' ? $t('Do not close this page until the upload ends.') : $t('You can leave this page: the work goes on, and the file appears on the home page.') }}</p>
+    <button v-if="job.phase==='model'" class="btn-ghost mt-3 !py-1.5 text-sm" @click="cancelRead"><ic name="stop" class="size-4"></ic>{{ $t('Stop') }}</button>
+  </div>
+
+  <!-- ===== 3. Result ===== -->
+  <div v-else-if="stage==='result' && scan" class="mt-6 space-y-5">
+    <div class="card p-6">
+      <div class="flex items-start gap-3">
+        <span class="grid size-10 shrink-0 place-items-center rounded-xl bg-sage-50 text-sage-600 dark:bg-sage-900/40 dark:text-sage-200"><ic name="check" class="size-5"></ic></span>
+        <div class="min-w-0 flex-1">
+          <p class="font-serif text-xl font-semibold">{{ scan.title }}</p>
+          <p class="mt-0.5 truncate text-xs text-muted dark:text-night-muted">{{ scan.pdf }}</p>
+          <p class="mt-2 text-sm">{{ $t('{0} pages, {1} words read.', [scan.pages, (scan.words || 0).toLocaleString()]) }}<span v-if="scan.byModel?.length"> {{ $t('A model read pages {0}.', [scan.byModel.join(', ')]) }}</span></p>
+          <p v-if="job.error" class="mt-2 rounded-xl bg-clay-100/60 p-2.5 text-xs dark:bg-clay-500/10">{{ job.error }}</p>
+        </div>
+      </div>
+
+      <div v-if="weakThumbs.length" class="mt-5 border-t border-line pt-4 dark:border-night-line">
+        <p class="text-sm font-semibold">{{ $t('OCR is weak on {0} pages', [weakThumbs.length]) }}</p>
+        <p class="mt-1 text-xs text-muted dark:text-night-muted">{{ $t('Few words were found or the letters were uncertain (handwriting, a blurred photo, a table). A model that sees images can read these pages again; the rest stays with OCR.') }}</p>
+        <div class="mt-3 flex flex-wrap gap-2">
+          <figure v-for="w in weakThumbs" :key="w.n" class="w-20">
+            <img v-if="w.thumb" :src="w.thumb" alt="" class="aspect-[3/4] w-full rounded-lg border border-line object-contain dark:border-night-line">
+            <figcaption class="mt-0.5 text-center text-[11px] text-muted">{{ $t('p. {0}', [w.n]) }}</figcaption>
+          </figure>
+        </div>
+        <div class="mt-3 flex flex-wrap items-center gap-2">
+          <button class="btn-soft" @click="readWeak"><ic name="sparkle" class="size-4"></ic>{{ $t('Read them with the model') }}</button>
+          <span class="text-xs text-muted dark:text-night-muted">{{ $t('Before the start you will see tokens and cost.') }}</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="card p-6">
+      <template v-if="!processed">
+        <p class="text-sm font-semibold">{{ $t('How do I add it to the library?') }}</p>
+        <p class="mt-3 text-xs font-medium text-muted dark:text-night-muted">{{ $t('Processing mode') }}</p>
+        <div class="mt-1.5 grid gap-2 sm:grid-cols-3" role="radiogroup" :aria-label="$t('Processing mode')">
+          <button v-for="m in MODES" :key="m.id" type="button" role="radio" :aria-checked="mode===m.id" @click="mode=m.id"
+                  :class="['rounded-2xl border p-3 text-left transition', mode===m.id ? 'border-sage-500 bg-sage-50 dark:bg-sage-900/40' : 'border-line hover:border-sage-200 dark:border-night-line']">
+            <span class="block text-sm font-semibold">{{ m.label }}</span>
+            <span class="mt-1 block text-[11px] leading-snug text-muted dark:text-night-muted">{{ m.hint }}</span>
+          </button>
+        </div>
+        <p class="mt-4 text-xs font-medium text-muted dark:text-night-muted">{{ $t('In which language should it be indexed?') }}</p>
+        <div class="mt-1.5 space-y-2" role="radiogroup" :aria-label="$t('Indexing language')">
+          <button v-for="l in LANGS" :key="l.id" type="button" role="radio" :aria-checked="lang===l.id" @click="lang=l.id"
+                  :class="['flex w-full items-start gap-3 rounded-2xl border p-3 text-left transition', lang===l.id ? 'border-sage-500 bg-sage-50 dark:bg-sage-900/40' : 'border-line hover:border-sage-200 dark:border-night-line']">
+            <span :class="['mt-0.5 size-4 shrink-0 rounded-full border-2', lang===l.id ? 'border-sage-600 bg-sage-600 ring-2 ring-inset ring-white dark:ring-night-panel' : 'border-line dark:border-night-line']"></span>
+            <span class="min-w-0"><span class="block text-sm font-medium">{{ l.label }}</span><span class="block text-[11px] leading-snug text-muted dark:text-night-muted">{{ l.hint }}</span></span>
+          </button>
+        </div>
+        <div class="mt-4 flex flex-wrap items-center gap-2">
+          <button class="btn-primary" @click="process"><ic name="sparkle" class="size-4"></ic>{{ $t('Process with {ai}') }}</button>
+          <a href="#/" class="btn-ghost">{{ $t('Leave for later') }}</a>
+        </div>
+      </template>
+      <p v-else class="text-sm">{{ $t('Processing in mode “{0}”. Progress is on the', [modeLabel(mode)]) }} <a href="#/" class="text-sage-700 underline dark:text-sage-200">{{ $t('home page') }}</a>.</p>
+      <button class="btn-ghost mt-4 !py-1.5 text-sm" @click="again"><ic name="camera" class="size-4"></ic>{{ $t('More photos') }}</button>
+    </div>
+  </div>
+
+  <!-- ===== The editor of the corners ===== -->
+  <div v-if="edit" class="fixed inset-0 z-[58] flex items-center justify-center bg-ink/40 p-3 backdrop-blur-sm" @keydown.esc="closeEdit(false)" @mousedown.self="closeEdit(false)">
+    <div class="card flex max-h-[96vh] w-full max-w-6xl animate-rise flex-col !shadow-lift" role="dialog" aria-modal="true" aria-labelledby="scan-edit-title">
+      <div class="flex flex-wrap items-center gap-2 border-b border-line px-5 py-3 dark:border-night-line">
+        <p id="scan-edit-title" class="font-semibold">{{ $t('Page {0}', [edit.i + 1]) }}</p>
+        <span class="text-xs text-muted dark:text-night-muted">{{ $t('Drag the four corners to the corners of the sheet. Arrows move the selected corner (with Shift faster).') }}</span>
+        <span class="ml-auto flex flex-wrap gap-1.5">
+          <button class="btn-ghost !py-1.5 text-sm" @click="editAuto"><ic name="sparkle" class="size-4"></ic>{{ $t('Find the sheet') }}</button>
+          <button class="btn-ghost !py-1.5 text-sm" @click="editFull"><ic name="grid" class="size-4"></ic>{{ $t('Whole photo') }}</button>
+          <button class="btn-ghost !py-1.5 text-sm" @click="editRotate"><ic name="refresh" class="size-4"></ic>{{ $t('Turn 90°') }}</button>
+        </span>
+      </div>
+      <div class="grid min-h-0 flex-1 gap-4 overflow-auto p-4 md:grid-cols-[3fr_2fr]">
+        <div class="relative mx-auto w-full select-none" :style="{ maxWidth: Math.round(edit.w / edit.h * 70) + 'vh' }">
+          <img :src="edit.url" alt="" class="block w-full rounded-lg" draggable="false">
+          <svg ref="editSvg" :viewBox="`0 0 ${edit.w} ${edit.h}`" class="absolute inset-0 size-full touch-none" @pointermove="dragMove" @pointerup="dragEnd" @pointercancel="dragEnd">
+            <polygon :points="poly" fill="rgba(80,140,110,.18)" stroke="#3f8f6b" :stroke-width="Math.max(2, edit.w / 400)"></polygon>
+            <circle v-for="(c, k) in edit.corners" :key="k" :cx="c.x * edit.w" :cy="c.y * edit.h" :r="Math.max(10, edit.w / 60)"
+                    fill="#fff" stroke="#3f8f6b" :stroke-width="Math.max(2, edit.w / 300)" class="cursor-grab focus:outline-none" tabindex="0" role="slider"
+                    :aria-label="cornerName(k)" @pointerdown.prevent="grab(k, $event)" @keydown="nudge(k, $event)"></circle>
+            <text v-if="edit.corners[0]" :x="edit.corners[0].x * edit.w" :y="edit.corners[0].y * edit.h - Math.max(14, edit.w / 45)" :font-size="Math.max(14, edit.w / 45)" fill="#3f8f6b" text-anchor="middle" font-weight="700">{{ $t('top') }}</text>
+          </svg>
+        </div>
+        <div class="min-w-0">
+          <p class="text-xs font-medium text-muted dark:text-night-muted">{{ $t('The finished page') }}</p>
+          <canvas ref="editPreview" class="mx-auto mt-1.5 block h-auto max-h-[70vh] w-auto max-w-full rounded-lg border border-line object-contain dark:border-night-line"></canvas>
+        </div>
+      </div>
+      <div class="flex justify-end gap-2 border-t border-line px-5 py-3 dark:border-night-line">
+        <button class="btn-ghost" @click="closeEdit(false)">{{ $t('Cancel') }}</button>
+        <button class="btn-primary" @click="closeEdit(true)"><ic name="check" class="size-4"></ic>{{ $t('Done') }}</button>
+      </div>
+    </div>
+  </div>
+</div>
+</script>
+
 <!-- ============================ SCOPE (areas and topics) ============================ -->
 <script type="text/x-template" id="tpl-scope">
 <div v-if="areaList.length > 1 || shownTopics.length" class="max-w-3xl space-y-3 rounded-3xl border border-line p-4 dark:border-night-line">
@@ -3261,6 +3456,7 @@ npm run restore -- /path/to/copy --apply</pre>
 <script src="/i18n.js"></script>
 <script src="/vendor/vue.js"></script>
 <script src="/vendor/marked.js"></script>
+<script src="/scan-tools.js"></script>
 <script src="/app.js"></script>
 </body>
 </html>

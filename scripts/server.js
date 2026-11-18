@@ -17,6 +17,7 @@ import { planMergeBook, applyMergeBook } from './merge-sources.js';
 import { planRemoval, applyRemoval } from './remove.js';
 import { rebuildAll } from './index.js';
 import { importPaper } from './discover.js';
+import { heicToJpeg, newScan, savePart, finishScan, scanRecord, scanView, ocrScan, weakPages, readWeakWithModel } from './scan.js';
 import { estimate } from './estimate.js';
 import { reviewWithAI, saveReport } from './review.js';
 import { checkSetup, testAI, accountTerms } from './setup.js';
@@ -802,6 +803,78 @@ app.put('/api/upload', (req, res) => {
 // ---------- Live events to the page ----------
 const clients = new Set();
 const broadcast = (obj) => { const msg = `data: ${JSON.stringify(obj)}\n\n`; clients.forEach((c) => c.write(msg)); };
+
+// ---------- Photos of pages (scan.js): cut and straightened in the browser, here one PDF + OCR + a model for the weak pages ----------
+// One OCR at a time (tesseract takes a lot of memory); the model reading of one batch at a time.
+const scanJobs = new Map(); // id -> { phase: 'waiting'|'ocr'|'model'|'done'|'error', done, total, error, note, ac }
+let scanChain = Promise.resolve();
+const scanJob = (id) => scanJobs.get(id) || null;
+const scanErr = (res, e) => res.status(e.status || 500).json({ error: e.message || $t('Something went wrong.') });
+function startScanOcr(id) {
+  const job = { phase: 'waiting', done: 0, total: 0, error: '' };
+  scanJobs.set(id, job);
+  scanChain = scanChain.then(async () => {
+    const rec = scanRecord(id);
+    if (!rec) { job.phase = 'error'; job.error = $t('Unknown batch of photos.'); return; }
+    job.phase = 'ocr'; job.total = rec.pages;
+    try {
+      await ocrScan(rec, (d, t) => { job.done = d; job.total = t; });
+      job.phase = 'done';
+      fs.appendFileSync(path.join(WIKI, 'log.md'), `\n## ${today()} inbox: ${$t('Photos of pages “{0}”', [rec.title])}\n- ${$t('{0} pages in {1}; OCR is weak on {2} of them.', [rec.pages, rec.pdf, weakPages(id).length])}\n`);
+    } catch (e) { job.phase = 'error'; job.error = $t('OCR failed: {0}', [e.message]); }
+  });
+}
+// HEIC (iPhone) -> JPEG: Chrome and Edge cannot open it. The body is the photo; the answer is the JPEG.
+app.post('/api/scan/convert', (req, res) => {
+  const chunks = []; let bytes = 0, aborted = false;
+  req.on('data', (c) => { bytes += c.length; if (bytes > 80 * 1024 * 1024 && !aborted) { aborted = true; res.status(413).json({ error: $t('The photo is over 80 MB.') }); req.destroy(); } else if (!aborted) chunks.push(c); });
+  req.on('end', async () => {
+    if (aborted) return;
+    try { res.type('image/jpeg').send(await heicToJpeg(Buffer.concat(chunks))); }
+    catch (e) { res.status(e.status || 500).json({ error: e.status ? e.message : $t('The HEIC photo could not be converted: {0}', [e.message]) }); }
+  });
+});
+app.post('/api/scan', (_req, res) => { try { res.json({ ok: true, id: newScan() }); } catch (e) { scanErr(res, e); } });
+app.put('/api/scan/:id/:kind/:n', async (req, res) => {
+  let name = '';
+  try { name = decodeURIComponent(String(req.headers['x-filename'] || '')); } catch { /* the extension is then unknown */ }
+  try { res.json(await savePart(req.params.id, req.params.kind, req.params.n, req, name)); } catch (e) { scanErr(res, e); }
+});
+app.use('/api/scan', express.json({ limit: '512kb' }));
+app.post('/api/scan/:id/finish', (req, res) => {
+  try {
+    const r = finishScan(req.params.id, { title: req.body?.title, kind: req.body?.kind, layout: req.body?.layout });
+    startScanOcr(req.params.id);
+    res.json(r);
+  } catch (e) { scanErr(res, e); }
+});
+app.get('/api/scan/:id', (req, res) => {
+  const v = scanView(req.params.id);
+  if (!v) return res.status(404).json({ error: $t('Unknown batch of photos.') });
+  const j = scanJob(req.params.id);
+  res.json({ ...v, job: j ? { phase: j.phase, done: j.done, total: j.total, error: j.error, note: j.note || '' } : { phase: v.ocr ? 'done' : 'none', done: 0, total: 0, error: '' } });
+});
+// The weak pages read again by a model that sees images (after a confirmation of the tokens and the cost in the interface)
+app.post('/api/scan/:id/read', (req, res) => {
+  const id = req.params.id;
+  const rec = scanRecord(id);
+  if (!rec) return res.status(404).json({ error: $t('Unknown batch of photos.') });
+  const cur = scanJob(id);
+  if (cur && ['waiting', 'ocr', 'model'].includes(cur.phase)) return res.status(409).json({ error: $t('Already running') });
+  const pages = Array.isArray(req.body?.pages) ? req.body.pages.map(Number) : weakPages(id);
+  if (!pages.length) return res.json({ ok: true, started: false });
+  const job = { phase: 'model', done: 0, total: pages.length, error: '', ac: new AbortController() };
+  scanJobs.set(id, job);
+  readWeakWithModel(id, { pages, signal: job.ac.signal, onProgress: (d, t) => { job.done = d; job.total = t; } }).then((r) => {
+    job.phase = 'done'; job.error = r.error || ''; job.note = r.done ? $t('A model read {0} pages.', [r.done]) : '';
+    if (r.done) {
+      fs.appendFileSync(path.join(WIKI, 'log.md'), `\n## ${today()} inbox: ${$t('Photos of pages “{0}”', [rec.title])}\n- ${$t('A model read {0} pages where OCR was weak; still weak: {1}.', [r.done, r.weak.length ? r.weak.join(', ') : '-'])}\n`);
+      agent.record({ kind: 'scan', target: rec.pdf, label: $t('Reading photos of pages: “{0}”', [rec.title]), report: job.note, costUsd: r.cost, mode: null });
+    }
+  }).catch((e) => { job.phase = 'error'; job.error = e.message; });
+  res.json({ ok: true, started: true, total: pages.length });
+});
+app.post('/api/scan/:id/cancel', (req, res) => { scanJob(req.params.id)?.ac?.abort(); res.json({ ok: true }); });
 
 // ---------- Processing with Claude Code ----------
 ensureStarter();
