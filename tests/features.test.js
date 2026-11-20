@@ -63,14 +63,14 @@ test(T('updates', 'A check returns what changed and flags breaking changes and m
   const srv = await startServer(box, { LIBRARY_GITHUB_BASE: base });
   try {
     const cur = JSON.parse(box.read('package.json')).version; // the installed version, whatever it is
-    remoteVersion = '2.2.0'; changelog = CHANGELOG.replace('[2.1.0]', `[${cur}]`);
+    // the "newer" version is always one minor above the installed one, so the test does not break at every release
+    const [maj, min] = cur.split('.').map(Number), next = `${maj}.${min + 1}.0`;
+    remoteVersion = next; changelog = CHANGELOG.replace('[2.2.0]', `[${next}]`).replace('[2.1.0]', `[${cur}]`);
     const r = (await api(srv.port, 'POST', '/api/updates/code')).json;
-    assert.equal(r.status, cur === '2.2.0' ? 'same' : 'behind');
-    if (r.status === 'behind') {
-      assert.equal(r.notes[0].version, '2.2.0');
-      assert.equal(r.breaking.length, 1);
-      assert.equal(r.breaks, true);
-    }
+    assert.equal(r.status, 'behind');
+    assert.equal(r.notes[0].version, next);
+    assert.equal(r.breaking.length, 1);
+    assert.equal(r.breaks, true);
     // no changelog: the check still works, but it cannot promise anything
     changelog = ''; remoteVersion = '99.0.0';
     const q = (await api(srv.port, 'GET', '/api/updates/quick?force=1')).json;

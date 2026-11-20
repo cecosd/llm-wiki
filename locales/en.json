@@ -2025,6 +2025,12 @@
     "HEIC to JPG…": "HEIC to JPG…",
     "The HEIC photo could not be converted.": "The HEIC photo could not be converted.",
     "The HEIC photo could not be converted: {0}": "The HEIC photo could not be converted: {0}",
-    "This is not a HEIC photo.": "This is not a HEIC photo."
+    "This is not a HEIC photo.": "This is not a HEIC photo.",
+    "Room · {0} pages": "Room · {0} pages",
+    "The whole library": "The whole library",
+    "Rooms": "Rooms",
+    "Rooms (areas)": "Rooms (areas)",
+    "There are no areas yet. Areas are set on the “Areas” page.": "There are no areas yet. Areas are set on the “Areas” page.",
+    "Manage the areas": "Manage the areas"
   }
 }

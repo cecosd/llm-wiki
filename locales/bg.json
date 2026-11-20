@@ -2025,6 +2025,12 @@
     "HEIC to JPG…": "HEIC към JPG…",
     "The HEIC photo could not be converted.": "Снимката HEIC не можа да се конвертира.",
     "The HEIC photo could not be converted: {0}": "Снимката HEIC не можа да се конвертира: {0}",
-    "This is not a HEIC photo.": "Това не е снимка HEIC."
+    "This is not a HEIC photo.": "Това не е снимка HEIC.",
+    "Room · {0} pages": "Стая · {0} страници",
+    "The whole library": "Цялата библиотека",
+    "Rooms": "Стаи",
+    "Rooms (areas)": "Стаи (области)",
+    "There are no areas yet. Areas are set on the “Areas” page.": "Още няма области. Те се определят от страницата „Области“.",
+    "Manage the areas": "Управление на областите"
   }
 }

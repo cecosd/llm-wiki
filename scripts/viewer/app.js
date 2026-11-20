@@ -1187,7 +1187,7 @@ const PathView = defineComponent({
     },
     key() { const sk = scopeKey(); return 'path:' + (this.level === 'local' ? '' : this.level + ':') + (this.q || '').trim().toLowerCase() + (sk === '~' ? '' : '|' + sk); },
     // opening a saved path: it also returns the scope with which it was composed
-    applyScope(r) { scope.areas = [...(r.areas || [])]; scope.focus = [...(r.focus || [])]; store.set('scope:areas', JSON.stringify(scope.areas)); },
+    applyScope(r) { scope.areas = [...(r.areas || [])]; scope.focus = [...(r.focus || [])]; store.set('scope:areas', JSON.stringify(scope.areas)); this.$root.syncScope(); },
     // the scope of a saved path in words: areas and topics (with their titles)
     scopeLabel(r) { return [...(r.areas || []), ...(r.focus || []).map((s) => this.titles.get(s) || s)].join(' · '); },
     loadRecent() { try { return JSON.parse(store.get('paths', '[]')); } catch { return []; } },
@@ -2556,6 +2556,7 @@ const WriteView = defineComponent({
         // The scope with which the text was written becomes the current one: it is visible and can be changed
         if (d.scope && (d.scope.areas?.length || d.scope.focus?.length)) {
           scope.areas = [...(d.scope.areas || [])]; scope.focus = [...(d.scope.focus || [])]; store.set('scope:areas', JSON.stringify(scope.areas));
+          this.$root.syncScope(); // in a room the areas stay the room's
         }
         this.savedMeta = this.metaKey;
         document.title = $t('{0} · Library', [d.title]);
@@ -2605,6 +2606,10 @@ const GraphView = defineComponent({
   methods: {
     async load() {
       const g = await (await fetch('/api/graph')).json();
+      if (this.$root.room) { // a room: only its pages and the links between them
+        const keep = new Set(this.$root.pages.map((p) => p.slug));
+        g.nodes = g.nodes.filter((n) => keep.has(n.id)); g.edges = g.edges.filter(([a, b]) => keep.has(a) && keep.has(b));
+      }
       const old = new Map((this.nodes || []).map((n) => [n.id, n]));
       const nodes = g.nodes.map((n, i) => {
         const o = old.get(n.id);
@@ -2989,7 +2994,8 @@ const BackupSettings = defineComponent({
 const app = createApp({
   template: '#tpl-app',
   data: () => ({
-    ...shared, I18N, route: parseRoute(), pages: [], stats: {}, version: 0, live: false, setupLeft: 0, tour: false, appInfo: null, stopped: false,
+    // allPages: everything the server knows; pages (computed) is what the person sees: the whole library or one room (an area)
+    ...shared, I18N, route: parseRoute(), allPages: [], room: store.get('room', ''), roomMenu: false, stats: {}, version: 0, live: false, setupLeft: 0, tour: false, appInfo: null, stopped: false,
     drawer: false, palette: false, pq: '', hits: [], pi: 0, toasts: [], agent: null, reader: null, cost: null,
     manual: [], manualHidden: false, manualShow: false, manualText: '', manualBusy: false, manualError: '', // manual mode (copying into a chat)
     updInfo: null, updOpen: false, modelWarn: null, modelWarnHidden: false, // quiet checks at start: a new version, a retired model
@@ -3001,6 +3007,26 @@ const app = createApp({
     navClosed: (() => { try { return JSON.parse(store.get('nav:closed', '{}')) || {}; } catch { return {}; } })(), // the collapsed groups in the menu
   }),
   computed: {
+    // ---------- Rooms: entering an area shows only its pages everywhere (menu, search, map, collections, learning, writing) ----------
+    pages() { return this.room ? this.allPages.filter((p) => p.special || p.area === this.room) : this.allPages; },
+    rooms() {
+      const m = new Map();
+      for (const p of this.allPages) if (!p.special && p.area) { const e = m.get(p.area) || { name: p.area, pages: 0, sources: 0 }; e.pages++; if (p.type === 'source') e.sources++; m.set(p.area, e); }
+      return [...m.values()].sort((a, b) => b.sources - a.sources || a.name.localeCompare(b.name, I18N.lang));
+    },
+    // the numbers of the sidebar and the home page: for a room they are counted from its pages, the work in progress stays as it is
+    viewStats() {
+      if (!this.room) return this.stats;
+      const own = this.pages.filter((p) => !p.special), keep = new Set(own.map((p) => p.slug));
+      const byType = {}, tags = new Map();
+      for (const p of own) { byType[p.type] = (byType[p.type] || 0) + 1; for (const t of p.tags || []) tags.set(t, (tags.get(t) || 0) + 1); }
+      return {
+        ...this.stats, pages: own.length, raw: byType.source || 0, byType, log: [],
+        tags: [...tags].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])),
+        recent: (this.stats.recent || []).filter((p) => keep.has(p.slug)),
+        lowConfidence: (this.stats.lowConfidence || []).filter((p) => keep.has(p.slug)),
+      };
+    },
     syncStale() { if (!this.syncInfo.length) return false; const t = this.syncInfo.map((x) => x.last?.at).filter(Boolean).sort().pop(); return !t || Date.now() - new Date(t).getTime() > 7 * 86400000; },
     syncLine() {
       if (!this.syncInfo.length) return $t('Your library is only on this computer');
@@ -3024,7 +3050,7 @@ const app = createApp({
       for (const p of this.pages) if (!p.special) for (const t of p.tags || []) n.set(t, (n.get(t) || 0) + 1);
       return [...n].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).map(([t]) => t);
     },
-    areaOptions() { return [...new Set(this.pages.map((p) => p.area).filter(Boolean))].sort((a, b) => a.localeCompare(b, I18N.lang)); },
+    areaOptions() { return [...new Set(this.allPages.map((p) => p.area).filter(Boolean))].sort((a, b) => a.localeCompare(b, I18N.lang)); },
     formatOptions() { return [...new Set(this.pages.map((p) => p.format).filter(Boolean))]; },
     colEditCount() { return this.colEdit?.kind === 'smart' ? this.pages.filter((p) => matchFilter(p, this.colEdit.filter)).length : 0; },
     paletteItems() {
@@ -3098,7 +3124,25 @@ const app = createApp({
     saveMenu(patch) { return this.colSend('/api/collections/menu', patch); },
     async refresh() {
       const [pages, stats] = await Promise.all([fetch('/api/pages').then((r) => r.json()), fetch('/api/stats').then((r) => r.json())]);
-      this.pages = pages; this.stats = stats;
+      this.allPages = pages; this.stats = stats;
+      // the room was renamed, merged or emptied: we step out into the whole library
+      if (this.room && !this.rooms.some((r) => r.name === this.room)) this.setRoom('');
+      else if (this.room) this.syncScope();
+    },
+    // In a room, learning and writing work only inside it: the chosen areas of the scope are the room
+    syncScope() {
+      const want = this.room ? [this.room] : [];
+      if (scope.areas.join(',') !== want.join(',')) { scope.areas = want; store.set('scope:areas', JSON.stringify(want)); }
+    },
+    setRoom(name) {
+      this.room = name || ''; store.set('room', this.room);
+      scope.focus = [];
+      if (this.room) this.syncScope(); else { scope.areas = []; store.set('scope:areas', '[]'); }
+      this.roomMenu = false; this.drawer = false; this.version++; // the map is drawn again
+      if (this.route.name === 'page' && this.room) {
+        const p = this.allPages.find((x) => x.slug === this.route.slug);
+        if (p && !p.special && p.area !== this.room) location.hash = '#/'; // the page we were on is in another room
+      } else if (['index', 'log'].includes(this.route.slug) && this.room) location.hash = '#/';
     },
     toast({ text, icon }) {
       const t = { id: Math.random(), text, icon };
@@ -3229,7 +3273,9 @@ const app = createApp({
     paletteSearch() {
       clearTimeout(this._t); this.pi = 0;
       this._t = setTimeout(async () => {
-        this.hits = this.pq.trim().length >= 2 ? await (await fetch('/api/search?q=' + encodeURIComponent(this.pq.trim()))).json() : [];
+        const hits = this.pq.trim().length >= 2 ? await (await fetch('/api/search?q=' + encodeURIComponent(this.pq.trim()))).json() : [];
+        const known = this.room ? new Set(this.pages.map((p) => p.slug)) : null; // in a room only its pages are found
+        this.hits = known ? hits.filter((h) => known.has(h.slug)) : hits;
       }, 150);
     },
     paletteKeys(e) {
@@ -3254,7 +3300,7 @@ const app = createApp({
     },
   },
   async mounted() {
-    window.addEventListener('hashchange', () => { this.route = parseRoute(); this.drawer = false; if (this.route.name !== 'page') document.title = $t('Library'); this.guardArchive(); });
+    window.addEventListener('hashchange', () => { this.route = parseRoute(); this.drawer = false; this.roomMenu = false; if (this.route.name !== 'page') document.title = $t('Library'); this.guardArchive(); });
     window.addEventListener('keydown', (e) => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') { e.preventDefault(); this.palette ? (this.palette = false) : this.openPalette(); }
       else if (e.key === '/' && !/INPUT|TEXTAREA|SELECT/.test(document.activeElement?.tagName)) { e.preventDefault(); this.openPalette(); }
