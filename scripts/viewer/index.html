@@ -117,17 +117,34 @@
   <!-- Sidebar -->
   <div v-if="drawer" class="fixed inset-0 z-30 bg-ink/30 backdrop-blur-sm lg:hidden" @click="drawer=false"></div>
   <aside v-if="!focusOn" :class="['fixed inset-y-0 left-0 z-40 flex w-[288px] flex-col border-r border-line/70 bg-paper/95 backdrop-blur-xl transition-transform duration-300 dark:border-night-line dark:bg-night/95 lg:sticky lg:top-0 lg:h-dvh lg:translate-x-0', navHidden && 'lg:hidden', drawer ? 'translate-x-0' : '-translate-x-full']">
-    <div class="flex items-center gap-3 px-5 pt-6 pb-4">
-      <a href="#/" class="flex items-center gap-3" @click="drawer=false">
+    <div class="relative flex items-center gap-3 px-5 pt-6 pb-4">
+      <a href="#/" class="shrink-0" @click="drawer=false" :aria-label="$t('Home')">
         <span class="grid size-10 place-items-center rounded-2xl bg-sage-600 text-white shadow-soft">
           <ic name="library" class="size-5"></ic>
         </span>
-        <span>
-          <span class="block font-serif text-lg font-semibold leading-tight">{{ $t('Library') }}</span>
-          <span class="block text-xs text-muted dark:text-night-muted">{{ $t('{0} pages · {1} files', [stats.pages || 0, stats.raw || 0]) }}</span>
-        </span>
       </a>
-      <button class="btn-ghost ml-auto hidden !p-2 lg:block" @click="setNav(false)" :title="$t('Hide the sidebar')" :aria-label="$t('Hide the sidebar')"><ic name="panel" class="size-5"></ic></button>
+      <!-- The name of the library is a menu of rooms: one area at a time, or the whole library -->
+      <button type="button" data-tour="rooms" class="min-w-0 flex-1 rounded-xl px-1.5 py-0.5 text-left transition hover:bg-ink/5 dark:hover:bg-white/5" :aria-expanded="roomMenu" aria-haspopup="listbox" @click="roomMenu=!roomMenu" @keydown.esc="roomMenu=false">
+        <span class="flex items-center gap-1.5">
+          <span class="block truncate font-serif text-lg font-semibold leading-tight">{{ room || $t('Library') }}</span>
+          <ic name="chevron" :class="['size-3 shrink-0 transition', roomMenu ? '-rotate-90' : 'rotate-90']"></ic>
+        </span>
+        <span class="block truncate text-xs text-muted dark:text-night-muted">{{ room ? $t('Room · {0} pages', [viewStats.pages || 0]) : $t('{0} pages · {1} files', [stats.pages || 0, stats.raw || 0]) }}</span>
+      </button>
+      <button class="btn-ghost hidden !p-2 lg:block" @click="setNav(false)" :title="$t('Hide the sidebar')" :aria-label="$t('Hide the sidebar')"><ic name="panel" class="size-5"></ic></button>
+      <template v-if="roomMenu">
+        <div class="fixed inset-0 z-40" @click="roomMenu=false"></div>
+        <div class="absolute inset-x-3 top-full z-50 -mt-1 max-h-[70vh] overflow-y-auto rounded-2xl border border-line bg-panel p-1.5 shadow-lift dark:border-night-line dark:bg-night-panel" role="listbox" :aria-label="$t('Rooms')">
+          <button type="button" role="option" :aria-selected="!room" :class="['nav-item w-full', !room && 'active']" @click="setRoom('')"><ic name="library" class="size-4"></ic><span class="flex-1 text-left">{{ $t('The whole library') }}</span><ic v-if="!room" name="check" class="size-4"></ic></button>
+          <p v-if="rooms.length" class="px-3 pb-1 pt-2.5 text-[11px] font-medium uppercase tracking-wide text-muted dark:text-night-muted">{{ $t('Rooms (areas)') }}</p>
+          <button v-for="r in rooms" :key="r.name" type="button" role="option" :aria-selected="room===r.name" :class="['nav-item w-full', room===r.name && 'active']" @click="setRoom(r.name)">
+            <ic name="grid" class="size-4"></ic><span class="min-w-0 flex-1 truncate text-left">{{ r.name }}</span>
+            <span class="text-xs tabular-nums opacity-60">{{ r.pages }}</span><ic v-if="room===r.name" name="check" class="size-4"></ic>
+          </button>
+          <p v-if="!rooms.length" class="px-3 py-2 text-xs text-muted dark:text-night-muted">{{ $t('There are no areas yet. Areas are set on the “Areas” page.') }}</p>
+          <a v-if="!ro" href="#/areas" class="nav-item mt-1 border-t border-line/60 dark:border-night-line" @click="roomMenu=false; drawer=false"><ic name="gear" class="size-4"></ic>{{ $t('Manage the areas') }}</a>
+        </div>
+      </template>
     </div>
 
     <div class="px-4">
@@ -158,8 +175,8 @@
       <div data-tour="lib">
         <button type="button" class="nav-group" :aria-expanded="navOpen('lib')" @click="navToggle('lib')"><span class="flex-1">{{ $t('Library') }}</span><ic name="chevron" :class="['size-3 transition', navOpen('lib') && 'rotate-90']"></ic></button>
         <div v-show="navOpen('lib')" class="space-y-0.5">
-          <a href="#/p/index" :class="['nav-item', route.slug==='index' && 'active']" @click="drawer=false"><ic name="list" class="size-4"></ic>{{ $t('Index') }}</a>
-          <a v-if="atLeast('librarian')" href="#/log" :class="['nav-item', (route.name==='log' || route.slug==='log') && 'active']" @click="drawer=false"><ic name="clock" class="size-4"></ic>{{ $t('Log') }}</a>
+          <a v-if="!room" href="#/p/index" :class="['nav-item', route.slug==='index' && 'active']" @click="drawer=false"><ic name="list" class="size-4"></ic>{{ $t('Index') }}</a>
+          <a v-if="atLeast('librarian') && !room" href="#/log" :class="['nav-item', (route.name==='log' || route.slug==='log') && 'active']" @click="drawer=false"><ic name="clock" class="size-4"></ic>{{ $t('Log') }}</a>
           <a href="#/graph" :class="['nav-item', route.name==='graph' && 'active']" @click="drawer=false"><ic name="graph" class="size-4"></ic>{{ $t('Link map') }}</a>
           <a v-if="!ro && atLeast('librarian')" href="#/areas" :class="['nav-item', route.name==='areas' && 'active']" @click="drawer=false"><ic name="grid" class="size-4"></ic>{{ $t('Areas') }}</a>
         </div>
@@ -190,10 +207,10 @@
         </div>
       </div>
 
-      <div v-if="stats.tags?.length">
+      <div v-if="viewStats.tags?.length">
         <button type="button" class="nav-group" :aria-expanded="navOpen('tags')" @click="navToggle('tags')"><span class="flex-1">{{ $t('Tags') }}</span><ic name="chevron" :class="['size-3 transition', navOpen('tags') && 'rotate-90']"></ic></button>
         <div v-show="navOpen('tags')" class="flex flex-wrap gap-1.5 px-3">
-          <a v-for="[t,n] in stats.tags.slice(0,16)" :key="t" :href="'#/tag/'+encodeURIComponent(t)" @click="drawer=false"
+          <a v-for="[t,n] in viewStats.tags.slice(0,16)" :key="t" :href="'#/tag/'+encodeURIComponent(t)" @click="drawer=false"
              :class="['chip border transition', route.tag===t ? 'border-sage-500 bg-sage-50 text-sage-700 dark:bg-sage-900/50 dark:text-sage-200' : 'border-line text-ink/70 hover:border-sage-200 dark:border-night-line dark:text-night-ink/70']">
             #{{ t }} <span class="text-muted">{{ n }}</span>
           </a>
@@ -293,13 +310,13 @@
   <div class="grain flex min-w-0 flex-1 flex-col">
     <header v-if="!focusOn" class="sticky top-0 z-20 flex items-center gap-3 border-b border-line/60 bg-paper/80 px-4 py-3 backdrop-blur-xl dark:border-night-line dark:bg-night/80 lg:hidden">
       <button class="btn-ghost !p-2" @click="drawer=true" :aria-label="$t('Menu')"><ic name="menu" class="size-5"></ic></button>
-      <span class="font-serif font-semibold">{{ $t('Library') }}</span>
+      <button type="button" class="font-serif font-semibold" @click="drawer=true; roomMenu=true">{{ room || $t('Library') }}</button>
       <button class="btn-ghost ml-auto !p-2" @click="openPalette" :aria-label="$t('Search')"><ic name="search" class="size-5"></ic></button>
     </header>
 
     <main class="flex-1">
       <archive-home v-if="route.name==='home' && ro" :stats="stats"></archive-home>
-      <home-view v-else-if="route.name==='home'" :stats="stats" :pages="pages" :agent="agent" @refresh="refresh" @toast="toast"></home-view>
+      <home-view v-else-if="route.name==='home'" :stats="viewStats" :pages="pages" :agent="agent" @refresh="refresh" @toast="toast"></home-view>
       <page-view v-else-if="route.name==='page'" :slug="route.slug" :pages="pages" :version="version" :focus="focusOn" @focus="setFocus" @toast="toast" @refresh="refresh"></page-view>
       <collection-view v-else-if="route.name==='collection' || route.name==='tag' || route.name==='custom'" :pages="pages" :type="route.type" :tag="route.tag" :cid="route.id" @toast="toast"></collection-view>
       <collections-view v-else-if="route.name==='collections'" :pages="pages"></collections-view>
@@ -2246,8 +2263,8 @@ npm run restore -- /path/to/copy --apply</pre>
 
 <!-- ============================ SCOPE (areas and topics) ============================ -->
 <script type="text/x-template" id="tpl-scope">
-<div v-if="areaList.length > 1 || shownTopics.length" class="max-w-3xl space-y-3 rounded-3xl border border-line p-4 dark:border-night-line">
-  <div v-if="areaList.length > 1">
+<div v-if="(areaList.length > 1 && !$root.room) || shownTopics.length" class="max-w-3xl space-y-3 rounded-3xl border border-line p-4 dark:border-night-line">
+  <div v-if="areaList.length > 1 && !$root.room">
     <p class="text-xs font-medium text-muted dark:text-night-muted">{{ $t('Areas') }} <span class="font-normal">{{ $t('(with no choice, all are used)') }}</span></p>
     <div class="mt-1.5 flex flex-wrap items-center gap-1.5" role="group" :aria-label="$t('Areas')">
       <button v-for="a in areaList" :key="a.name" type="button" :aria-pressed="scope.areas.includes(a.name)" @click="toggleArea(a.name)"

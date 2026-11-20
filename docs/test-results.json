@@ -1,14 +1,14 @@
 {
-  "version": "2.2.0",
-  "date": "2026-11-16T11:09:58.511Z",
-  "durationMs": 40248,
+  "version": "2.3.0",
+  "date": "2026-11-20T14:21:13.242Z",
+  "durationMs": 33643,
   "environment": {
     "platform": "linux",
     "node": "26.12.1"
   },
   "summary": {
-    "total": 142,
-    "pass": 139,
+    "total": 146,
+    "pass": 143,
     "fail": 0,
     "known": 1,
     "notRun": 2,
@@ -636,6 +636,30 @@
       "status": "pass"
     },
     {
+      "group": "library",
+      "en": "Photos of pages: the sheet is found on a checked tablecloth",
+      "bg": "Снимки на страници: листът се намира върху карирана мушама",
+      "status": "pass"
+    },
+    {
+      "group": "library",
+      "en": "Photos of pages: cutting out, turning by 90° and levelling the lines",
+      "bg": "Снимки на страници: изрязване, завъртане на 90° и изправяне на редовете",
+      "status": "pass"
+    },
+    {
+      "group": "library",
+      "en": "Photos of pages: the PDF from the pages opens and has one page per photo",
+      "bg": "Снимки на страници: PDF файлът от страниците се отваря и има по страница на снимка",
+      "status": "pass"
+    },
+    {
+      "group": "library",
+      "en": "Photos of pages: upload, one PDF in the books, OCR and a model only for the weak pages",
+      "bg": "Снимки на страници: качване, един PDF при книгите, OCR и модел само за слабите страници",
+      "status": "pass"
+    },
+    {
       "group": "security",
       "en": "The server listens only on this computer (127.0.0.1)",
       "bg": "Сървърът слуша само на този компютър (127.0.0.1)",
@@ -1013,7 +1037,43 @@
     }
   ],
   "packages": {
-    "outdated": [],
+    "outdated": [
+      {
+        "name": "@napi-rs/canvas",
+        "current": "1.1.0",
+        "wanted": "1.1.1",
+        "latest": "1.1.1",
+        "major": false
+      },
+      {
+        "name": "marked",
+        "current": "18.2.0",
+        "wanted": "18.2.1",
+        "latest": "18.2.1",
+        "major": false
+      },
+      {
+        "name": "papaparse",
+        "current": "5.7.0",
+        "wanted": "5.7.1",
+        "latest": "5.7.1",
+        "major": false
+      },
+      {
+        "name": "unpdf",
+        "current": "2.1.0",
+        "wanted": "2.2.1",
+        "latest": "2.2.1",
+        "major": false
+      },
+      {
+        "name": "vue",
+        "current": "3.5.45",
+        "wanted": "3.5.46",
+        "latest": "3.5.46",
+        "major": false
+      }
+    ],
     "audit": {
       "total": 0,
       "critical": 0,

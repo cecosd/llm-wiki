@@ -7,7 +7,10 @@ The program reads this file to show "What is new" before an update, so please ke
 
 ## [Unreleased]
 
+## [2.3.0] - 2026-11-20
+
 ### Added
+- **Rooms.** The name of the library at the top of the menu is now a drop-down list of rooms: the whole library, or one area. Inside a room only its pages are seen everywhere: the menu and its counters, the collections and tags, the home page, the search (Ctrl K) and the link map; links to pages of other rooms show as plain text. "Learn by question" and "Write with the wiki" work only inside the room (its area is their limit; topics can still narrow it further). The room is remembered in this browser. The Index and the Log belong to the whole library and are hidden inside a room. If the area of the room is renamed, merged or emptied, the library steps out to the whole library. It works in the reading archive too. Nothing changes on the server or in the files.
 - **Photos of pages** (`#/scan`): photos of the pages of a book, an article or another document become one source. The sheet is found on every photo and the background (a table, a tablecloth) is cut away, the perspective and the tilt of the lines are straightened, and the corners can be moved by hand. The pages become one PDF with one page per photo; the text is read by the built-in OCR, and only the pages where OCR is weak go to a model that sees images, after the estimate of the tokens and the cost. The original photos are kept in `raw/.scans/`. HEIC photos from an iPhone, which Chrome and Edge cannot open, are converted to JPEG on your computer (new package `heic-decode`, libheif in WebAssembly, no external programs).
 
 ## [2.2.0] - 2026-11-16
