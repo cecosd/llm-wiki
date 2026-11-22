@@ -2048,6 +2048,11 @@
     "asking the library": "asking the library",
     "reading the page": "reading the page",
     "drawing it": "drawing it",
-    "It takes longer than usual: the library is busy with another task. The page opens by itself.": "It takes longer than usual: the library is busy with another task. The page opens by itself."
+    "It takes longer than usual: the library is busy with another task. The page opens by itself.": "It takes longer than usual: the library is busy with another task. The page opens by itself.",
+    "Synthesis scope": "Synthesis scope",
+    "A synthesis by one tag reads far fewer pages, so it costs much less.": "A synthesis by one tag reads far fewer pages, so it costs much less.",
+    "It reads {0} concepts cited by two or more sources, {1} of their chapters, and {2} pages of index, overview, topics and comparisons.": "It reads {0} concepts cited by two or more sources, {1} of their chapters, and {2} pages of index, overview, topics and comparisons.",
+    "No concept with the tag “{0}” is cited by two or more sources: there will be no comparisons, only hubs, the overview and the gaps.": "No concept with the tag “{0}” is cited by two or more sources: there will be no comparisons, only hubs, the overview and the gaps.",
+    "No concept is cited by two or more sources yet: there will be no comparisons, only hubs, the overview and the gaps.": "No concept is cited by two or more sources yet: there will be no comparisons, only hubs, the overview and the gaps."
   }
 }

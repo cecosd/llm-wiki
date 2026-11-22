@@ -371,6 +371,7 @@
               </li>
               <li v-if="cost.est.itemsMore" class="text-muted dark:text-night-muted">{{ $t('and {0} more', [cost.est.itemsMore]) }}</li>
             </ul>
+            <p v-if="cost.est.note" class="mt-2 text-xs text-muted dark:text-night-muted">{{ cost.est.note }}</p>
             <p v-if="cost.est.delegate" class="mt-2 text-xs text-muted dark:text-night-muted">{{ $t('Chapters are read by {0}, pages are written by {1}.', [cost.est.reader, cost.est.writer]) }}</p>
             <p v-if="cost.est.past" class="mt-2 text-xs text-muted dark:text-night-muted">{{ $t('So far such tasks have cost {0} on average (the last {1}, as reported by {ai}).', [fmtUsd(cost.est.past.avg), cost.est.past.n]) }}</p>
             <p v-for="w in cost.est.warnings" :key="w" class="mt-2 rounded-xl bg-amber-50 p-2 text-xs text-amber-800 dark:bg-amber-500/10 dark:text-amber-200">{{ w }}</p>
@@ -667,6 +668,11 @@
         </div>
       </div>
       <div class="flex shrink-0 flex-col gap-2 sm:flex-row lg:flex-col">
+        <label v-if="synthTags.length" class="block text-xs"><span class="mb-1 block font-medium">{{ $t('Synthesis scope') }}</span>
+          <select v-model="synthTag" :disabled="synthQueued" class="w-full max-w-[16rem] rounded-full border border-line bg-panel px-3 py-1.5 outline-none dark:border-night-line dark:bg-night-panel" :title="$t('A synthesis by one tag reads far fewer pages, so it costs much less.')">
+            <option value="">{{ $t('The whole library') }}</option>
+            <option v-for="[t, n] in synthTags" :key="t" :value="t">#{{ t }} ({{ n }})</option>
+          </select></label>
         <button v-if="stats.depth.legacy.length" class="btn-primary" :disabled="!agent?.claude || upgrading" @click="upgradeAll">
           <ic :name="upgrading ? 'spinner' : 'sparkle'" :class="['size-4', upgrading && 'animate-spin']"></ic>{{ upgrading ? $t('Upgrade in progress') : $t('Upgrade all (') + stats.depth.legacy.length + ')' }}
         </button>
