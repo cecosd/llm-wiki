@@ -140,7 +140,16 @@ export function guardArgs() {
 }
 
 /** Finds the executable of claude (on Windows: claude.exe or claude.cmd from npm) */
+let claudeCache = null; // { at, value }: searching PATH starts a process each time and the agent state asks for it on every step
 export function findClaude() {
+  if (process.env.CLAUDE_BIN) return findClaudeNow();
+  const ttl = claudeCache?.value ? 60_000 : 5_000; // not found: look again soon (the person may have just installed it)
+  if (claudeCache && Date.now() - claudeCache.at < ttl) return claudeCache.value;
+  const value = findClaudeNow();
+  claudeCache = { at: Date.now(), value };
+  return value;
+}
+function findClaudeNow() {
   if (process.env.CLAUDE_BIN) return { cmd: process.env.CLAUDE_BIN, shell: /\.(cmd|bat)$/i.test(process.env.CLAUDE_BIN) };
   const which = spawnSync(IS_WIN ? 'where' : 'which', ['claude'], { encoding: 'utf8' });
   const found = (which.stdout || '').split(/\r?\n/).map((s) => s.trim()).filter(Boolean);

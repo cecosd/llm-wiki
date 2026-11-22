@@ -54,18 +54,33 @@ export function rawFiles() {
   });
 }
 
-/** All wiki pages with parsed frontmatter. */
+/**
+ * All wiki pages with parsed frontmatter.
+ * A file is read and parsed again only when its size or modification time changed, so opening a page does not re-read
+ * the whole library (the server calls this on every request). Every call returns its own copy of `data`.
+ */
+const PAGE_CACHE = new Map(); // file -> { key, page }
 export function wikiPages() {
-  return walk(WIKI)
-    .filter((f) => f.endsWith('.md') && !rel(f).startsWith('wiki/_templates/'))
-    .map((f) => {
+  const files = walk(WIKI).filter((f) => f.endsWith('.md') && !rel(f).startsWith('wiki/_templates/'));
+  const seen = new Set();
+  const out = files.map((f) => {
+    seen.add(f);
+    let key = '';
+    try { const st = fs.statSync(f); key = st.mtimeMs + ':' + st.size; } catch { /* vanished: it is read below and fails like before */ }
+    let hit = PAGE_CACHE.get(f);
+    if (!hit || !key || hit.key !== key) {
       const src = fs.readFileSync(f, 'utf8');
       let data = {}, content = src, fmError = null;
       try { ({ data, content } = matter(src)); } catch (e) { fmError = e.message; }
       // YAML turns 2026-10-28 into a Date; turn it back into text
       for (const [k, v] of Object.entries(data)) if (v instanceof Date) data[k] = v.toISOString().slice(0, 10);
-      return { file: f, rel: rel(f), slug: path.basename(f, '.md'), data, content, fmError };
-    });
+      hit = { key, page: { file: f, rel: rel(f), slug: path.basename(f, '.md'), data, content, fmError } };
+      if (key) PAGE_CACHE.set(f, hit);
+    }
+    return { ...hit.page, stamp: key, data: structuredClone(hit.page.data) };
+  });
+  for (const f of PAGE_CACHE.keys()) if (!seen.has(f)) PAGE_CACHE.delete(f);
+  return out;
 }
 
 /** Extracts [[wikilinks]] (outside code blocks). */

@@ -7,6 +7,16 @@ The program reads this file to show "What is new" before an update, so please ke
 
 ## [Unreleased]
 
+## [2.3.1] - 2026-11-22
+
+### Fixed
+- **Pages open quickly in a big library.** Opening a page could wait up to a minute, because the server compared every concept, person and topic with every other one to find duplicates by spelling (about 300 000 pairs in a library of 1 800 pages) and answered nothing else meanwhile. The comparison now looks only at names that sound close, keeps its result until a name, an alias, the authors or the ignored pairs change, and runs in a separate thread, so the server keeps answering. The same 57 pairs as before are found, in 1.4 s instead of 63 s, and in about 20 ms when nothing changed.
+- **The server no longer reads the whole library on every request.** A page file is read again only when it changes; the pages, links, link map, counters and the texts for searching are kept until something in `wiki/` changes. The list of pages answers "not modified" when nothing changed, instead of sending 1-2 MB again. Searching and the ranking in "Learn by question" and "Write with the wiki" use the kept texts.
+- **Settings no longer stop the server.** The check of the Claude account (`claude auth status`) and the search for the `claude` program ran on every request; their answers are now kept for a while.
+
+### Added
+- **You see where a page is.** While a page opens, a line shows the stage (asking the library, reading the page, drawing it) and the seconds; when it takes long, it says that the library is busy with another task. A linked page that is not written yet shows whether it is being built right now (with the latest steps), waits in the queue, or nothing is building it. Collections show the pages listed in the index that are not written yet, with the same mark.
+
 ## [2.3.0] - 2026-11-20
 
 ### Added

@@ -1,7 +1,7 @@
 {
-  "version": "2.3.0",
-  "date": "2026-11-20T14:21:13.242Z",
-  "durationMs": 33643,
+  "version": "2.3.1",
+  "date": "2026-11-22T12:54:30.828Z",
+  "durationMs": 36499,
   "environment": {
     "platform": "linux",
     "node": "26.12.1"
@@ -1041,8 +1041,8 @@
       {
         "name": "@napi-rs/canvas",
         "current": "1.1.0",
-        "wanted": "1.1.1",
-        "latest": "1.1.1",
+        "wanted": "1.2.0",
+        "latest": "1.2.0",
         "major": false
       },
       {

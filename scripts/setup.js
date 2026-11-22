@@ -34,8 +34,20 @@ function claudeAuth(bin) {
  * Under which terms the data is processed: a consumer plan (training depends on an account setting)
  * or a commercial one (Team, Enterprise, API: no training by default). The setting itself cannot be read from outside.
  */
+let termsCache = null; // { key, at, value }: `claude --version` and `claude auth status` are slow and block the server while they run
 export function accountTerms() {
   const cfg = aiConfig();
+  const key = cfg.engine + '|' + cfg.preset.id + '|' + cfg.provider;
+  if (cfg.engine !== 'manual' && !cfg.local && cfg.preset.id === 'claude-code') {
+    const ttl = termsCache?.value.terms === 'unknown' ? 30_000 : 10 * 60_000; // an unknown answer is asked again soon (the person may sign in)
+    if (termsCache && termsCache.key === key && Date.now() - termsCache.at < ttl) return termsCache.value;
+    const value = computeTerms(cfg);
+    termsCache = { key, at: Date.now(), value };
+    return value;
+  }
+  return computeTerms(cfg);
+}
+function computeTerms(cfg) {
   // Another provider: the terms are theirs. A local model and manual mode send nothing by themselves.
   if (cfg.engine === 'manual') return { terms: 'manual', plan: null, provider: cfg.provider };
   if (cfg.local) return { terms: 'local', plan: null, provider: cfg.provider };

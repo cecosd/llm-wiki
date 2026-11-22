@@ -8,6 +8,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import matter from 'gray-matter';
 import { fileURLToPath } from 'node:url';
+import { Worker, isMainThread, workerData, parentPort } from 'node:worker_threads';
 import { ROOT, OUTPUTS, WIKI, rel, today, wikiPages, extractLinks } from './lib.js';
 import { $t } from './i18n.js';
 import { P } from './vocab.js';
@@ -21,7 +22,18 @@ const esc = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 export const CYR = { а: 'a', б: 'b', в: 'v', г: 'g', д: 'd', е: 'e', ж: 'zh', з: 'z', и: 'i', й: 'i', к: 'k', л: 'l', м: 'm', н: 'n', о: 'o', п: 'p', р: 'r', с: 's', т: 't', у: 'u', ф: 'f', х: 'h', ц: 'ts', ч: 'ch', ш: 'sh', щ: 'sht', ъ: 'a', ь: '', ю: 'iu', я: 'ia' };
 
 /** Reduces the names to a rough sound key: Чайковски, Чайковский and Tchaikovsky give the same key. */
+const FOLD_CACHE = new Map();
 export function fold(s) {
+  const k = String(s || '');
+  let v = FOLD_CACHE.get(k);
+  if (v === undefined) {
+    if (FOLD_CACHE.size > 50000) FOLD_CACHE.clear();
+    v = foldNow(k);
+    FOLD_CACHE.set(k, v);
+  }
+  return v;
+}
+function foldNow(s) {
   let t = String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
   t = [...t].map((c) => (c in CYR ? CYR[c] : c)).join('');
   t = t.replace(/[^a-z]/g, '')
@@ -45,7 +57,9 @@ const near = (a, b) => {
   if (!a || !b) return false;
   if (a === b) return a.length >= 4;
   const n = Math.min(a.length, b.length);
-  return n >= 6 && lev(a, b) <= (n >= 12 ? 2 : 1);
+  if (n < 6) return false;
+  const max = n >= 12 ? 2 : 1;
+  return Math.abs(a.length - b.length) <= max && lev(a, b) <= max;
 };
 
 /** The surname and the given name from "Пьотр Чайковски", "Tchaikovsky, P." or "Tchaikovsky". */
@@ -66,16 +80,30 @@ function variants(p) {
   return [...out].filter(Boolean);
 }
 
-function sameName(p, q, person) {
-  for (const x of variants(p)) for (const y of variants(q)) {
+/** The strings left after up to N deletions (N = the edits near() allows for a key of this length) */
+function deletions(k) {
+  const out = new Set([k]);
+  let level = [k];
+  for (let n = 0; n < (k.length >= 12 ? 2 : 1); n++) {
+    const next = [];
+    for (const w of level) for (let i = 0; i < w.length; i++) { const d = w.slice(0, i) + w.slice(i + 1); if (!out.has(d)) { out.add(d); next.push(d); } }
+    level = next;
+  }
+  return out;
+}
+
+/** The spellings of a page, prepared once: the text, its sound key and the name parts (for persons) */
+const prepared = (p) => variants(p).map((x) => ({ x, f: fold(x), n: nameParts(x) }));
+
+function sameName(vp, vq, person) {
+  for (const X of vp) for (const Y of vq) {
     if (person) {
-      const a = nameParts(x), b = nameParts(y);
+      const a = X.n, b = Y.n;
       if (!near(a.sur, b.sur)) continue;
       if (a.given && b.given && a.given[0] !== b.given[0]) continue; // different given names
-      return `${x} ≈ ${y}`;
+      return `${X.x} ≈ ${Y.x}`;
     }
-    const a = fold(x), b = fold(y);
-    if (a.length >= 5 && near(a, b)) return `${x} ≈ ${y}`;
+    if (X.f.length >= 5 && near(X.f, Y.f)) return `${X.x} ≈ ${Y.x}`;
   }
   return null;
 }
@@ -104,20 +132,95 @@ const brief = (p, bl) => ({
 });
 
 /** Possible duplicates among concepts, persons and topics + authors written differently in the sources. */
+let dupesCache = null; // { key, pairs: [{ a, b, why }] with slugs, authors }
+let dupesJob = null; // { key, promise }: one comparison at a time in the worker thread
+
+// Only what the comparison needs (it is also sent to the worker thread). The key changes only when a name, an alias,
+// a type, the authors or the ignored pairs change, so editing the text of pages does not start the comparison again.
+function dupesInput(pages) {
+  const slim = (p) => ({ slug: p.slug, data: { type: p.data.type, kind: p.data.kind || null, title: p.data.title || null, aliases: [].concat(p.data.aliases || []), authors: [].concat(p.data.authors || []) } });
+  const pool = pages.filter((p) => MERGEABLE.has(p.data.type) && !SPECIAL.has(p.slug)).map(slim);
+  const srcs = pages.filter((x) => x.data.type === 'source').map(slim);
+  let ign = ''; try { ign = fs.readFileSync(IGNORE_FILE, 'utf8'); } catch { /* none yet */ }
+  return { pool, srcs, key: JSON.stringify([pool, srcs, ign]) };
+}
+
+// the counters of links and sources change with every edit; they are cheap, so they are always fresh
+function presentDupes(pages, found) {
+  const bl = backlinkCounts(pages), by = new Map(pages.map((p) => [p.slug, p]));
+  const pairs = found.pairs.filter((x) => by.has(x.a) && by.has(x.b))
+    .map((x) => ({ a: brief(by.get(x.a), bl), b: brief(by.get(x.b), bl), why: x.why }));
+  return { pairs, authors: found.authors };
+}
+
 export function findDupes(pages = wikiPages()) {
-  const bl = backlinkCounts(pages), skip = ignored(), pairs = [];
-  const pool = pages.filter((p) => MERGEABLE.has(p.data.type) && !SPECIAL.has(p.slug));
-  for (let i = 0; i < pool.length; i++) for (let j = i + 1; j < pool.length; j++) {
+  const { pool, srcs, key } = dupesInput(pages);
+  if (!dupesCache || dupesCache.key !== key) dupesCache = { key, ...compareNames(pool, srcs) };
+  return presentDupes(pages, dupesCache);
+}
+
+/** The same as findDupes, but the slow comparison runs in a worker thread, so the server keeps answering meanwhile */
+export async function findDupesAsync(pages = wikiPages()) {
+  const { pool, srcs, key } = dupesInput(pages);
+  if (dupesCache?.key === key) return presentDupes(pages, dupesCache);
+  if (dupesJob?.key !== key) {
+    const job = { key };
+    job.promise = compareInWorker(pool, srcs).catch(() => compareNames(pool, srcs)) // no worker (an old Node, a cage): as before
+      .then((r) => { if (dupesJob === job) { dupesCache = { key, ...r }; dupesJob = null; } return r; });
+    dupesJob = job;
+  }
+  return presentDupes(pages, await dupesJob.promise);
+}
+
+function compareInWorker(pool, srcs) {
+  return new Promise((resolve, reject) => {
+    const w = new Worker(new URL(import.meta.url), { workerData: { task: 'dupes', pool, srcs } });
+    w.once('message', resolve);
+    w.once('error', reject);
+    w.once('exit', (code) => { if (code) reject(new Error('dupes worker exit ' + code)); });
+  });
+}
+if (!isMainThread && workerData?.task === 'dupes') parentPort.postMessage(compareNames(workerData.pool, workerData.srcs));
+
+/** The slow part of findDupes: every pair of the same type, and the authors grouped by the sound of the surname */
+function compareNames(pool, srcs) {
+  const skip = ignored(), pairs = [];
+  const prep = pool.map(prepared);
+  // Only pages that share a "deletion key" can be near (symmetric delete): two keys within N edits of each other give
+  // the same string after at most N deletions in each. So the pairs grow with the library almost linearly, not as its square.
+  const maps = new Map(); // type + key form -> (deletion string -> page numbers)
+  const mapOf = (k) => { let m = maps.get(k); if (!m) maps.set(k, (m = new Map())); return m; };
+  prep.forEach((vs, i) => {
+    const t = pool[i].data.type;
+    const fs_ = new Set(vs.map((v) => v.f).filter((f) => f.length >= 5)); // the title and the title without brackets often fold the same
+    const ss = new Set(vs.map((v) => v.n.sur).filter((x) => x.length >= 4));
+    for (const [form, keys] of [['f', fs_], ['s', ss]]) {
+      if (!keys.size) continue;
+      const m = mapOf(t + '|' + form), mine = new Set();
+      for (const k of keys) for (const d of deletions(k)) mine.add(d);
+      for (const d of mine) { const a = m.get(d); if (a) a.push(i); else m.set(d, [i]); }
+    }
+  });
+  const cand = new Set();
+  for (const list of [...maps.values()].flatMap((m) => [...m.values()])) {
+    if (list.length < 2) continue;
+    for (let x = 0; x < list.length; x++) for (let y = x + 1; y < list.length; y++) {
+      const i = Math.min(list[x], list[y]), j = Math.max(list[x], list[y]);
+      cand.add(i * pool.length + j);
+    }
+  }
+  for (const c of [...cand].sort((a, b) => a - b)) {
+    const i = Math.floor(c / pool.length), j = c % pool.length;
     const p = pool[i], q = pool[j];
     if (p.data.type !== q.data.type || skip.has(pairKey(p.slug, q.slug))) continue;
     const person = p.data.type === 'entity' && (p.data.kind || 'person') === 'person' && (q.data.kind || 'person') === 'person';
-    const why = sameName(p, q, person);
-    if (why) pairs.push({ a: brief(p, bl), b: brief(q, bl), why });
+    const why = sameName(prep[i], prep[j], person);
+    if (why) pairs.push({ a: p.slug, b: q.slug, why });
   }
 
   // authors: grouping by the sound of the surname
   const strings = new Map(); // string -> sources
-  for (const p of pages.filter((x) => x.data.type === 'source')) {
+  for (const p of srcs) {
     for (const a of [].concat(p.data.authors || []).map((x) => String(x).trim()).filter(Boolean)) {
       if (!strings.has(a)) strings.set(a, []);
       strings.get(a).push({ slug: p.slug, title: String(p.data.title || p.slug) });
@@ -260,7 +363,7 @@ export function normalizeAuthors(canonical, names) {
 }
 
 // ---------- CLI ----------
-if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+if (isMainThread && process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const args = process.argv.slice(2).filter((a) => !a.startsWith('--'));
   if (args.length < 2) {
     const { pairs, authors } = findDupes();

@@ -2,6 +2,7 @@
 // Nothing here reads raw/ except when explicitly asked (archive: false), and nothing writes.
 import fs from 'node:fs';
 import path from 'node:path';
+import crypto from 'node:crypto';
 import { WIKI, rel, wikiPages, extractLinks, ingestState } from './lib.js';
 import { areaMap } from './areas.js';
 import { fold } from './merge.js';
@@ -12,7 +13,22 @@ const NAV = new Set(['index', 'log']); // technical pages: not counted as "point
 export let TITLES = new Map();
 export let AREAS = new Map(); // slug → { area, how }
 
+// ---------- Kept between requests ----------
+// The server watches wiki/ and calls the function from watchWiki() on every change; until then snapshot() returns the same
+// snapshot and the lists, the graph and the search texts made from it, so a request does not walk the whole library.
+// Without a watch (the archive, the command line) everything is computed fresh, as before.
+let watching = false, generation = 0, kept = null;
+export function watchWiki() { watching = true; return () => { generation++; }; }
+/** A value derived from a snapshot, computed once per snapshot */
+const memo = (ctx, key, make) => {
+  if (!ctx.memo) return make();
+  if (!ctx.memo.has(key)) ctx.memo.set(key, make());
+  return ctx.memo.get(key);
+};
+
 export function snapshot() {
+  if (watching && kept && kept.gen === generation) return kept.ctx;
+  const gen = generation;
   const pages = wikiPages();
   TITLES = new Map(pages.map((p) => [p.slug, String(p.data.title || p.slug)]));
   AREAS = areaMap(pages);
@@ -25,7 +41,41 @@ export function snapshot() {
       edges.push([p.slug, l]);
     }
   }
-  return { pages, backlinks, edges };
+  // the snapshot is shared by the requests: nobody may change it (a change throws instead of leaking into other requests)
+  for (const p of pages) { Object.freeze(p.data); Object.freeze(p); }
+  const ctx = { pages, backlinks, edges, memo: new Map() };
+  if (watching) kept = { gen, ctx };
+  return ctx;
+}
+
+// ---------- Texts for searching, kept per file ----------
+// plain() of every page is the slow part of searching; it is kept until the file changes (or a title, which links show)
+const DOCS = new Map(); // file -> { stamp, doc }
+let docsTitles = '';
+export function searchDocs(ctx = snapshot()) {
+  return memo(ctx, 'docs', () => {
+    const titles = [...TITLES].join('\n');
+    if (titles !== docsTitles) { DOCS.clear(); docsTitles = titles; }
+    const seen = new Set();
+    const out = ctx.pages.map((p) => {
+      seen.add(p.file);
+      const hit = DOCS.get(p.file);
+      if (hit && hit.stamp && hit.stamp === p.stamp) return hit.doc;
+      const title = (String(p.data.title || p.slug) + ' ' + [].concat(p.data.aliases || []).join(' ')).toLowerCase();
+      const text = plain(p.content.replace(/^\s*#\s+.*\n/, ''));
+      const doc = { slug: p.slug, title, soundTitle: fold(title), tags: [].concat(p.data.tags || []).join(' ').toLowerCase(), text, body: text.toLowerCase() };
+      DOCS.set(p.file, { stamp: p.stamp, doc });
+      return doc;
+    });
+    for (const f of DOCS.keys()) if (!seen.has(f)) DOCS.delete(f);
+    return out;
+  });
+}
+/** How many times needle is in hay (without building arrays) */
+export function countIn(hay, needle, max = Infinity) {
+  let n = 0;
+  for (let i = hay.indexOf(needle); i !== -1 && n < max; i = hay.indexOf(needle, i + needle.length)) n++;
+  return n;
 }
 
 /** The order in which the pages are listed in wiki/index.md: slug -> serial number of the first occurrence */
@@ -96,10 +146,48 @@ export function lastLogEntries(n = 6) {
   return logEntries().slice(0, n);
 }
 
+/**
+ * Pages that wiki/index.md lists but that have no file yet. The type is guessed from the section of index.md they are in:
+ * the most common type among the existing pages of that section (so it works in every language of the content).
+ */
+export function pendingList(ctx = snapshot()) {
+  return memo(ctx, 'pending', () => pendingNow(ctx));
+}
+function pendingNow(ctx) {
+  let text = '';
+  try { text = fs.readFileSync(path.join(WIKI, 'index.md'), 'utf8'); } catch { return []; }
+  const have = new Map(ctx.pages.map((p) => [p.slug, p.data.type || 'other']));
+  const sections = [{ types: new Map(), missing: [] }];
+  for (const line of text.split(/\r?\n/)) {
+    if (/^#{1,6}\s/.test(line)) sections.push({ types: new Map(), missing: [] });
+    const sec = sections[sections.length - 1];
+    for (const m of line.matchAll(/\[\[([^\]|#]+)(?:#[^\]|]*)?(?:\|([^\]]*))?\]\]/g)) {
+      const slug = m[1].trim().split('/').pop();
+      if (SPECIAL.has(slug)) continue;
+      if (have.has(slug)) sec.types.set(have.get(slug), (sec.types.get(have.get(slug)) || 0) + 1);
+      else if (!sec.missing.some((x) => x.slug === slug)) sec.missing.push({ slug, title: (m[2] || slug).trim() });
+    }
+  }
+  const out = [], seen = new Set();
+  for (const sec of sections) {
+    const type = [...sec.types].sort((a, b) => b[1] - a[1])[0]?.[0] || 'other';
+    for (const x of sec.missing) if (!seen.has(x.slug)) { seen.add(x.slug); out.push({ ...x, type }); }
+  }
+  return out;
+}
+
 /** All pages, in summary form (for the lists) */
 export function pagesList(ctx = snapshot()) {
   const { pages, backlinks } = ctx;
-  return pages.map((p) => summary(p, backlinks));
+  return memo(ctx, 'list', () => pages.map((p) => summary(p, backlinks)));
+}
+
+/** The list as ready JSON with an ETag: when nothing changed the browser gets "304 Not Modified" without the 1-2 MB again */
+export function pagesListJson(ctx = snapshot()) {
+  return memo(ctx, 'listJson', () => {
+    const json = JSON.stringify(pagesList(ctx));
+    return { json, etag: '"' + crypto.createHash('sha1').update(json).digest('base64url') + '"' };
+  });
 }
 
 /**
@@ -160,17 +248,17 @@ export function pageDetail(slug, { archive = false, ctx = null, readerOf = null 
 export function searchHits(q) {
   q = String(q || '').trim().toLowerCase();
   if (q.length < 2) return [];
-  const { pages, backlinks } = snapshot();
+  const ctx = snapshot();
+  const { pages, backlinks } = ctx;
+  const docs = searchDocs(ctx);
+  const fq = fold(q); // "Чайковский" also finds "Чайковски" and "Tchaikovsky"
   const hits = [];
-  for (const p of pages) {
-    const title = (String(p.data.title || p.slug) + ' ' + [].concat(p.data.aliases || []).join(' ')).toLowerCase();
-    const text = plain(p.content.replace(/^\s*#\s+.*\n/, ''));
-    const body = text.toLowerCase();
-    const fq = fold(q); // "Чайковский" also finds "Чайковски" and "Tchaikovsky"
-    const inTitle = title.includes(q) || (fq.length >= 4 && fold(title).includes(fq));
+  for (let k = 0; k < pages.length; k++) {
+    const p = pages[k], { title, soundTitle, text, body } = docs[k];
+    const inTitle = title.includes(q) || (fq.length >= 4 && soundTitle.includes(fq));
     const idx = body.indexOf(q);
     if (!inTitle && idx === -1) continue;
-    const count = body.split(q).length - 1;
+    const count = idx === -1 ? 0 : countIn(body, q);
     const start = Math.max(0, idx - 50);
     const snippet = idx === -1 ? excerpt(p.content)
       : (start ? '…' : '') + text.slice(start, idx + q.length + 90) + '…';
@@ -181,7 +269,10 @@ export function searchHits(q) {
 
 /** Counters and lists for the home page (without the raw files and the processing) */
 export function contentStats() {
-  const { pages, backlinks } = snapshot();
+  const ctx = snapshot();
+  return memo(ctx, 'stats', () => contentStatsNow(ctx));
+}
+function contentStatsNow({ pages, backlinks }) {
   const byType = {};
   const tags = {};
   for (const p of pages) {
@@ -201,9 +292,10 @@ export function contentStats() {
 
 /** The link map: nodes and edges without the service pages */
 export function graphData() {
-  const { pages, backlinks, edges } = snapshot();
-  return {
+  const ctx = snapshot();
+  const { pages, backlinks, edges } = ctx;
+  return memo(ctx, 'graph', () => ({
     nodes: pages.filter((p) => !SPECIAL.has(p.slug)).map((p) => ({ id: p.slug, title: p.data.title || p.slug, type: p.data.type || 'other', degree: backlinks.get(p.slug).length })),
     edges: edges.filter(([a, b]) => !SPECIAL.has(a) && !SPECIAL.has(b)),
-  };
+  }));
 }

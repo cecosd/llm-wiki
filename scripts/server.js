@@ -12,7 +12,7 @@ import { aiConfig, aiPublic, aiSettings, saveAiConfig, setKey, PRESETS } from '.
 import { listModels, modelHealth, manualList, manualAnswer, manualCancel, onManual, clipTokens, errorText } from './llm.js';
 import { buildLocal, writeWithClaude, continueWithClaude, blockWithClaude, saveDraft, createBlank, listDrafts, readDraft, updateDraft, trashDraft, LENGTHS, GENRES, creativityOf, bibHeads } from './write.js';
 import { askAboutPage, planConspect, proposeChange, applyProposal, saveAnswer, proposeReplace, locateForEdit, applyManualEdit, applyParagraphDelete, applyLink, renamePage } from './improve.js';
-import { fold, findDupes, planMerge, applyMerge, ignorePair, normalizeAuthors } from './merge.js';
+import { fold, findDupesAsync, planMerge, applyMerge, ignorePair, normalizeAuthors } from './merge.js';
 import { planMergeBook, applyMergeBook } from './merge-sources.js';
 import { planRemoval, applyRemoval } from './remove.js';
 import { rebuildAll } from './index.js';
@@ -29,7 +29,7 @@ import { $t, pickLang, runWithLang, locales, messagesFor, hasLocale, contentLang
 import { packs, installPack, canWrite } from './content-pack.js';
 import { askOutside } from './sandbox-ipc.js';
 import { P, lazy, pageUnits } from './vocab.js';
-import { SPECIAL, snapshot, summary, plain, excerpt, AREAS, pagesList, pageDetail, searchHits, contentStats, graphData, logEntries } from './pages-data.js';
+import { SPECIAL, snapshot, summary, plain, excerpt, AREAS, pagesList, pagesListJson, pendingList, pageDetail, watchWiki, searchDocs, countIn, searchHits, contentStats, graphData, logEntries } from './pages-data.js';
 import { NM, VENDOR } from './vendor.js';
 import { writeArchive, listArchives, isArchiveName, archiveFile, deleteArchive } from './archive.js';
 import { readUnits } from './reader-data.js';
@@ -42,6 +42,8 @@ const PORT = Number(process.env.PORT) || 4321;
 const INBOX = path.join(RAW, 'inbox');
 const MAX_UPLOAD = 2 * 1024 ** 3; // 2 GB
 const app = express();
+let wikiChanged = () => {}; // set when the watch of wiki/ works (see the live update below)
+app.use((req, res, next) => { if (req.method !== 'GET' && req.method !== 'HEAD') res.on('finish', () => wikiChanged()); next(); });
 
 // --- Protection: only localhost (against DNS rebinding) and requests from the page itself ---
 // The domain under which the library opens locally (written in the Windows hosts file). Changed with WIKI_HOST.
@@ -107,7 +109,13 @@ app.post('/api/auth/password', express.json({ limit: '8kb' }), async (req, res) 
 app.post('/api/auth/logout', (req, res) => { endSession(req, res); res.json({ ok: true }); });
 
 // --- API ---
-app.get('/api/pages', (_req, res) => res.json(pagesList()));
+app.get('/api/pages', (req, res) => {
+  const { json, etag } = pagesListJson();
+  res.set({ ETag: etag, 'Cache-Control': 'no-cache' }); // the browser asks every time, but gets 304 when nothing changed
+  if (req.headers['if-none-match'] === etag) return res.status(304).end();
+  res.type('json').send(json);
+});
+app.get('/api/pending', (_req, res) => res.json(pendingList()));
 
 app.get('/api/page/:slug', (req, res) => {
   const d = pageDetail(req.params.slug);
@@ -176,21 +184,17 @@ function rank(q, sc = { areas: [], focus: [] }) {
   const ctx = snapshot();
   if (!terms.length) return { terms, scored: [], ctx };
   const { pages, backlinks } = ctx;
-  const scored = [], inScope = scopeFilter(pages, sc);
-  for (const p of pages) {
+  const scored = [], inScope = scopeFilter(pages, sc), docs = searchDocs(ctx);
+  for (let k = 0; k < pages.length; k++) {
+    const p = pages[k];
     if (SPECIAL.has(p.slug) || (inScope && !inScope(p))) continue;
-    const aliases = [].concat(p.data.aliases || []).join(' ');
-    const title = (String(p.data.title || p.slug) + ' ' + aliases).toLowerCase();
-    const soundTitle = fold(title);
-    const tags = [].concat(p.data.tags || []).join(' ').toLowerCase();
-    const text = plain(p.content.replace(/^\s*#\s+.*\n/, ''));
-    const body = text.toLowerCase();
+    const { title, soundTitle, tags, text, body } = docs[k];
     let score = 0, hit = 0, first = -1;
     for (const t of terms) {
       const ft = fold(t);
       const inTitle = title.includes(t) || (ft.length >= 4 && soundTitle.includes(ft)), inTags = tags.includes(t);
       const idx = body.indexOf(t);
-      const cnt = idx === -1 ? 0 : Math.min(10, body.split(t).length - 1);
+      const cnt = idx === -1 ? 0 : countIn(body, t, 10);
       if (inTitle || inTags || cnt) hit++;
       score += (inTitle ? 8 : 0) + (inTags ? 3 : 0) + cnt;
       if (idx !== -1 && (first === -1 || idx < first)) first = idx;
@@ -632,7 +636,7 @@ app.delete('/api/drafts/:id', (req, res) => res.json(trashDraft(req.params.id)))
 
 // ---------- Duplicates by spelling and merging ----------
 app.use(['/api/merge', '/api/dupes', '/api/authors'], express.json({ limit: '32kb' }));
-app.get('/api/dupes', (_req, res) => res.json(findDupes()));
+app.get('/api/dupes', async (_req, res) => res.json(await findDupesAsync()));
 app.post('/api/dupes/ignore', (req, res) => { ignorePair(String(req.body?.a || ''), String(req.body?.b || '')); res.json({ ok: true }); });
 app.get('/api/merge/preview', (req, res) => res.json(planMerge(String(req.query.keep || ''), String(req.query.drop || ''))));
 app.post('/api/merge', (req, res) => {
@@ -1137,10 +1141,12 @@ let debounce;
 for (const dir of [WIKI, RAW]) {
   try {
     fs.watch(dir, { recursive: true }, (_e, f) => {
+      if (dir === WIKI) wikiChanged();
       if (f && (/\.part$/.test(f) || f.includes('.extracted'))) return;
       clearTimeout(debounce);
       debounce = setTimeout(() => broadcast({ type: 'files', t: Date.now(), dir: path.basename(dir) }), 400);
     });
+    if (dir === WIKI) wikiChanged = watchWiki(); // only with a working watch is the snapshot kept between requests
   } catch { /* without a recursive watch the page still works, just without live updating */ }
 }
 

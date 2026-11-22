@@ -2031,6 +2031,23 @@
     "Rooms": "Стаи",
     "Rooms (areas)": "Стаи (области)",
     "There are no areas yet. Areas are set on the “Areas” page.": "Още няма области. Те се определят от страницата „Области“.",
-    "Manage the areas": "Управление на областите"
+    "Manage the areas": "Управление на областите",
+    "Being built now: {0}": "Създава се сега: {0}",
+    "The page opens by itself when it is written.": "Страницата се отваря сама, щом бъде написана.",
+    "Waiting in the queue: {0} {1} before the pages are written.": "Чака в опашката: {0} {1} преди да се напишат страниците.",
+    "task": "задача",
+    "tasks": "задачи",
+    "Nothing is building this page now.": "В момента нищо не изгражда тази страница.",
+    "It is not in the queue. It appears only after a source on the topic is processed, or when you ask for it.": "Не е в опашката. Появява се едва след обработка на източник по темата или когато я поискате.",
+    "Not written yet: {0} {1}": "Още не е написано: {0} {1}",
+    "{ai} is working now": "{ai} работи сега",
+    "waiting in the queue": "чака в опашката",
+    "nothing is building them": "нищо не ги изгражда",
+    "Reading the page data…": "Чете се съдържанието на страницата…",
+    "Opening the page…": "Страницата се отваря…",
+    "asking the library": "заявка към библиотеката",
+    "reading the page": "четене на страницата",
+    "drawing it": "изчертаване",
+    "It takes longer than usual: the library is busy with another task. The page opens by itself.": "Бави се повече от обичайното: библиотеката е заета с друга задача. Страницата се отваря сама."
   }
 }
