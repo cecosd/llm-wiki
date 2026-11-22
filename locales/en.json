@@ -2031,6 +2031,23 @@
     "Rooms": "Rooms",
     "Rooms (areas)": "Rooms (areas)",
     "There are no areas yet. Areas are set on the “Areas” page.": "There are no areas yet. Areas are set on the “Areas” page.",
-    "Manage the areas": "Manage the areas"
+    "Manage the areas": "Manage the areas",
+    "Being built now: {0}": "Being built now: {0}",
+    "The page opens by itself when it is written.": "The page opens by itself when it is written.",
+    "Waiting in the queue: {0} {1} before the pages are written.": "Waiting in the queue: {0} {1} before the pages are written.",
+    "task": "task",
+    "tasks": "tasks",
+    "Nothing is building this page now.": "Nothing is building this page now.",
+    "It is not in the queue. It appears only after a source on the topic is processed, or when you ask for it.": "It is not in the queue. It appears only after a source on the topic is processed, or when you ask for it.",
+    "Not written yet: {0} {1}": "Not written yet: {0} {1}",
+    "{ai} is working now": "{ai} is working now",
+    "waiting in the queue": "waiting in the queue",
+    "nothing is building them": "nothing is building them",
+    "Reading the page data…": "Reading the page data…",
+    "Opening the page…": "Opening the page…",
+    "asking the library": "asking the library",
+    "reading the page": "reading the page",
+    "drawing it": "drawing it",
+    "It takes longer than usual: the library is busy with another task. The page opens by itself.": "It takes longer than usual: the library is busy with another task. The page opens by itself."
   }
 }

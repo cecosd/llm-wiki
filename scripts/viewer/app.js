@@ -481,7 +481,7 @@ const PageView = defineComponent({
   props: { slug: String, pages: Array, version: Number, focus: Boolean },
   emits: ['toast', 'refresh', 'focus'],
   data: () => ({
-    ...shared, LEVELS, rename: { on: false, value: '', busy: false }, man: { open: false, md: '', before: '', hash: '', busy: false, error: '' }, page: null, error: false, toc: [], activeH: null, observer: null, chapView: store.get('view:chapters', 'cards'),
+    ...shared, LEVELS, rename: { on: false, value: '', busy: false }, man: { open: false, md: '', before: '', hash: '', busy: false, error: '' }, page: null, error: false, loading: false, loadStage: 'ask', waited: 0, toc: [], activeH: null, observer: null, chapView: store.get('view:chapters', 'cards'),
     selBtn: null, lk: { open: false, sel: '', q: '', busy: false, error: '' }, listMenu: false,
     ai: { open: false, intent: 'ask', sel: '', question: '', level: store.get('asklevel', 'medium'), busy: false, busy2: false, waited: 0, error: '', answer: '', asked: '', proposal: null, saved: false, applied: null },
   }),
@@ -538,6 +538,16 @@ const PageView = defineComponent({
       const a = this.$root.agent, slug = this.page?.slug;
       return !!a && (a.current?.target === slug || a.queue?.some((q) => q.target === slug));
     },
+    // For a page that is linked but not written yet: what the agent is doing about it right now
+    buildState() {
+      const a = this.$root.agent;
+      if (a?.current) {
+        const c = a.current;
+        return { kind: 'working', label: c.label, index: c.index, total: c.total, steps: c.steps.slice(-5), created: c.created.length, updated: c.updated.length };
+      }
+      if (a?.queue?.length) return { kind: 'queued', waiting: a.queue.length };
+      return { kind: 'idle' };
+    },
     queuedChapters() {
       const a = this.$root.agent;
       return !!a && (a.current?.target === this.page?.slug || a.queue?.some((q) => q.target === this.page?.slug));
@@ -556,10 +566,20 @@ const PageView = defineComponent({
   methods: {
     inline: (s) => sanitizeHtml(marked.parseInline(String(s))),
     async load(scrollTop = true) {
-      const r = await fetch('/api/page/' + encodeURIComponent(this.slug));
-      if (!r.ok) { this.error = true; this.page = null; document.title = $t('Missing · Library'); return; }
-      this.error = false;
-      this.page = await r.json();
+      // a progress line while the page opens: the stage and the seconds waited (the previous page stays until the new one is ready)
+      const mine = (this._loadId = (this._loadId || 0) + 1);
+      this.loadStage = 'ask'; this.waited = 0; this.loading = true;
+      const t0 = Date.now();
+      clearInterval(this._waitTimer);
+      this._waitTimer = setInterval(() => { this.waited = Math.floor((Date.now() - t0) / 1000); }, 500);
+      try {
+        const r = await fetch('/api/page/' + encodeURIComponent(this.slug));
+        this.loadStage = 'read';
+        if (mine !== this._loadId) return; // another page was opened meanwhile
+        if (!r.ok) { this.error = true; this.page = null; document.title = $t('Missing · Library'); return; }
+        this.error = false;
+        this.page = await r.json();
+      } finally { if (mine === this._loadId) { clearInterval(this._waitTimer); this.loading = false; } }
       document.title = $t('{0} · Library', [this.page.title]);
       if (scrollTop) window.scrollTo({ top: 0 });
     },
@@ -872,6 +892,13 @@ const CollectionView = defineComponent({
       const known = new Set(this.pages.map((p) => p.slug));
       return this.custom.slugs.filter((s) => !known.has(s));
     },
+    // the pages the index lists but that are not written yet (only in the collection of their kind; not in a room, not in tags or your own collections)
+    notWritten() {
+      if (this.custom || this.tag || this.cid || this.$root.room) return [];
+      const q = this.filter.trim().toLowerCase();
+      return (this.$root.pending || []).filter((x) => x.type === this.type && (!q || x.title.toLowerCase().includes(q) || x.slug.includes(q)));
+    },
+    buildKind() { const a = this.$root.agent; return a?.current ? 'working' : a?.queue?.length ? 'queued' : 'idle'; },
     // the pages of the collection before the letter (the letters are counted from them)
     base() {
       const q = this.filter.trim().toLowerCase();
@@ -2995,7 +3022,7 @@ const app = createApp({
   template: '#tpl-app',
   data: () => ({
     // allPages: everything the server knows; pages (computed) is what the person sees: the whole library or one room (an area)
-    ...shared, I18N, route: parseRoute(), allPages: [], room: store.get('room', ''), roomMenu: false, stats: {}, version: 0, live: false, setupLeft: 0, tour: false, appInfo: null, stopped: false,
+    ...shared, I18N, route: parseRoute(), allPages: [], pending: [], room: store.get('room', ''), roomMenu: false, stats: {}, version: 0, live: false, setupLeft: 0, tour: false, appInfo: null, stopped: false,
     drawer: false, palette: false, pq: '', hits: [], pi: 0, toasts: [], agent: null, reader: null, cost: null,
     manual: [], manualHidden: false, manualShow: false, manualText: '', manualBusy: false, manualError: '', // manual mode (copying into a chat)
     updInfo: null, updOpen: false, modelWarn: null, modelWarnHidden: false, // quiet checks at start: a new version, a retired model
@@ -3125,6 +3152,7 @@ const app = createApp({
     async refresh() {
       const [pages, stats] = await Promise.all([fetch('/api/pages').then((r) => r.json()), fetch('/api/stats').then((r) => r.json())]);
       this.allPages = pages; this.stats = stats;
+      this.pending = await fetch('/api/pending').then((r) => (r.ok ? r.json() : [])).catch(() => []); // listed in the index, no file yet
       // the room was renamed, merged or emptied: we step out into the whole library
       if (this.room && !this.rooms.some((r) => r.name === this.room)) this.setRoom('');
       else if (this.room) this.syncScope();

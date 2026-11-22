@@ -976,10 +976,33 @@
   <span class="mx-auto grid size-16 place-items-center rounded-3xl bg-clay-100 text-clay-500 dark:bg-clay-500/15"><ic name="ghost" class="size-7"></ic></span>
   <h1 class="mt-6 font-serif text-3xl font-semibold">{{ $t('This page does not exist yet') }}</h1>
   <p class="mt-3 text-muted dark:text-night-muted">{{ $t('A page links to') }} <code class="rounded bg-ink/5 px-1.5 dark:bg-white/10">[[{{ slug }}]]</code>{{ $t(', but it has not been written yet. {ai} will create it when it processes a source on the topic, or you can ask it explicitly.') }}</p>
+  <!-- Where the page is in the build process: written right now, waiting in the queue, or not scheduled at all -->
+  <div class="mx-auto mt-8 max-w-md rounded-2xl bg-ink/5 p-4 text-left dark:bg-white/5" role="status" aria-live="polite">
+    <template v-if="buildState.kind==='working'">
+      <p class="flex items-center gap-2 text-sm font-medium"><ic name="spinner" class="size-4 shrink-0 animate-spin text-sage-600"></ic>{{ $t('Being built now: {0}', [buildState.label]) }}</p>
+      <p v-if="buildState.total > 1" class="mt-1 text-xs text-muted dark:text-night-muted">{{ $t('{0} of {1}', [buildState.index, buildState.total]) }}</p>
+      <ul class="mt-3 space-y-1.5">
+        <li v-for="(s,i) in buildState.steps" :key="s.at+i" :class="['flex items-start gap-2 text-xs', i===buildState.steps.length-1 ? 'text-ink dark:text-night-ink' : 'text-muted dark:text-night-muted', s.warn && '!text-clay-500']"><ic :name="s.icon || 'sparkle'" class="mt-0.5 size-3 shrink-0"></ic><span>{{ s.text }}</span></li>
+      </ul>
+      <p class="mt-3 text-xs text-muted dark:text-night-muted">{{ $t('{0} new · {1} updated', [buildState.created, buildState.updated]) }} · {{ $t('The page opens by itself when it is written.') }}</p>
+    </template>
+    <template v-else-if="buildState.kind==='queued'">
+      <p class="flex items-center gap-2 text-sm font-medium"><ic name="clock" class="size-4 shrink-0 text-amber-600"></ic>{{ $t('Waiting in the queue: {0} {1} before the pages are written.', [buildState.waiting, plural(buildState.waiting, $t('task'), $t('tasks'))]) }}</p>
+      <p class="mt-2 text-xs text-muted dark:text-night-muted">{{ $t('The page opens by itself when it is written.') }}</p>
+    </template>
+    <template v-else>
+      <p class="flex items-center gap-2 text-sm font-medium"><ic name="alert" class="size-4 shrink-0 text-clay-500"></ic>{{ $t('Nothing is building this page now.') }}</p>
+      <p class="mt-2 text-xs text-muted dark:text-night-muted">{{ $t('It is not in the queue. It appears only after a source on the topic is processed, or when you ask for it.') }}</p>
+    </template>
+  </div>
   <button class="btn-soft mt-6" @click="$root.copy($t('Create the page [[') + slug + $t(']] from the available sources'))"><ic name="copy" class="size-4"></ic>{{ $t('Copy a request for {ai}') }}</button>
 </div>
 
 <div v-else-if="page" :class="['mx-auto flex gap-10 px-5 py-8 sm:px-8 lg:py-12', focus ? 'max-w-3xl' : 'max-w-6xl']">
+  <!-- another page is opening while this one is still shown -->
+  <div v-if="loading && waited >= 1" class="fixed inset-x-0 top-3 z-40 mx-auto flex w-fit max-w-[90vw] items-center gap-2 rounded-full bg-sage-600 px-4 py-2 text-sm text-white shadow-soft" role="status" aria-live="polite">
+    <ic name="spinner" class="size-4 shrink-0 animate-spin"></ic>{{ loadStage==='read' ? $t('Reading the page data…') : $t('Opening the page…') }} · {{ $t('{0} s', [waited]) }}
+  </div>
   <article class="min-w-0 flex-1 animate-rise" :key="page.slug">
     <nav class="flex items-center gap-2 text-sm text-muted dark:text-night-muted">
       <template v-if="page.type==='chapter' && page.nav?.book">
@@ -1323,6 +1346,16 @@
 </div>
 
 <div v-else class="mx-auto max-w-3xl px-8 py-16">
+  <!-- where the opening of the page is: asking, reading, drawing; after a few seconds an explanation -->
+  <div class="mb-8 rounded-2xl bg-ink/5 p-4 text-sm dark:bg-white/5" role="status" aria-live="polite">
+    <p class="flex items-center gap-2 font-medium"><ic name="spinner" class="size-4 shrink-0 animate-spin text-sage-600"></ic>{{ loadStage==='read' ? $t('Reading the page data…') : $t('Opening the page…') }}<span class="ml-auto text-xs tabular-nums text-muted dark:text-night-muted">{{ $t('{0} s', [waited]) }}</span></p>
+    <ol class="mt-3 flex gap-2 text-xs text-muted dark:text-night-muted">
+      <li :class="['chip border border-line dark:border-night-line', loadStage==='ask' && '!border-sage-500 text-ink dark:text-night-ink']">1 · {{ $t('asking the library') }}</li>
+      <li :class="['chip border border-line dark:border-night-line', loadStage==='read' && '!border-sage-500 text-ink dark:text-night-ink']">2 · {{ $t('reading the page') }}</li>
+      <li class="chip border border-line dark:border-night-line">3 · {{ $t('drawing it') }}</li>
+    </ol>
+    <p v-if="waited >= 3" class="mt-3 text-xs text-muted dark:text-night-muted">{{ $t('It takes longer than usual: the library is busy with another task. The page opens by itself.') }}</p>
+  </div>
   <div class="h-4 w-32 animate-pulse rounded-full bg-ink/5 dark:bg-white/10"></div>
   <div class="mt-6 h-10 w-3/4 animate-pulse rounded-2xl bg-ink/5 dark:bg-white/10"></div>
   <div class="mt-10 space-y-3"><div v-for="i in 6" :key="i" class="h-4 animate-pulse rounded-full bg-ink/5 dark:bg-white/10" :style="{width: (90 - i*7)+'%'}"></div></div>
@@ -1644,6 +1677,13 @@ npm run restore -- /path/to/copy --apply</pre>
     <ul class="mt-2 flex flex-wrap gap-1.5">
       <li v-for="s in missing" :key="s" class="chip border border-line dark:border-night-line"><span class="font-mono">{{ s }}</span>
         <button v-if="!ro" class="ml-1 text-muted hover:text-clay-500" :title="$t('Remove from the list')" :aria-label="$t('Remove from the list')" @click="dropFromList(s)"><ic name="x" class="size-3"></ic></button></li>
+    </ul>
+  </div>
+  <!-- listed in the index, but the page is not written yet: where it is in the build -->
+  <div v-if="notWritten.length" class="card mt-6 p-4 text-sm" role="status" aria-live="polite">
+    <p class="flex items-center gap-2 font-medium"><ic :name="buildKind==='working' ? 'spinner' : buildKind==='queued' ? 'clock' : 'alert'" :class="['size-4 shrink-0', buildKind==='working' && 'animate-spin text-sage-600', buildKind==='queued' && 'text-amber-600', buildKind==='idle' && 'text-clay-500']"></ic>{{ $t('Not written yet: {0} {1}', [notWritten.length, plural(notWritten.length, $t('page'), $t('pages'))]) }} · {{ buildKind==='working' ? $t('{ai} is working now') : buildKind==='queued' ? $t('waiting in the queue') : $t('nothing is building them') }}</p>
+    <ul class="mt-2 flex flex-wrap gap-1.5">
+      <li v-for="x in notWritten" :key="x.slug"><a :href="'#/p/'+x.slug" class="chip border border-dashed border-line hover:border-sage-400 dark:border-night-line"><span :class="['size-1.5 shrink-0 rounded-full', buildKind==='working' ? 'animate-pulse bg-sage-500' : buildKind==='queued' ? 'bg-amber-400' : 'bg-clay-400']"></span>{{ x.title }}</a></li>
     </ul>
   </div>
   <p v-if="isList && editable && view==='cards' && list.length > 1" class="mt-4 text-xs text-muted dark:text-night-muted">{{ $t('To change the order or remove pages, switch to the list view.') }}</p>
