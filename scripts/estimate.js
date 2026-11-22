@@ -10,7 +10,7 @@
 //  - With a subscription sign-in (claude login) you do not pay per token: the sum is an "equivalent at API prices" and shows how heavy the action is for the limit.
 import fs from 'node:fs';
 import path from 'node:path';
-import { ROOT, EXTRACTED, RAW, wikiPages, ingestState, normRaw, rel } from './lib.js';
+import { ROOT, EXTRACTED, RAW, wikiPages, ingestState, normRaw, rel, extractLinks } from './lib.js';
 import { effectiveModels, PATH_LEVELS, legacySources } from './agent.js';
 import { costInputs, groundingOf } from './improve.js';
 import { classifyPrompt } from './areas.js';
@@ -57,6 +57,39 @@ const scanPagesOf = (b) => {
 const claudeMdTokens = () => readTokens(path.join(ROOT, 'CLAUDE.md'));
 const wikiTokens = () => wikiPages().reduce((n, p) => n + tokensOf(p.content), 0);
 
+// The average context per step once the window of Claude Code (200K) is full: it grows, gets compacted and grows again
+const SYNTH_CONTEXT = 150000;
+/**
+ * What the synthesis reads, by the skill wiki-synthesis: index.md, overview.md, the topics and the comparisons, then only
+ * the concepts (with the tag, if one is given) that at least two different books cite, and the chapters those concepts cite.
+ * The selection of concepts is the same as in synthesisJob (pipeline.js).
+ */
+export function synthesisPlan(tag) {
+  const pages = wikiPages();
+  const by = new Map(pages.map((p) => [p.slug, p]));
+  const bookOf = (s) => {
+    const p = by.get(s); if (!p) return null;
+    if (p.data.type === 'source') return s;
+    if (p.data.type === 'chapter') return extractLinks(String(p.data.book || ''))[0] || null;
+    return null;
+  };
+  const t = tag && tag !== '*' ? String(tag) : null;
+  const inTag = (p) => !t || [].concat(p.data.tags || []).map(String).includes(t);
+  const fixed = pages.filter((p) => p.slug === 'index' || p.slug === 'overview' || p.data.type === 'topic' || p.data.type === 'comparison');
+  const multi = pages.filter((p) => p.data.type === 'concept' && inTag(p))
+    .map((p) => ({ p, links: extractLinks(p.content) }))
+    .filter((x) => new Set(x.links.map(bookOf).filter(Boolean)).size >= 2);
+  const chapterSlugs = new Set(multi.flatMap((x) => x.links.filter((s) => by.get(s)?.data?.type === 'chapter')));
+  const tok = (list) => list.reduce((n, p) => n + tokensOf(p.content), 0);
+  return {
+    tag: t, concepts: multi.length, chapters: chapterSlugs.size, fixed: fixed.length,
+    fixedTokens: tok(fixed), conceptTokens: tok(multi.map((x) => x.p)), chapterTokens: tok([...chapterSlugs].map((s) => by.get(s))),
+  };
+}
+const synthNothing = (plan) => (plan.tag
+  ? $t('No concept with the tag “{0}” is cited by two or more sources: there will be no comparisons, only hubs, the overview and the gaps.', [plan.tag])
+  : $t('No concept is cited by two or more sources yet: there will be no comparisons, only hubs, the overview and the gaps.'));
+
 function rate(model, ctx) {
   const cfg = aiConfig();
   if (cfg.local || cfg.engine === 'manual') return { in: 0, out: 0, cache: 0 };
@@ -76,10 +109,11 @@ const shownModel = (model) => { const cfg = aiConfig(); return cfg.preset.vendor
  * One run of `claude -p`: initial context (system + CLAUDE.md + prompt) + what was read. At every step the
  * context is read again from the cache; the new part is written to the cache at 1.25 times the input price.
  */
-export function runCost({ model, promptTokens = 0, reads = 0, out = 0, turns = 6 }) {
+export function runCost({ model, promptTokens = 0, reads = 0, out = 0, turns = 6, cap = Infinity }) {
   const ctx0 = BASE_OVERHEAD + claudeMdTokens() + promptTokens;
   const fresh = ctx0 + reads;
-  const cached = Math.max(0, turns - 1) * (ctx0 + reads / 2);
+  // cap: the context cannot grow past the window of the model; Claude Code compacts it, so a long run re-reads at most about that much per step
+  const cached = Math.max(0, turns - 1) * Math.min(ctx0 + reads / 2, cap);
   const r = rate(model, fresh);
   const usd = r ? (fresh * 1.25 * r.in + cached * r.cache + out * r.out) / 1e6 : null;
   return { model: shownModel(model), input: Math.round(fresh + cached), fresh: Math.round(fresh), cached: Math.round(cached), output: Math.round(out), usd, turns };
@@ -204,7 +238,9 @@ function pipelineEstimate(kind, b, settings) {
     parts = [callCost(lvl, tokensOf(cp.text) + 300, 45 * cp.count + 250)];
   } else if (kind === 'synthesis') {
     const M = cfg.engine === 'manual' ? 2 : 4;
-    title = $t('Library synthesis'); extra.past = pastAverage('synthesis');
+    const plan = synthesisPlan(b.tag);
+    if (!plan.concepts) warn.push(synthNothing(plan));
+    title = plan.tag ? $t('Synthesis: #{0}', [plan.tag]) : $t('Library synthesis'); extra.past = pastAverage('synthesis');
     parts = [callCost('strong', M * (Math.min(budget, 6000) + 1500) + 2 * Math.min(budget, 8000), M * 1800 + 3500, M + 2)];
   } else return { ok: false, error: $t('Unknown action.') };
   // The free Groq gives a certain number of tokens per day for each model (Groq, n.d.-c). A task that needs
@@ -331,9 +367,16 @@ export function estimate(kind, body = {}, { settings } = {}) {
     if (cp.total > cp.count) warn.push($t('There are {0} sources without an area: this time the first {1} are processed, then you can run it again.', [cp.total, cp.count]));
   } else if (kind === 'synthesis') {
     const eff = effectiveModels(settings, 'synthesis');
-    const reads = wikiTokens() * 0.6;
-    parts = [runCost({ model: eff.writer, promptTokens: 1000, reads, out: 9000, turns: Math.min(80, 20 + Math.round(reads / 8000)) })];
-    title = $t('Library synthesis'); extra.past = pastAverage('synthesis');
+    const plan = synthesisPlan(b.tag);
+    if (!plan.concepts) warn.push(synthNothing(plan));
+    const reads = plan.fixedTokens + plan.conceptTokens + plan.chapterTokens;
+    const files = plan.fixed + plan.concepts + plan.chapters;
+    // steps: reading (about 4 files per step), writing (comparisons and hubs, at most about 40), index, log and lint
+    const turns = Math.min(150, 15 + Math.ceil(files / 4) + Math.min(40, Math.ceil(plan.concepts / 3)));
+    const out = 5000 + 700 * Math.min(40, plan.concepts);
+    parts = [runCost({ model: eff.writer, promptTokens: 1000, reads, out, turns, cap: SYNTH_CONTEXT })];
+    title = plan.tag ? $t('Synthesis: #{0}', [plan.tag]) : $t('Library synthesis'); extra.past = pastAverage('synthesis');
+    extra.note = $t('It reads {0} concepts cited by two or more sources, {1} of their chapters, and {2} pages of index, overview, topics and comparisons.', [plan.concepts, plan.chapters, plan.fixed]);
   } else return { ok: false, error: $t('Unknown action.') };
 
   if (cfg.preset.vendor === 'Anthropic' && parts.some((p) => p.model === 'haiku' && p.fresh > 100000)) warn.push($t('Above 100,000 tokens Haiku is charged at a higher price: the estimate includes it.'));

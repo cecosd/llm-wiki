@@ -7,6 +7,14 @@ The program reads this file to show "What is new" before an update, so please ke
 
 ## [Unreleased]
 
+## [2.3.2] - 2026-11-22
+
+### Added
+- **Synthesis by one tag.** Next to the "Synthesis across books" button a list chooses the scope: the whole library or one tag of the concepts (the most used first, with their number). A synthesis by one tag reads far fewer pages, so it costs much less.
+
+### Fixed
+- **A realistic estimate for the synthesis.** The estimate assumed that the synthesis reads 60% of the whole wiki and re-reads all of it at every step, so in a big library it showed far too much (about $23 with Opus for 1 800 pages). It now counts what the synthesis really reads: the index, the overview, the topics and the comparisons, then only the concepts (of the chosen tag) that two or more sources cite and the chapters they cite. What is re-read from the cache at each step is limited by the context window of the model. The window before sending says how many concepts and chapters will be read, and warns when no concept has two sources, so there is nothing to compare.
+
 ## [2.3.1] - 2026-11-22
 
 ### Fixed

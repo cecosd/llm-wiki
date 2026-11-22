@@ -342,7 +342,7 @@ const HomeView = defineComponent({
   template: '#tpl-home',
   props: { stats: Object, pages: Array, agent: Object },
   emits: ['refresh', 'toast'],
-  data: () => ({ ...shared, drag: false, uploads: [], sorting: false, sortLog: '', uploading: false, showHistory: false }),
+  data: () => ({ ...shared, drag: false, uploads: [], sorting: false, sortLog: '', uploading: false, showHistory: false, synthTag: '' }),
   computed: {
     greeting() {
       const hr = new Date().getHours();
@@ -365,6 +365,12 @@ const HomeView = defineComponent({
     upgrading() { return this.jobsOf('upgrade'); },
     synthQueued() { return this.jobsOf('synthesis'); },
     canSynthesize() { return (this.stats.depth?.total || 0) >= 2; },
+    // the tags of the concepts, the most used first: the synthesis can be limited to one of them
+    synthTags() {
+      const n = {};
+      for (const p of this.pages || []) if (p.type === 'concept') for (const t of p.tags || []) n[t] = (n[t] || 0) + 1;
+      return Object.entries(n).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], I18N.lang));
+    },
     newInbox() { return (this.stats.inbox || []).filter((f) => !f.duplicateOf); },
     dupes() { return (this.stats.inbox || []).length - this.newInbox.length; },
     step() {
@@ -424,8 +430,9 @@ const HomeView = defineComponent({
       this.$emit('toast', r.queued ? { text: $t('{0} {1} in the upgrade queue', [r.queued, plural(r.queued, $t('source is'), $t('sources are'))]) } : { text: $t('They are already in the queue'), icon: 'alert' });
     },
     async synthesize() {
-      if (!(await this.$root.confirmClaude({ kind: 'synthesis' }))) return;
-      const r = await this.post('/api/agent/synthesis');
+      const tag = this.synthTag || undefined;
+      if (!(await this.$root.confirmClaude({ kind: 'synthesis', tag }))) return;
+      const r = await this.post('/api/agent/synthesis', { tag });
       this.$emit('toast', r.queued ? { text: $t('The synthesis is in the queue') } : { text: $t('Already in the queue'), icon: 'alert' });
     },
     onDrop(e) { this.drag = false; this.upload([...e.dataTransfer.files]); },

@@ -2048,6 +2048,11 @@
     "asking the library": "заявка към библиотеката",
     "reading the page": "четене на страницата",
     "drawing it": "изчертаване",
-    "It takes longer than usual: the library is busy with another task. The page opens by itself.": "Бави се повече от обичайното: библиотеката е заета с друга задача. Страницата се отваря сама."
+    "It takes longer than usual: the library is busy with another task. The page opens by itself.": "Бави се повече от обичайното: библиотеката е заета с друга задача. Страницата се отваря сама.",
+    "Synthesis scope": "Обхват на синтеза",
+    "A synthesis by one tag reads far fewer pages, so it costs much less.": "Синтезът по един етикет чете много по-малко страници, затова струва много по-малко.",
+    "It reads {0} concepts cited by two or more sources, {1} of their chapters, and {2} pages of index, overview, topics and comparisons.": "Чете {0} понятия с два или повече източника, {1} от главите им и {2} страници от индекса, обзора, темите и сравненията.",
+    "No concept with the tag “{0}” is cited by two or more sources: there will be no comparisons, only hubs, the overview and the gaps.": "Нито едно понятие с етикета „{0}“ не се цитира от два или повече източника: няма да има сравнения, само хъбове, обзор и празнини.",
+    "No concept is cited by two or more sources yet: there will be no comparisons, only hubs, the overview and the gaps.": "Още нито едно понятие не се цитира от два или повече източника: няма да има сравнения, само хъбове, обзор и празнини."
   }
 }
